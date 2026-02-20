@@ -6,7 +6,7 @@ import svelte from 'rollup-plugin-svelte';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export default defineConfig({
+const config = {
   root: 'widget',
   build: {
     lib: {
@@ -23,4 +23,6 @@ export default defineConfig({
       emitCss: false,
     }),
   ],
-});
+};
+
+export default defineConfig(() => config);
