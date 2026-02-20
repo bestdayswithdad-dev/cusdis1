@@ -1,4 +1,6 @@
-module.exports = {
+import svelte from "rollup-plugin-svelte";
+
+export default {
   root: "widget",
   server: {
     hmr: {
@@ -7,7 +9,7 @@ module.exports = {
     port: 3001,
   },
   plugins: [
-    require("rollup-plugin-svelte")({
+    svelte({
       emitCss: false
     }),
   ],
