@@ -1,10 +1,3 @@
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { svelte } from '@sveltejs/vite-plugin-svelte';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 export default {
   root: path.resolve(__dirname, '../widget'),
   build: {
@@ -13,13 +6,15 @@ export default {
     lib: {
       entry: path.resolve(__dirname, '../widget/index.js'),
       name: 'cusdis',
-      formats: ['umd'],
-      fileName: () => 'iframe.umd.js'
+      /* CHANGE: Use 'es' (ECMAScript Module) format for .mjs */
+      formats: ['es'], 
+      /* CHANGE: Output as the file your blog is already fetching */
+      fileName: () => 'cusdis.es.mjs' 
     }
   },
   plugins: [
     svelte({
-      emitCss: false,
+      emitCss: true,
     }),
   ],
 };
