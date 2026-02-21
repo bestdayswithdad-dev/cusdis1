@@ -517,7 +517,7 @@
           p(n, "class", "px-1"),
           p(o, "class", "mb-2 block dark:text-gray-200"),
           p(o, "for", "email"),
-          p(u, "id", "email"), p(u, "name", "email")
+          p(u, "id", "email"), p(u, "name", "email"),
           p(
             u,
             "class",
@@ -567,6 +567,7 @@
           d(k, m),
           J(m, t[0]),
           d(e, S),
+          d(e, N),
           d(e, N),
           d(N, $),
           d($, L),
