@@ -14,12 +14,12 @@ export default {
       entry: path.resolve(__dirname, '../widget/index.js'),
       name: 'cusdis',
       formats: ['umd'],
-      fileName: () => 'iframe.umd.js'
+      fileName: () => 'iframe.umd.js')
     }
   },
   plugins: [
     svelte({
-      emitCss: false,
+      emitCss: true,
     }),
   ],
 };
