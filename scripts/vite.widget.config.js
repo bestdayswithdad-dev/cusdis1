@@ -7,16 +7,16 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export default defineConfig({
-  root: 'widget',
+  root: path.resolve(__dirname, '../widget'),
   build: {
+    outDir: path.resolve(__dirname, '../public/js'),
+    emptyOutDir: false,
     lib: {
-      entry: path.resolve(__dirname, '..', 'widget', 'index.js'),
+      entry: path.resolve(__dirname, '../widget/index.js'),
       name: 'cusdis',
-      fileName: 'cusdis',
-      formats: ['umd']
-    },
-    outDir: path.resolve(__dirname, '..', 'public', 'js'),
-    emptyOutDir: false
+      formats: ['umd'],
+      fileName: () => 'iframe.umd.js'
+    }
   },
   plugins: [
     svelte({
