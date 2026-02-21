@@ -1,8 +1,7 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
-import svelte from 'rollup-plugin-svelte';
+import { svelte } from '@sveltejs/vite-plugin-svelte';
 
-// Re-creating __dirname for Node 20 ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
