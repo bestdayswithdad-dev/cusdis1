@@ -11,8 +11,11 @@ export default {
     lib: {
       entry: path.resolve(__dirname, '..', 'widget', 'sdk.js'),
       name: 'cusdis',
+      fileName: 'cusdis.es',
+      formats: ['es'],
     },
-    outDir: path.resolve(__dirname, '..', 'widget', 'dist'),
+    outDir: path.resolve(__dirname, '..', 'public', 'js'),
+    emptyOutDir: false,
   },
   plugins: [
     svelte({
