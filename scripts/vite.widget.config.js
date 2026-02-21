@@ -19,7 +19,7 @@ export default {
   },
   plugins: [
     svelte({
-      emitCss: true,
+      emitCss: false,
     }),
   ],
 };
