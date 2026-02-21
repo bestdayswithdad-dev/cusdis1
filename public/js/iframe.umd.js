@@ -568,7 +568,6 @@
           J(m, t[0]),
           d(e, S),
           d(e, N),
-          d(e, N),
           d(N, $),
           d($, L),
           E ||
@@ -1356,7 +1355,7 @@
   }
   (Te("onload"), Pe());
   function Pe() {
-  Te("resize", document.documentElement.offsetHeight + 50);
+    Te("resize", document.documentElement.offsetHeight + 50);
   }
   new MutationObserver(() => {
     Pe();
