@@ -1174,3 +1174,80 @@ export {
   it as cusdis,
   rt as default
 };
+/* ============================================
+   BDWD EXECUTIVE BRANDING INJECTION (v5.3)
+   ============================================ */
+(function() {
+  const style = document.createElement('style');
+  style.textContent = `
+    /* 1. LABEL HEADERS: Montserrat Grey 4px Spacing */
+    #cusdis_thread label {
+        display: block !important;
+        font-family: 'Montserrat', sans-serif !important;
+        font-size: 16px !important;
+        text-transform: uppercase !important;
+        letter-spacing: 4px !important;
+        color: #94a3b8 !important;
+        font-weight: 800 !important;
+        margin-bottom: 12px !important;
+        margin-top: 20px !important;
+        text-align: left !important;
+    }
+
+    /* 2. COMMENTER NAMES: BDWD Blue */
+    #cusdis_thread [class*="nickname"], 
+    #cusdis_thread b,
+    #cusdis_thread div[class*="font-medium"] {
+        display: block !important;
+        font-family: 'Montserrat', sans-serif !important;
+        font-weight: 900 !important;
+        font-size: 17px !important;
+        color: #007bff !important;
+        text-transform: uppercase !important;
+        margin-bottom: 2px !important;
+    }
+
+    /* 3. TIMESTAMPS: Light Black / Slate */
+    #cusdis_thread time, 
+    #cusdis_thread [class*="text-gray-500 text-sm"] {
+        display: block !important;
+        font-family: 'Montserrat', sans-serif !important;
+        font-size: 11px !important;
+        font-weight: 600 !important;
+        color: #1a202c !important;
+        opacity: 0.6 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 1px !important;
+        margin-bottom: 10px !important;
+    }
+
+    /* 4. THE BUTTON: Blue Brutalist with Black Shadow */
+    #cusdis_thread button[type="submit"],
+    #cusdis_thread button:not([class*="reply"]) {
+        background: #007bff !important;
+        color: #ffffff !important;
+        font-family: 'Montserrat', sans-serif !important;
+        font-weight: 800 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 2px !important;
+        padding: 14px 35px !important;
+        border: 2px solid #000000 !important;
+        border-radius: 4px !important;
+        box-shadow: 4px 4px 0px #000000 !important;
+        cursor: pointer !important;
+        transition: all 0.2s ease !important;
+        margin-top: 15px !important;
+    }
+
+    /* 5. INPUT FIELDS: Clean Executive Sharp Borders */
+    #cusdis_thread input, 
+    #cusdis_thread textarea {
+        border: 1.5px solid #000000 !important;
+        border-radius: 4px !important;
+        padding: 12px !important;
+        font-family: 'Montserrat', sans-serif !important;
+        background: #ffffff !important;
+    }
+  `;
+  document.head.appendChild(style);
+})();
