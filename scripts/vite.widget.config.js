@@ -1,6 +1,6 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
-import svelte from 'rollup-plugin-svelte';
+import { svelte } from '@sveltejs/vite-plugin-svelte';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
