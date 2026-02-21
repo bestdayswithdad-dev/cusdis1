@@ -1,3 +1,51 @@
+(function() {
+  const style = document.createElement('style');
+  style.textContent = `
+    /* 1. LABEL HEADERS: Montserrat Grey 4px Spacing */
+    #cusdis_thread label {
+        display: block !important;
+        font-family: 'Montserrat', sans-serif !important;
+        font-size: 16px !important;
+        text-transform: uppercase !important;
+        letter-spacing: 4px !important;
+        color: #94a3b8 !important;
+        font-weight: 800 !important;
+        margin-bottom: 12px !important;
+        margin-top: 20px !important;
+    }
+    /* 2. COMMENTER NAMES: BDWD Blue */
+    #cusdis_thread [class*="nickname"], #cusdis_thread b {
+        display: block !important;
+        font-family: 'Montserrat', sans-serif !important;
+        font-weight: 900 !important;
+        font-size: 17px !important;
+        color: #007bff !important;
+        text-transform: uppercase !important;
+        margin-bottom: 2px !important;
+    }
+    /* 3. TIMESTAMPS: Light Black */
+    #cusdis_thread time, #cusdis_thread [class*="date"] {
+        display: block !important;
+        font-size: 11px !important;
+        font-weight: 600 !important;
+        color: rgba(26, 32, 44, 0.6) !important;
+        text-transform: uppercase !important;
+        letter-spacing: 1px !important;
+    }
+    /* 4. THE BUTTON: Brutalist Blue */
+    #cusdis_thread button[type="submit"] {
+        background: #007bff !important;
+        color: #ffffff !important;
+        font-weight: 800 !important;
+        text-transform: uppercase !important;
+        border: 2px solid #000 !important;
+        box-shadow: 4px 4px 0px #000 !important;
+        padding: 12px 30px !important;
+        cursor: pointer !important;
+    }
+  `;
+  document.head.appendChild(style);
+})();
 (function (R) {
   typeof define == "function" && define.amd ? define(R) : R();
 })(function () {
