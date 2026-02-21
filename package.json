@@ -1,5 +1,6 @@
 {
   "name": "cusdis",
+  "type": "module",
   "scripts": {
     "dev": "DB_TYPE=sqlite npm run dev:general",
     "dev:pg": "DB_TYPE=pgsql npm run dev:general",
