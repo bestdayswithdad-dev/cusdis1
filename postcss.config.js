@@ -1,4 +1,4 @@
-module.exports = {
+export default {
   plugins: {
     tailwindcss: {
       purge: ['widget/**/*.svelte', 'widget/theme.css'],
