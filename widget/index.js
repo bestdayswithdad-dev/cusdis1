@@ -75,7 +75,7 @@ function listenEvent(iframe, target) {
             break
           case 'resize':
             {
-              iframe.style.height = msg.data + 'px'
+              iframe.style.height = (msg.data + 50) + 'px'; iframe.style.overflow = 'hidden';
             }
             break
         }
