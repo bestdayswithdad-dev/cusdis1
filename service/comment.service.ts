@@ -179,18 +179,15 @@ async addComment(
       pageUrl: body.pageUrl,
     })
 
-// 1. The "Wildcard" Lookup: Find ANY user that matches this email and is verified
+// Look for ANY user that matches the email and is verified. 
+    // No hardcoded emails are used here.
     const verifiedUser = await prisma.user.findFirst({
       where: {
         email: body.email.toLowerCase(),
-        OR: [
-          { emailVerified: { not: null } },
-          { email_verified: { not: null } }
-        ]
+        emailVerified: { not: null } 
       }
     });
 
-    // 2. The Approval Switch: Approve if a verified user was found
     const shouldAutoApprove = !!verifiedUser;
 
     const created = await prisma.comment.create({
