@@ -179,16 +179,31 @@ async addComment(
       pageUrl: body.pageUrl,
     })
 
-// Check if the commenter is a Verified Member
+// 1. The "Wildcard" Lookup: Find ANY user that matches this email and is verified
     const verifiedUser = await prisma.user.findFirst({
       where: {
-        email: body.email,
-        emailVerified: { not: null } // Change email_verified to emailVerified
+        email: body.email.toLowerCase(),
+        OR: [
+          { emailVerified: { not: null } },
+          { email_verified: { not: null } }
+        ]
       }
     });
 
-    // 3. Auto-approve if they are verified OR if it's your admin email
-    const shouldAutoApprove = !!verifiedUser || body.email === 'adambrokensha@gmail.com';
+    // 2. The Approval Switch: Approve if a verified user was found
+    const shouldAutoApprove = !!verifiedUser;
+
+    const created = await prisma.comment.create({
+      data: {
+        content: body.content,
+        by_email: body.email.toLowerCase(),
+        // 3. Dynamic Name: Use their official account name, fallback to what they typed
+        by_nickname: verifiedUser?.name || body.nickname, 
+        pageId: page.id,
+        parentId,
+        approved: shouldAutoApprove, 
+      },
+    })
 
     // 4. Create the comment with the approval status baked in
     const created = await prisma.comment.create({
