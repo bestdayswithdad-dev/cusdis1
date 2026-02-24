@@ -202,17 +202,7 @@ async addComment(
       },
     })
 
-    // 4. Create the comment with the approval status baked in
-    const created = await prisma.comment.create({
-      data: {
-        content: body.content,
-        by_email: body.email,
-        by_nickname: verifiedUser?.name || body.nickname, // Use their profile name if available
-        pageId: page.id,
-        parentId,
-        approved: shouldAutoApprove, 
-      },
-    })
+ 
 
     this.hookService.addComment(created, projectId)
 
