@@ -161,7 +161,7 @@ export class CommentService extends RequestScopeService {
     return res.page.project
   }
 
-  async addComment(
+async addComment(
     projectId: string,
     pageSlug: string,
     body: {
@@ -173,19 +173,32 @@ export class CommentService extends RequestScopeService {
     },
     parentId?: string,
   ) {
-    // touch page
+    // 1. Ensure the page exists in the database
     const page = await this.pageService.upsertPage(pageSlug, projectId, {
       pageTitle: body.pageTitle,
       pageUrl: body.pageUrl,
     })
 
+    // 2. Check if the commenter is a Verified Member in your users table
+    const verifiedUser = await prisma.user.findFirst({
+      where: {
+        email: body.email,
+        email_verified: { not: null }
+      }
+    });
+
+    // 3. Auto-approve if they are verified OR if it's your admin email
+    const shouldAutoApprove = !!verifiedUser || body.email === 'adambrokensha@gmail.com';
+
+    // 4. Create the comment with the approval status baked in
     const created = await prisma.comment.create({
       data: {
         content: body.content,
         by_email: body.email,
-        by_nickname: body.nickname,
+        by_nickname: verifiedUser?.name || body.nickname, // Use their profile name if available
         pageId: page.id,
         parentId,
+        approved: shouldAutoApprove, 
       },
     })
 
