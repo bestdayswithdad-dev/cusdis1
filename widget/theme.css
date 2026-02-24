@@ -1,6 +1,7 @@
-export default {
-  plugins: {
-    tailwindcss: {},
-    autoprefixer: {},
-  },
+:root {
+  --cusdis-primary-color: #007bff;
+}
+
+body {
+  background-color: transparent;
 }
