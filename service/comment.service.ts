@@ -179,11 +179,11 @@ async addComment(
       pageUrl: body.pageUrl,
     })
 
-    // 2. Check if the commenter is a Verified Member in your users table
+// Check if the commenter is a Verified Member
     const verifiedUser = await prisma.user.findFirst({
       where: {
         email: body.email,
-        email_verified: { not: null }
+        emailVerified: { not: null } // Change email_verified to emailVerified
       }
     });
 
