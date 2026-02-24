@@ -1,4 +1,4 @@
-module.exports = {
+export default {
   content: [
     './widget/**/*.svelte',
     './widget/**/*.html',
