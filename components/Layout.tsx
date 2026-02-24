@@ -76,7 +76,7 @@ export function MainLayout(props: {
     }
   })
 
-  const updateNewCommentNotification = useMutation(updateUserSettings, {
+const updateNewCommentNotification = trpc.user.updateSettings.useMutation();
     onSuccess() {
       notifications.show({
         title: 'Success',
