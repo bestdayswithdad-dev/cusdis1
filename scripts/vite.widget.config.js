@@ -13,8 +13,8 @@ export default {
     lib: {
       entry: path.resolve(__dirname, '../widget/index.js'),
       name: 'cusdis',
-      formats: ['umd'],
-      fileName: () => 'iframe.umd.js'
+      formats: ['es'], 
+      fileName: () => 'cusdis.es.mjs' 
     }
   },
   plugins: [
