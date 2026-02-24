@@ -173,38 +173,42 @@ async addComment(
     },
     parentId?: string,
   ) {
-    // 1. Ensure the page exists in the database
     const page = await this.pageService.upsertPage(pageSlug, projectId, {
       pageTitle: body.pageTitle,
       pageUrl: body.pageUrl,
     })
 
-// Look for ANY user that matches the email and is verified. 
-    // No hardcoded emails are used here.
-    const verifiedUser = await prisma.user.findFirst({
-      where: {
-        email: body.email.toLowerCase(),
-        emailVerified: { not: null } 
-      }
-    });
+    let shouldAutoApprove = false;
 
-    const shouldAutoApprove = !!verifiedUser;
+    // Wrap the check in a try/catch so a DB mismatch doesn't crash the site
+    try {
+      const verifiedUser = await prisma.user.findFirst({
+        where: {
+          email: body.email.toLowerCase(),
+          emailVerified: { not: null }
+        }
+      });
+      if (verifiedUser) {
+        shouldAutoApprove = true;
+      }
+    } catch (e) {
+      console.error("Verification check failed, defaulting to pending", e);
+    }
 
     const created = await prisma.comment.create({
       data: {
         content: body.content,
         by_email: body.email.toLowerCase(),
-        // 3. Dynamic Name: Use their official account name, fallback to what they typed
-        by_nickname: verifiedUser?.name || body.nickname, 
+        by_nickname: body.nickname, 
         pageId: page.id,
         parentId,
         approved: shouldAutoApprove, 
       },
     })
 
- 
-
-    this.hookService.addComment(created, projectId)
+    if (this.hookService) {
+      this.hookService.addComment(created, projectId)
+    }
 
     return created
   }
