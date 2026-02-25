@@ -58,13 +58,11 @@ model User {
   updatedAt     DateTime  @default(now()) @map(name: "updated_at")
 
   projects Project[]
+  Comment  Comment[]
+  subscription Subscription?  
 
-  Comment Comment[]
-
-  subscription Subscription?
-
-  enableNotifications Boolean? @default(true) @map(name: "enable_notifications")
-  notificationEmail   String?  @map(name: "notification_email")  
+  enableNotifications Boolean? @default(true) @map(name: "enable_new_comment_notification")
+  notificationEmail   String?  @map(name: "notification_email")
 
   usage Usage[]
 
@@ -190,5 +188,8 @@ model Usage {
   @@unique([userId, label])
 
   @@map("usages")
+<<<<<<< HEAD
 @@schema("public")
+=======
+>>>>>>> 1abff063fb84b60a43612b7285ec2a01d2f5a60a
 }

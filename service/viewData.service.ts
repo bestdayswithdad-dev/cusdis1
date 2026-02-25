@@ -19,7 +19,7 @@ export class ViewDataService extends RequestScopeService {
       },
       select: {
         notificationEmail: true,
-        enableNewCommentNotification: true,
+       enableNotifications: true,
         name: true,
         email: true,
         displayName: true

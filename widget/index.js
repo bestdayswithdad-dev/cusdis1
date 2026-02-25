@@ -1,3 +1,15 @@
+const style = document.createElement('style');
+style.textContent = `
+  /* 1. THE LABELS: Montserrat Grey 4px Spacing */
+  #cusdis_thread label { font-family: Montserrat!important; font-size: 16px!important; text-transform: uppercase!important; letter-spacing: 4px!important; color: #94a3b8!important; font-weight: 800!important; margin-bottom: 12px!important; display: block!important; }
+  
+  /* 2. THE NAMES: Executive Blue 900 Weight */
+  #cusdis_thread [class*="nickname"], #cusdis_thread b { color: #007bff!important; font-weight: 900!important; font-size: 17px!important; text-transform: uppercase!important; }
+  
+  /* 3. THE BUTTON: Blue Brutalist with Black Shadow */
+  #cusdis_thread button[type="submit"] { background: #007bff!important; color: #fff!important; border: 2px solid #000!important; box-shadow: 4px 4px 0px #000!important; font-weight: 800!important; text-transform: uppercase!important; padding: 12px 30px!important; cursor: pointer!important; }
+`;
+document.head.appendChild(style);
 window.CUSDIS = {}
 
 const makeIframeContent = (target) => {

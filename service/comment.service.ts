@@ -161,7 +161,7 @@ export class CommentService extends RequestScopeService {
     return res.page.project
   }
 
-  async addComment(
+async addComment(
     projectId: string,
     pageSlug: string,
     body: {
@@ -173,23 +173,42 @@ export class CommentService extends RequestScopeService {
     },
     parentId?: string,
   ) {
-    // touch page
     const page = await this.pageService.upsertPage(pageSlug, projectId, {
       pageTitle: body.pageTitle,
       pageUrl: body.pageUrl,
     })
 
+    let shouldAutoApprove = false;
+
+    // Wrap the check in a try/catch so a DB mismatch doesn't crash the site
+    try {
+      const verifiedUser = await prisma.user.findFirst({
+        where: {
+          email: body.email.toLowerCase(),
+          emailVerified: { not: null }
+        }
+      });
+      if (verifiedUser) {
+        shouldAutoApprove = true;
+      }
+    } catch (e) {
+      console.error("Verification check failed, defaulting to pending", e);
+    }
+
     const created = await prisma.comment.create({
       data: {
         content: body.content,
-        by_email: body.email,
-        by_nickname: body.nickname,
+        by_email: body.email.toLowerCase(),
+        by_nickname: body.nickname, 
         pageId: page.id,
         parentId,
+        approved: shouldAutoApprove, 
       },
     })
 
-    this.hookService.addComment(created, projectId)
+    if (this.hookService) {
+      this.hookService.addComment(created, projectId)
+    }
 
     return created
   }

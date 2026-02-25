@@ -30,7 +30,8 @@ export class NotificationService extends RequestScopeService {
           select: {
             id: true,
             email: true,
-            enableNewCommentNotification: true,
+            // CHANGED: matched with new schema name
+            enableNotifications: true,
             notificationEmail: true,
           },
         },
@@ -64,7 +65,8 @@ export class NotificationService extends RequestScopeService {
     const notificationEmail =
       project.owner.notificationEmail || project.owner.email
 
-    if (project.owner.enableNewCommentNotification) {
+    // CHANGED: matched with new schema name
+    if (project.owner.enableNotifications) {
       let unsubscribeToken = this.tokenService.genUnsubscribeNewCommentToken(
         project.owner.id,
       )

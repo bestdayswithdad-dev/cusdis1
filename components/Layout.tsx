@@ -16,7 +16,6 @@ import { Head } from "./Head"
 import dayjs from "dayjs"
 import { usageLimitation } from "../config.common"
 
-// From https://stackoverflow.com/questions/46155/how-to-validate-an-email-address-in-javascript
 function validateEmail(email) {
   if (email === '') {
     return true
@@ -25,15 +24,16 @@ function validateEmail(email) {
   return re.test(String(email).toLowerCase());
 }
 
+// Fixed naming to match pgsql/schema.prisma
 const updateUserSettings = async (params: {
   notificationEmail?: string,
-  enableNewCommentNotification?: boolean,
+  enableNotifications?: boolean,
   displayName?: string,
 }) => {
   const res = await apiClient.put(`/user`, {
     displayName: params.displayName,
     notificationEmail: params.notificationEmail,
-    enableNewCommentNotification: params.enableNewCommentNotification,
+    enableNotifications: params.enableNotifications,
   })
   return res.data
 }
@@ -57,6 +57,23 @@ export function MainLayout(props: {
     },
   })
 
+  const updateUserSettingsMutation = useMutation(updateUserSettings, {
+    onSuccess() {
+      notifications.show({
+        title: 'Success',
+        message: 'User settings updated',
+        color: 'green'
+      })
+    },
+    onError() {
+      notifications.show({
+        title: 'Error',
+        message: 'Something went wrong',
+        color: 'red'
+      })
+    }
+  })
+
   const downgradePlanMutation = useMutation(async () => {
     await apiClient.delete('/subscription')
   }, {
@@ -71,39 +88,6 @@ export function MainLayout(props: {
       notifications.show({
         title: 'Error',
         message: 'Something went wrong, please contact hi@cusdis.com',
-        color: 'red'
-      })
-    }
-  })
-
-  const updateNewCommentNotification = useMutation(updateUserSettings, {
-    onSuccess() {
-      notifications.show({
-        title: 'Success',
-        message: 'User settings updated',
-        color: 'green'
-      })
-    },
-    onError() {
-      notifications.show({
-        title: 'Error',
-        message: 'Something went wrong',
-        color: 'red'
-      })
-    }
-  })
-  const updateUserSettingsMutation = useMutation(updateUserSettings, {
-    onSuccess() {
-      notifications.show({
-        title: 'Success',
-        message: 'User settings updated',
-        color: 'green'
-      })
-    },
-    onError() {
-      notifications.show({
-        title: 'Error',
-        message: 'Something went wrong',
         color: 'red'
       })
     }
@@ -127,7 +111,6 @@ export function MainLayout(props: {
 
   const projectId = router.query.projectId as string
 
-  // should memo
   const ProjectMenu = React.useCallback(() => {
     return <Menu>
       <Menu.Target>
@@ -158,16 +141,9 @@ export function MainLayout(props: {
 
   const Menubar = React.useMemo(() => {
     const styles = {
-      root: {
-        borderRadius: 4
-      },
-      label: {
-        fontWeight: 500 as any,
-        color: '#343A40'
-      },
-      icon: {
-        color: '#343A40'
-      }
+      root: { borderRadius: 4 },
+      label: { fontWeight: 500 as any, color: '#343A40' },
+      icon: { color: '#343A40' }
     }
     return (
       <Stack>
@@ -183,7 +159,6 @@ export function MainLayout(props: {
           <NavLink component="a" href="/doc" target={'_blank'} label="Documentation" icon={<AiOutlineFileText />}>
           </NavLink>
         </Stack>
-
       </Stack>
     )
   }, [])
@@ -196,28 +171,19 @@ export function MainLayout(props: {
   data-page-url="{{ PAGE_URL }}"
   data-page-title="{{ PAGE_TITLE }}"
 ></div>
-<script async defer src="${location.origin}/js/cusdis.es.js"></script>
-`
+<script async defer src="${location.origin}/js/cusdis.es.js"></script>`
 
     modals.openConfirmModal({
       title: "Embeded Code",
       closeOnConfirm: false,
-      labels: {
-        cancel: 'Cancel',
-        confirm: 'Copy'
-      },
+      labels: { cancel: 'Cancel', confirm: 'Copy' },
       onConfirm() {
         clipboard.copy(code)
-        notifications.show({
-          title: 'Copy',
-          message: 'copied'
-        })
+        notifications.show({ title: 'Copy', message: 'copied' })
       },
       children: (
         <Stack>
-          <Code block>
-            {code}
-          </Code>
+          <Code block>{code}</Code>
           <Anchor size="sm" href="/doc#/advanced/sdk" target={'_blank'}>
             <Group spacing={4} align='center'>
               <AiOutlineQuestionCircle />
@@ -230,43 +196,31 @@ export function MainLayout(props: {
   }, [])
 
   const badge = React.useMemo(() => {
-    if (props.subscription.isActived) {
-      return <Badge color="green" size="xs">PRO</Badge>
-    }
-
-    if (!props.config.isHosted) {
-      return <Badge color="gray" size="xs">OSS</Badge>
-    }
+    if (props.subscription.isActived) return <Badge color="green" size="xs">PRO</Badge>
+    if (!props.config.isHosted) return <Badge color="gray" size="xs">OSS</Badge>
     return <Badge color="green" size="xs">FREE</Badge>
   }, [])
 
   const header = React.useMemo(() => {
     return (
-      <Group mx="md" sx={{
-        height: '100%',
-        justifyContent: 'space-between'
-      }}>
+      <Group mx="md" sx={{ height: '100%', justifyContent: 'space-between' }}>
         <Group>
           <Group>
             <Title order={3} style={{ fontWeight: 'bold' }}>
-              <Anchor href="/">
-                Cusdis
-              </Anchor>
+              <Anchor href="/">Cusdis</Anchor>
             </Title>
             <ProjectMenu />
           </Group>
-          <Group sx={{
-            // height: '100%'
-          }}>
+          <Group>
             <Button leftIcon={<AiOutlineCode />} onClick={openEmbededCodeModal} size="xs" variant={'outline'}>
               Embeded code
             </Button>
           </Group>
         </Group>
         <Group spacing={4}>
-          <Button onClick={_ => {
-            openUserModal()
-          }} size="xs" rightIcon={<AiOutlineRight />} variant='subtle'>{props.session.user.name} {badge}</Button>
+          <Button onClick={openUserModal} size="xs" rightIcon={<AiOutlineRight />} variant='subtle'>
+            {props.session.user.name} {badge}
+          </Button>
         </Group>
       </Group>
     )
@@ -275,28 +229,19 @@ export function MainLayout(props: {
   const usageBoard = React.useMemo(() => {
     return (
       <>
-        <Text size="sm" weight={900}>
-          Usage (per month)
-        </Text>
+        <Text size="sm" weight={900}>Usage (per month)</Text>
         <Stack spacing={4}>
           <Group spacing={4}>
             <Text weight={500} size="sm">Sites:</Text>
-            <Text size='sm'>
-              {`${props.usage.projectCount} / ${usageLimitation['create_site']}`}
-            </Text>
+            <Text size='sm'>{`${props.usage.projectCount} / ${usageLimitation['create_site']}`}</Text>
           </Group>
-          
           <Group spacing={4}>
             <Text weight={500} size="sm">Approve comments:</Text>
-            <Text size='sm'>
-              {`${props.usage.approveCommentUsage} / ${usageLimitation['approve_comment']}`}
-            </Text>
+            <Text size='sm'>{`${props.usage.approveCommentUsage} / ${usageLimitation['approve_comment']}`}</Text>
           </Group>
           <Group spacing={4}>
             <Text weight={500} size="sm">Quick Approve:</Text>
-            <Text size='sm'>
-              {`${props.usage.quickApproveUsage} / ${usageLimitation['quick_approve']}`}
-            </Text>
+            <Text size='sm'>{`${props.usage.quickApproveUsage} / ${usageLimitation['quick_approve']}`}</Text>
           </Group>
         </Stack>
       </>
@@ -308,29 +253,14 @@ export function MainLayout(props: {
       <Head title={`${props.project.title} - Cusdis`} />
       <AppShell
         fixed={false}
-        navbar={<Navbar sx={{
-        }} width={{
-          base: 240,
-        }}>
-          {Menubar}
-        </Navbar>}
-        header={
-          <Header height={48}>
-            {header}
-          </Header>
-        }
+        navbar={<Navbar width={{ base: 240 }}>{Menubar}</Navbar>}
+        header={<Header height={48}>{header}</Header>}
         styles={{
-          body: {
-            backgroundColor: '#f5f5f5',
-          },
-          main: {
-            overflow: 'scroll'
-          }
+          body: { backgroundColor: '#f5f5f5' },
+          main: { overflow: 'scroll' }
         }}
       >
-        <Modal opened={isUserPannelOpen} size="lg" onClose={closeUserModal}
-          title="User Settings"
-        >
+        <Modal opened={isUserPannelOpen} size="lg" onClose={closeUserModal} title="User Settings">
           <Stack>
             <Stack spacing={8}>
               <Text weight={500} size="sm">Username</Text>
@@ -343,11 +273,15 @@ export function MainLayout(props: {
             <Stack spacing={8}>
               <Text weight={500} size="sm">Email (for notification)</Text>
               <TextInput placeholder={props.userInfo.email} {...userSettingsForm.register("notificationEmail")} size="sm" />
-              <Switch defaultChecked={props.userInfo.enableNewCommentNotification} onChange={e => {
-                updateNewCommentNotification.mutate({
-                  enableNewCommentNotification: e.target.checked
-                })
-              }} label="Enable notification" />
+              <Switch 
+                defaultChecked={props.userInfo.enableNotifications} 
+                onChange={e => {
+                  updateUserSettingsMutation.mutate({
+                    enableNotifications: e.target.checked 
+                  })
+                }} 
+                label="Enable notification" 
+              />
             </Stack>
             <Stack spacing={8}>
               <Text weight={500} size="sm">Display name</Text>
@@ -360,25 +294,13 @@ export function MainLayout(props: {
                   <Text weight={900} size="sm">Subscription </Text>
                   <Grid>
                     <Grid.Col span={6}>
-                      <Paper sx={theme => ({
-                        border: '1px solid #eaeaea',
-                        padding: theme.spacing.md
-                      })}>
+                      <Paper sx={theme => ({ border: '1px solid #eaeaea', padding: theme.spacing.md })}>
                         <Stack>
-                          <Title order={4}>
-                            Free
-                          </Title>
-                          <List size='sm' sx={{
-                          }}>
-                            <List.Item>
-                              Up to 1 site
-                            </List.Item>
-                            <List.Item>
-                              10 Quick Approve / month
-                            </List.Item>
-                            <List.Item>
-                              100 approved comments / month
-                            </List.Item>
+                          <Title order={4}>Free</Title>
+                          <List size='sm'>
+                            <List.Item>Up to 1 site</List.Item>
+                            <List.Item>10 Quick Approve / month</List.Item>
+                            <List.Item>100 approved comments / month</List.Item>
                           </List>
                           {!props.subscription.isActived || props.subscription.status === 'cancelled' ? (
                             <Button disabled size="xs">Current plan</Button>
@@ -393,25 +315,13 @@ export function MainLayout(props: {
                       </Paper>
                     </Grid.Col>
                     <Grid.Col span={6}>
-                      <Paper sx={theme => ({
-                        border: '1px solid #eaeaea',
-                        padding: theme.spacing.md
-                      })}>
+                      <Paper sx={theme => ({ border: '1px solid #eaeaea', padding: theme.spacing.md })}>
                         <Stack>
-                          <Title order={4}>
-                            Pro
-                          </Title>
-                          <List size='sm' sx={{
-                          }}>
-                            <List.Item>
-                              Unlimited sites
-                            </List.Item>
-                            <List.Item>
-                              Unlimited Quick Approve
-                            </List.Item>
-                            <List.Item>
-                              Unlimited approved comments
-                            </List.Item>
+                          <Title order={4}>Pro</Title>
+                          <List size='sm'>
+                            <List.Item>Unlimited sites</List.Item>
+                            <List.Item>Unlimited Quick Approve</List.Item>
+                            <List.Item>Unlimited approved comments</List.Item>
                           </List>
                           {props.subscription.isActived ? (
                             <>
@@ -429,9 +339,7 @@ export function MainLayout(props: {
               </>
             )}
             <Button loading={updateUserSettingsMutation.isLoading} onClick={onClickSaveUserSettings}>Save</Button>
-            <Button onClick={_ => signOut()} variant={'outline'} color='red'>
-              Logout
-            </Button>
+            <Button onClick={_ => signOut()} variant={'outline'} color='red'>Logout</Button>
           </Stack>
         </Modal>
         {props.children}

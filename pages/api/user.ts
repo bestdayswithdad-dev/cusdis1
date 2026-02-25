@@ -1,37 +1,29 @@
-import { NextApiRequest, NextApiResponse } from "next";
-import { AuthService } from "../../service/auth.service";
 import { UserService } from "../../service/user.service";
+import { getSession } from "../../utils.server";
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-
-  const userService = new UserService(req)
-  const authService = new AuthService(req, res)
-
-  if (req.method === 'PUT') {
-    const {
-      notificationEmail,
-      enableNewCommentNotification,
-      displayName
-    } = req.body as {
-      notificationEmail?: string
-      enableNewCommentNotification?: boolean,
-      displayName?: string
-    }
-
-    const user = await authService.authGuard()
-
-    if (!user) {
-      return
-    }
-
-    await userService.update(user.uid, {
-      enableNewCommentNotification,
-      notificationEmail,
-      displayName
-    })
-
-    res.json({
-      message: 'success'
-    })
+export default async function handler(req, res) {
+  // 1. Get the session to find the 'user'
+  const session = await getSession(req);
+  if (!session) {
+    return res.status(401).send("Unauthorized");
   }
+
+  const userService = new UserService(req);
+
+  // 2. Correctly destructure the renamed field
+  const { 
+    displayName, 
+    notificationEmail, 
+    enableNotifications 
+  } = req.body;
+
+  // 3. Use 'session.uid' instead of the missing 'user.uid'
+  await userService.update(session.uid, {
+    enableNotifications,
+    notificationEmail,
+    displayName
+  });
+
+  return res.status(200).json({ success: true });
 }
+
