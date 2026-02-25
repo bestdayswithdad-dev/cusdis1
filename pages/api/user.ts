@@ -8,27 +8,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const authService = new AuthService(req, res)
 
   if (req.method === 'PUT') {
-    const {
-      notificationEmail,
-      enableNewCommentNotification,
-      displayName
-    } = req.body as {
-      notificationEmail?: string
-      enableNewCommentNotification?: boolean,
-      displayName?: string
-    }
+   // 1. Update the destructuring at the top of the handler
+const { 
+  displayName, 
+  notificationEmail, 
+  enableCommentNotifications // RENAME THIS from enableNewCommentNotification
+} = req.body
 
-    const user = await authService.authGuard()
+// ... some code ...
 
-    if (!user) {
-      return
-    }
-
-    await userService.update(user.uid, {
-      enableNewCommentNotification,
-      notificationEmail,
-      displayName
-    })
+// 2. Update the call to the user service (Line 28)
+await userService.update(user.uid, {
+  enableCommentNotifications, // RENAME THIS from enableNewCommentNotification
+  notificationEmail,
+  displayName
+})
 
     res.json({
       message: 'success'
