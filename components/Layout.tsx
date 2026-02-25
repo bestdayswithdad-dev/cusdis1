@@ -331,12 +331,11 @@ const downgradePlanMutation = useMutation(async () => {
             <Stack spacing={8}>
               <Text weight={500} size="sm">Email (for notification)</Text>
               <TextInput placeholder={props.userInfo.email} {...userSettingsForm.register("notificationEmail")} size="sm" />
-            <Switch 
-  defaultChecked={props.userInfo.enableCommentNotifications} 
+<Switch 
+  defaultChecked={props.userInfo.enableNotifications} // Change this
   onChange={e => {
-    // Change this from 'updateNewCommentNotification' to 'updateUserSettingsMutation'
     updateUserSettingsMutation.mutate({
-      enableCommentNotifications: e.target.checked
+      enableNotifications: e.target.checked // And change this
     })
   }} 
   label="Enable notification" 
