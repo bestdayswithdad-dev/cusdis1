@@ -1,6 +1,6 @@
 import { Comment } from '@prisma/client'
 import { RequestScopeService } from '.'
-import { getSession, prisma, resolvedConfig } from '../utils.server'
+import { prisma, resolvedConfig } from '../utils.server'
 import { UserService } from './user.service'
 import { markdown } from './comment.service'
 import { TokenService } from './token.service'
@@ -19,7 +19,7 @@ export class NotificationService extends RequestScopeService {
       return
     }
 
-    // check if user enable notify
+    // check if project exists and fetch owner info
     const project = await prisma.project.findUnique({
       where: {
         id: projectId,
@@ -30,15 +30,17 @@ export class NotificationService extends RequestScopeService {
           select: {
             id: true,
             email: true,
-            // CHANGED: matched with new schema name
-            enableNotifications: true,
-            notificationEmail: true,
           },
         },
       },
     })
 
-    // don't notify if disable in project settings
+    // Safety check if project or owner is missing
+    if (!project || !project.owner) {
+      return
+    }
+
+    // don't notify if disabled in project settings
     if (!project.enableNotification) {
       return
     }
@@ -62,11 +64,11 @@ export class NotificationService extends RequestScopeService {
       },
     })
 
-    const notificationEmail =
-      project.owner.notificationEmail || project.owner.email
+    // Use the standard email field (Ghost column 'notificationEmail' removed)
+    const notificationEmail = project.owner.email
 
-    // CHANGED: matched with new schema name
-    if (project.owner.enableNotifications) {
+    // Only proceed if an email exists
+    if (notificationEmail) {
       let unsubscribeToken = this.tokenService.genUnsubscribeNewCommentToken(
         project.owner.id,
       )
@@ -74,7 +76,7 @@ export class NotificationService extends RequestScopeService {
       const approveToken = await this.tokenService.genApproveToken(comment.id)
 
       const msg = {
-        to: notificationEmail, // Change to your recipient
+        to: notificationEmail,
         from: resolvedConfig.smtp.senderAddress,
         subject: `New comment on "${fullComment.page.project.title}"`,
         html: makeNewCommentEmailTemplate({
@@ -88,9 +90,9 @@ export class NotificationService extends RequestScopeService {
       }
 
       try {
-        this.emailService.send(msg)
+        await this.emailService.send(msg)
       } catch (e) {
-        // TODO:
+        console.error("Notification Email Failed:", e)
       }
     }
   }
