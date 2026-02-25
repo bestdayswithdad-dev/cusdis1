@@ -188,8 +188,5 @@ model Usage {
   @@unique([userId, label])
 
   @@map("usages")
-<<<<<<< HEAD
-@@schema("public")
-=======
->>>>>>> 1abff063fb84b60a43612b7285ec2a01d2f5a60a
+
 }
