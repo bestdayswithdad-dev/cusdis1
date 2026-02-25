@@ -54,13 +54,11 @@ model User {
   updatedAt     DateTime  @default(now()) @map(name: "updated_at")
 
   projects Project[]
-
-  Comment Comment[]
-
+  Comment  Comment[]
   subscription Subscription?
 
-  enableCommentNotifications Boolean? @default(true) @map(name: "enable_new_comment_notification")
-  notificationEmail            String?  @map(name: "notification_email")
+  enableNotifications Boolean? @default(true) @map(name: "enable_new_comment_notification")
+  notificationEmail   String?  @map(name: "notification_email")
 
   usage Usage[]
 
