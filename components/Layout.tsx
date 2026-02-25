@@ -25,15 +25,16 @@ function validateEmail(email) {
   return re.test(String(email).toLowerCase());
 }
 
+// 1. Fixed the function parameter name to match your new schema
 const updateUserSettings = async (params: {
   notificationEmail?: string,
-  enableNewCommentNotification?: boolean,
+  enableCommentNotifications?: boolean,
   displayName?: string,
 }) => {
   const res = await apiClient.put(`/user`, {
     displayName: params.displayName,
     notificationEmail: params.notificationEmail,
-    enableNewCommentNotification: params.enableNewCommentNotification,
+    enableCommentNotifications: params.enableCommentNotifications,
   })
   return res.data
 }
@@ -48,50 +49,7 @@ export function MainLayout(props: {
   const clipboard = useClipboard()
   const [isUserPannelOpen, { open: openUserModal, close: closeUserModal }] = useDisclosure(false);
 
-  const userSettingsForm = useForm({
-    defaultValues: {
-      username: props.userInfo.name,
-      displayName: props.userInfo.displayName,
-      email: props.userInfo.email,
-      notificationEmail: props.userInfo.notificationEmail,
-    },
-  })
-
-  const downgradePlanMutation = useMutation(async () => {
-    await apiClient.delete('/subscription')
-  }, {
-    onSuccess() {
-      notifications.show({
-        title: 'Success',
-        message: 'Downgrade success',
-        color: 'green'
-      })
-    },
-    onError() {
-      notifications.show({
-        title: 'Error',
-        message: 'Something went wrong, please contact hi@cusdis.com',
-        color: 'red'
-      })
-    }
-  })
-
-const updateNewCommentNotification = trpc.user.updateSettings.useMutation();
-    onSuccess() {
-      notifications.show({
-        title: 'Success',
-        message: 'User settings updated',
-        color: 'green'
-      })
-    },
-    onError() {
-      notifications.show({
-        title: 'Error',
-        message: 'Something went wrong',
-        color: 'red'
-      })
-    }
-  })
+  // 2. Updated to use the correct schema name
   const updateUserSettingsMutation = useMutation(updateUserSettings, {
     onSuccess() {
       notifications.show({
