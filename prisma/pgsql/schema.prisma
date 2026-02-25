@@ -58,7 +58,7 @@ model User {
   Comment  Comment[]
   subscription Subscription?  
 
-  enableNotifications Boolean? @default(true) @map(name: "enable_new_comment_notification")
+  enableNotifications Boolean? @default(true) @map(name: "enable_notifications")
   notificationEmail   String?  @map(name: "notification_email")
 
   usage Usage[]
