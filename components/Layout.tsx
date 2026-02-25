@@ -49,7 +49,17 @@ export function MainLayout(props: {
   const clipboard = useClipboard()
   const [isUserPannelOpen, { open: openUserModal, close: closeUserModal }] = useDisclosure(false);
 
-  // 2. Updated to use the correct schema name
+  // 1. DEFINE THE FORM FIRST
+  const userSettingsForm = useForm({
+    defaultValues: {
+      username: props.userInfo.name,
+      displayName: props.userInfo.displayName,
+      email: props.userInfo.email,
+      notificationEmail: props.userInfo.notificationEmail,
+    },
+  })
+
+  // 2. DEFINE THE MUTATION SECOND
   const updateUserSettingsMutation = useMutation(updateUserSettings, {
     onSuccess() {
       notifications.show({
@@ -67,8 +77,9 @@ export function MainLayout(props: {
     }
   })
 
+  // 3. DEFINE THE SAVE CLICK HANDLER THIRD (Now it can see the form)
   const onClickSaveUserSettings = async () => {
-    const data = userSettingsForm.getValues()
+    const data = userSettingsForm.getValues() // <--- This will now work!
     if (!validateEmail(data.notificationEmail)) {
       notifications.show({
         title: 'Invalid email',
@@ -82,6 +93,8 @@ export function MainLayout(props: {
       notificationEmail: data.notificationEmail,
     })
   }
+  
+  // ... rest of your code
 
   const projectId = router.query.projectId as string
 
