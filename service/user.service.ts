@@ -6,7 +6,8 @@ export class UserService extends RequestScopeService {
   async update(userId: string, options: {
     displayName?: string,
     notificationEmail?: string,
-    enableNewCommentNotification?: boolean
+    // RENAME THIS:
+    enableCommentNotifications?: boolean
   }) {
     await prisma.user.update({
       where: {
@@ -15,8 +16,10 @@ export class UserService extends RequestScopeService {
       data: {
         displayName: options.displayName,
         notificationEmail: options.notificationEmail,
-        enableNewCommentNotification: options.enableNewCommentNotification
+        // RENAME THIS:
+        enableCommentNotifications: options.enableCommentNotifications
       }
     })
   }
+}
 }
