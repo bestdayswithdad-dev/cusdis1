@@ -314,11 +314,16 @@ export function MainLayout(props: {
             <Stack spacing={8}>
               <Text weight={500} size="sm">Email (for notification)</Text>
               <TextInput placeholder={props.userInfo.email} {...userSettingsForm.register("notificationEmail")} size="sm" />
-             <Switch defaultChecked={props.userInfo.enableCommentNotifications} onChange={e => {
-               updateNewCommentNotification.mutate({
-    enableCommentNotifications: e.target.checked
-  })
-              }} label="Enable notification" />
+            <Switch 
+  defaultChecked={props.userInfo.enableCommentNotifications} 
+  onChange={e => {
+    // Change this from 'updateNewCommentNotification' to 'updateUserSettingsMutation'
+    updateUserSettingsMutation.mutate({
+      enableCommentNotifications: e.target.checked
+    })
+  }} 
+  label="Enable notification" 
+/>
             </Stack>
             <Stack spacing={8}>
               <Text weight={500} size="sm">Display name</Text>
