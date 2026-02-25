@@ -76,7 +76,24 @@ export function MainLayout(props: {
       })
     }
   })
-
+const downgradePlanMutation = useMutation(async () => {
+    await apiClient.delete('/subscription')
+  }, {
+    onSuccess() {
+      notifications.show({
+        title: 'Success',
+        message: 'Downgrade success',
+        color: 'green'
+      })
+    },
+    onError() {
+      notifications.show({
+        title: 'Error',
+        message: 'Something went wrong, please contact hi@cusdis.com',
+        color: 'red'
+      })
+    }
+  })
   // 3. DEFINE THE SAVE CLICK HANDLER THIRD (Now it can see the form)
   const onClickSaveUserSettings = async () => {
     const data = userSettingsForm.getValues() // <--- This will now work!
