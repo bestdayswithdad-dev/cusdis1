@@ -21,3 +21,4 @@ export class UserService extends RequestScopeService {
       }
     })
   }
+}
