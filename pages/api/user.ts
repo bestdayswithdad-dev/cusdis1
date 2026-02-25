@@ -14,12 +14,12 @@ export default async function handler(req, res) {
   const { 
     displayName, 
     notificationEmail, 
-    enableCommentNotifications 
+    enableNotifications 
   } = req.body;
 
   // 3. Use 'session.uid' instead of the missing 'user.uid'
   await userService.update(session.uid, {
-    enableCommentNotifications,
+    enableNotifications,
     notificationEmail,
     displayName
   });
