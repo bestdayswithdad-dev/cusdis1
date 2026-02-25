@@ -3,13 +3,12 @@
 
 datasource db {
   provider = "postgresql"
-  url      = env("DB_URL")
-schemas = ["public", "auth"]
+  url      = env("DATABASE_URL")
+directUrl = env ["DIRECT_URL"]
 }
 
 generator client {
   provider = "prisma-client-js"
-previewFeatures = ["multiSchema"]
 }
 
 // next-auth BEGIN
@@ -31,7 +30,6 @@ model Account {
   @@index([providerId], name: "providerId")
   @@index([userId], name: "userId")
   @@map(name: "accounts")
-@@schema("public")
 }
 
 model Session {
@@ -44,7 +42,6 @@ model Session {
   updatedAt    DateTime @default(now()) @map(name: "updated_at")
 
   @@map(name: "sessions")
-@@schema("public")
 }
 
 model User {
@@ -67,7 +64,6 @@ model User {
   usage Usage[]
 
   @@map(name: "users")
-@@schema("public")
 }
 
 model Subscription {
@@ -87,7 +83,6 @@ model Subscription {
   updatePaymentMethodUrl String? @map(name: "update_payment_method_url")
 
   createdAt DateTime @default(now()) @map(name: "created_at")
-@@schema("public")
 }
 
 model VerificationRequest {
@@ -99,7 +94,6 @@ model VerificationRequest {
   updatedAt  DateTime @default(now()) @map(name: "updated_at")
 
   @@map(name: "verification_requests")
-@@schema("public")
 }
 
 // next-auth END
@@ -125,7 +119,6 @@ model Project {
   enableWebhook Boolean?
 
   @@map(name: "projects")
-@@schema("public")
 }
 
 model Page {
@@ -145,7 +138,6 @@ model Page {
 
   @@index([projectId], name: "projectId")
   @@map("pages")
-@@schema("public")
 }
 
 model Comment {
@@ -171,22 +163,16 @@ model Comment {
   replies  Comment[] @relation("replies")
 
   @@map("comments")
-@@schema("public")
 }
 
 model Usage {
-  id String @id @default(uuid())
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id])
-
-  label String
-  count Int @default(0)
-
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  label     String
+  count     Int      @default(0)
   updatedAt DateTime @updatedAt
 
   @@unique([userId, label])
-
   @@map("usages")
-
 }
