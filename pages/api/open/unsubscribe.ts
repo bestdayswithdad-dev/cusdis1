@@ -32,7 +32,7 @@ export default async function handler(
         case UnSubscribeType.NEW_COMMENT:
           {
             await userService.update(result.userId, {
-              enableCommentNotifications: false,
+              enableNotifications: false,
             })
           }
           break
