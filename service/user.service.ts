@@ -7,7 +7,7 @@ export class UserService extends RequestScopeService {
     displayName?: string,
     notificationEmail?: string,
     // RENAME THIS:
-    enableCommentNotifications?: boolean
+    enableNotifications?: boolean
   }) {
     await prisma.user.update({
       where: {
@@ -17,7 +17,7 @@ export class UserService extends RequestScopeService {
         displayName: options.displayName,
         notificationEmail: options.notificationEmail,
         // RENAME THIS:
-        enableCommentNotifications: options.enableCommentNotifications
+        enableNotifications: options.enableNotifications
       }
     })
   }
