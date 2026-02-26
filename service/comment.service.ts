@@ -8,6 +8,7 @@ export interface CommentWrapper {
   by_email?: string
   approved?: boolean
   createdAt?: Date
+  parsedCreatedAt?: string
   replies?: CommentWrapper[]
   commentCount?: number
   data?: CommentWrapper[]
