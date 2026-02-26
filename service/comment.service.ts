@@ -61,27 +61,38 @@ export class CommentService {
     });
   }
 
-  async getComments(pageId: string, timezoneOffset: number, options: any) {
-    let targetPageId = pageId;
-    const pageCheck = await prisma.page.findFirst({
-      where: { OR: [{ id: pageId }, { slug: pageId }] }
-    });
-    
-    if (pageCheck) targetPageId = pageCheck.id;
+async getComments(pageId: string, timezoneOffset: number, options: any) {
+  console.log("DEBUG: Widget is requesting comments for pageId/Slug:", pageId);
 
-    const comments = await prisma.comment.findMany({ 
-      where: { 
-        pageId: targetPageId, 
-        approved: options?.approved ?? true, 
-        parentId: options?.parentId ?? null 
-      }, 
-      orderBy: { createdAt: 'desc' }, 
-      include: { replies: { where: { approved: true } } } 
-    });
-    
-    return { data: comments, commentCount: comments.length, pageCount: 1, pageSize: 50 };
+  // This check is crucial
+  const pageCheck = await prisma.page.findFirst({
+    where: { 
+      OR: [
+        { id: pageId }, 
+        { slug: pageId } 
+      ] 
+    }
+  });
+
+  if (!pageCheck) {
+    console.log("DEBUG: No page found in database for:", pageId);
+    return { data: [], commentCount: 0, pageCount: 0, pageSize: 50 };
   }
 
+  console.log("DEBUG: Found Page! Real Database ID is:", pageCheck.id);
+
+  const comments = await prisma.comment.findMany({ 
+    where: { 
+      pageId: pageCheck.id, // Use the ID from the database, not the slug from the widget
+      approved: true, 
+      parentId: null 
+    }, 
+    orderBy: { createdAt: 'desc' }, 
+    include: { replies: { where: { approved: true } } } 
+  });
+  
+  return { data: comments, commentCount: comments.length, pageCount: 1, pageSize: 50 };
+}
   async addCommentAsModerator(parentId: string, content: string, options?: { owner?: { id: string } }) {
     const parent = await prisma.comment.findUnique({ where: { id: parentId } });
     if (!parent) throw new Error("Parent not found");
