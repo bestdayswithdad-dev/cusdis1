@@ -14,6 +14,15 @@ export class CommentService {
     return await prisma.comment.create({ data: { content: body.content, by_email: body.email, by_nickname: body.nickname, pageId: page.id, parentId: parentId, approved: shouldAutoApprove } });
   }
 
+  async getProject(commentId: string) {
+    const comment = await prisma.comment.findUnique({ where: { id: commentId }, include: { page: true } });
+    return await prisma.project.findUnique({ where: { id: comment.page.projectId } });
+  }
+
+  async approve(id: string) {
+    return await prisma.comment.update({ where: { id }, data: { approved: true } });
+  }
+
   async delete(id: string) {
     return await prisma.comment.delete({ where: { id } });
   }
