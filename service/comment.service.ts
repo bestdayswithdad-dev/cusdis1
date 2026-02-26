@@ -31,9 +31,7 @@ export class CommentService {
 
     let shouldAutoApprove = false;
     try {
-      const existingUser = await prisma.user.findFirst({ 
-        where: { email: body.email, emailVerified: { not: null } } 
-      });
+      const existingUser = await prisma.user.findFirst({ where: { email: body.email, emailVerified: { not: null } } });
       if (existingUser) shouldAutoApprove = true;
     } catch (e) { console.error('Auto-approve check failed:', e); }
 
@@ -42,7 +40,6 @@ export class CommentService {
         content: body.content, 
         by_email: body.email, 
         by_nickname: body.nickname, 
-        // Use connect for relations
         page: { connect: { id: page.id } },
         parent: parentId ? { connect: { id: parentId } } : undefined,
         approved: shouldAutoApprove 
@@ -51,15 +48,11 @@ export class CommentService {
   }
 
   async getComments(pageId: string, timezoneOffset: number, options: any) {
-    const comments = await prisma.comment.findMany({ 
-      where: { pageId, approved: true, parentId: null }, 
-      orderBy: { createdAt: 'desc' }, 
-      include: { replies: { where: { approved: true } } } 
-    });
+    const comments = await prisma.comment.findMany({ where: { pageId, approved: true, parentId: null }, orderBy: { createdAt: 'desc' }, include: { replies: { where: { approved: true } } } });
     return { data: comments, commentCount: comments.length, pageCount: 1, pageSize: 50 };
   }
 
- async addCommentAsModerator(parentId: string, content: string, options?: { owner?: { id: string } }) {
+  async addCommentAsModerator(parentId: string, content: string, options?: { owner?: { id: string } }) {
     const parent = await prisma.comment.findUnique({ where: { id: parentId } });
     if (!parent) throw new Error("Parent not found");
 
@@ -72,7 +65,7 @@ export class CommentService {
         moderatorId: (options?.owner?.id || 'admin') as string
       } 
     });
-  }}
+  }
 
   async getProject(commentId: string) {
     const comment = await prisma.comment.findUnique({ where: { id: commentId }, include: { page: true } });
@@ -84,7 +77,8 @@ export class CommentService {
     return await prisma.comment.update({ where: { id }, data: { approved: true } });
   }
 
-  async delete(id: string) {
+  // Changed from 'delete' to 'deleteComment' to avoid JS reserved keyword issues
+  async deleteComment(id: string) {
     return await prisma.comment.delete({ where: { id } });
   }
 
