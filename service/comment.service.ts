@@ -1,8 +1,10 @@
 import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
-// This is the missing piece the notification service is looking for
-export const markdown = (content: string) => content;
+// This matches the .render() call in notification.service.ts
+export const markdown = {
+  render: (content: string) => content
+};
 
 export interface CommentWrapper {
   id?: string
