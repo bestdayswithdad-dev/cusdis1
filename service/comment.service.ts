@@ -23,7 +23,7 @@ export class CommentService {
   constructor(private req: any) {}
 
   async addComment(projectId: string, pageSlug: string, body: { content: string, email: string, nickname: string, pageUrl?: string, pageTitle?: string }, parentId?: string) {
-    const page = await prisma.page.upsert({ where: { slug_projectId: { slug: pageSlug, projectId } }, create: { slug: pageSlug, projectId, title: body.pageTitle, url: body.pageUrl }, update: { title: body.pageTitle, url: body.pageUrl } });
+    const page = await prisma.page.upsert({ where: { slug: pageSlug, projectId } as any, create: { slug: pageSlug, projectId, title: body.pageTitle, url: body.pageUrl }, update: { title: body.pageTitle, url: body.pageUrl } });
     let shouldAutoApprove = false;
     try {
       const existingUser = await prisma.user.findFirst({ where: { email: body.email, emailVerified: { not: null } } });
