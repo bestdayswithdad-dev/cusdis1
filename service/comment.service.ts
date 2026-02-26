@@ -257,31 +257,6 @@ async addComment(
     })
 
     return created
-  }
-
-  async approve(commentId: string) {
-    await prisma.comment.update({
-      where: {
-        id: commentId,
-      },
-      data: {
-        approved: true,
-      },
-    })
-
-    statService.capture('comment_approve')
-  }
-  async delete(id: string) {
-    return await prisma.comment.delete({
-      where: { id }
-    })
-  }
-
-  async delete(id: string) {
-    return await prisma.comment.delete({
-      where: { id }
-    })
-  }
 
   async delete(id: string) {
     return await prisma.comment.delete({
