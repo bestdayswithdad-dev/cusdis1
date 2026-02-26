@@ -27,6 +27,11 @@ export class CommentService {
     return await prisma.comment.create({ data: { content: body.content, by_email: body.email, by_nickname: body.nickname, pageId: page.id, parentId: parentId, approved: shouldAutoApprove } });
   }
 
+  async getComments(pageId: string, timezoneOffset: number, options: any) {
+    const comments = await prisma.comment.findMany({ where: { pageId, approved: true, parentId: null }, orderBy: { createdAt: 'desc' }, include: { replies: { where: { approved: true } } } });
+    return { data: comments, commentCount: comments.length, pageCount: 1, pageSize: 50 };
+  }
+
   async addCommentAsModerator(parentId: string, content: string, options?: any) {
     const parent = await prisma.comment.findUnique({ where: { id: parentId } });
     return await prisma.comment.create({ data: { content, pageId: parent.pageId, parentId: parentId, approved: true, moderatorId: options?.owner?.id || 'admin' } });
