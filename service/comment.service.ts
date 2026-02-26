@@ -49,4 +49,9 @@ export class CommentService {
   async delete(id: string) {
     return await prisma.comment.delete({ where: { id } });
   }
+
+  async sendConfirmReplyNotificationEmail(email: string, pageTitle: string, commentId: string) {
+    console.log('Notification triggered for:', email);
+    return true;
+  }
 }
