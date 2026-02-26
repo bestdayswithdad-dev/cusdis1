@@ -276,4 +276,10 @@ async addComment(
       where: { id }
     })
   }
+
+  async delete(id: string) {
+    return await prisma.comment.delete({
+      where: { id }
+    })
+  }
 }
