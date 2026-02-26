@@ -1,6 +1,15 @@
 import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
+export interface CommentWrapper {
+  id: string
+  content: string
+  by_nickname: string
+  by_email: string
+  createdAt: Date
+  replies?: CommentWrapper[]
+}
+
 export class CommentService {
   constructor(private req: any) {}
 
