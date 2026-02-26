@@ -23,27 +23,61 @@ export class CommentService {
   constructor(private req: any) {}
 
   async addComment(projectId: string, pageSlug: string, body: { content: string, email: string, nickname: string, pageUrl?: string, pageTitle?: string }, parentId?: string) {
-    const page = await prisma.page.upsert({ where: { slug: pageSlug, projectId } as any, create: { slug: pageSlug, projectId, title: body.pageTitle, url: body.pageUrl }, update: { title: body.pageTitle, url: body.pageUrl } });
+    const page = await prisma.page.upsert({ 
+      where: { slug: pageSlug, projectId } as any, 
+      create: { slug: pageSlug, projectId, title: body.pageTitle, url: body.pageUrl }, 
+      update: { title: body.pageTitle, url: body.pageUrl } 
+    });
+
     let shouldAutoApprove = false;
     try {
-      const existingUser = await prisma.user.findFirst({ where: { email: body.email, emailVerified: { not: null } } });
+      const existingUser = await prisma.user.findFirst({ 
+        where: { email: body.email, emailVerified: { not: null } } 
+      });
       if (existingUser) shouldAutoApprove = true;
     } catch (e) { console.error('Auto-approve check failed:', e); }
-    return await prisma.comment.create({ data: { content: body.content, by_email: body.email, by_nickname: body.nickname, pageId: page.id, parentId: parentId, approved: shouldAutoApprove } });
+
+    return await prisma.comment.create({ 
+      data: { 
+        content: body.content, 
+        by_email: body.email, 
+        by_nickname: body.nickname, 
+        // Use connect for relations
+        page: { connect: { id: page.id } },
+        parent: parentId ? { connect: { id: parentId } } : undefined,
+        approved: shouldAutoApprove 
+      } 
+    });
   }
 
   async getComments(pageId: string, timezoneOffset: number, options: any) {
-    const comments = await prisma.comment.findMany({ where: { pageId, approved: true, parentId: null }, orderBy: { createdAt: 'desc' }, include: { replies: { where: { approved: true } } } });
+    const comments = await prisma.comment.findMany({ 
+      where: { pageId, approved: true, parentId: null }, 
+      orderBy: { createdAt: 'desc' }, 
+      include: { replies: { where: { approved: true } } } 
+    });
     return { data: comments, commentCount: comments.length, pageCount: 1, pageSize: 50 };
   }
 
   async addCommentAsModerator(parentId: string, content: string, options?: any) {
     const parent = await prisma.comment.findUnique({ where: { id: parentId } });
-    return await prisma.comment.create({ data: { content, pageId: parent.pageId, parentId: parentId, approved: true, moderatorId: options?.owner?.id || 'admin' } });
+    if (!parent) throw new Error("Parent not found");
+
+    return await prisma.comment.create({ 
+      data: { 
+        content, 
+        // Use connect for relations here as well
+        page: { connect: { id: parent.pageId } }, 
+        parent: { connect: { id: parentId } }, 
+        approved: true, 
+        moderatorId: options?.owner?.id || 'admin' 
+      } 
+    });
   }
 
   async getProject(commentId: string) {
     const comment = await prisma.comment.findUnique({ where: { id: commentId }, include: { page: true } });
+    if (!comment) return null;
     return await prisma.project.findUnique({ where: { id: comment.page.projectId } });
   }
 
