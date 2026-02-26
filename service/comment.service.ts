@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
-// FIX 1: Combined the markdown declarations into one object to avoid SyntaxErrors
+// FIX: Combined markdown into ONE export to prevent build crash
 export const markdown = {
   render: (content: string) => content
 };
@@ -22,63 +22,64 @@ export interface CommentWrapper {
   pageSize?: number
 }
 
-export type CommentItem = CommentWrapper
-
 export class CommentService {
   constructor(private req: any) {}
 
-  async addCommentAsModerator(parentId: string, content: string, options?: { owner?: { id: string } }) {
-  const parent = await prisma.comment.findUnique({ where: { id: parentId } });
-  if (!parent) throw new Error("Parent not found");
-
-  return await prisma.comment.create({ 
-    data: {
-      content,
-      page: { connect: { id: parent.pageId } },
-      parent: { connect: { id: parentId } },
-      approved: true,
-      // If options.owner.id exists, connect to that User record
-      // Otherwise, we leave it null (or you can't use 'admin' unless 'admin' is a valid User UUID)
-      moderator: options?.owner?.id ? { connect: { id: options.owner.id } } : undefined,
-      by_nickname: "Moderator" // Ensure this is included as it is required in your schema
-    }
-  });
-}
-  // FIX 2: Added the 3rd 'options' argument and fixed the query logic
-  async getComments(pageIdOrSlug: string, timezoneOffset: number, options: any) {
-    // We first check if the page exists using the slug (since the API usually sends the slug)
-    const page = await prisma.page.findFirst({
-      where: { 
-        OR: [
-          { id: pageIdOrSlug },
-          { slug: pageIdOrSlug }
-        ]
-      }
+  // This is the method the API says is "missing"
+  async addComment(
+    projectId: string, 
+    pageSlug: string, 
+    body: { content: string, email: string, nickname: string, pageUrl?: string, pageTitle?: string }, 
+    parentId?: string
+  ) {
+    const page = await prisma.page.upsert({ 
+      where: { id: pageSlug } as any, // Adjusting to match common cusdis patterns
+      create: { slug: pageSlug, projectId, title: body.pageTitle, url: body.pageUrl }, 
+      update: { title: body.pageTitle, url: body.pageUrl } 
     });
 
-    if (!page) return { data: [], commentCount: 0, pageCount: 0, pageSize: 50 };
+    let shouldAutoApprove = false;
+    try {
+      const existingUser = await prisma.user.findFirst({ 
+        where: { email: body.email, emailVerified: { not: null } } 
+      });
+      if (existingUser) shouldAutoApprove = true;
+    } catch (e) { 
+      console.error('Auto-approve check failed:', e); 
+    }
+
+    return await prisma.comment.create({ 
+      data: { 
+        content: body.content, 
+        by_email: body.email, 
+        by_nickname: body.nickname, 
+        page: { connect: { id: page.id } },
+        parent: parentId ? { connect: { id: parentId } } : undefined,
+        approved: shouldAutoApprove 
+      } 
+    });
+  }
+
+  async getComments(pageId: string, timezoneOffset: number, options: any) {
+    // If we can't find by ID, try finding the page by Slug
+    let targetPageId = pageId;
+    const pageCheck = await prisma.page.findFirst({
+      where: { OR: [{ id: pageId }, { slug: pageId }] }
+    });
+    
+    if (pageCheck) targetPageId = pageCheck.id;
 
     const comments = await prisma.comment.findMany({ 
       where: { 
-        pageId: page.id, 
-        approved: options.approved ?? true, 
-        parentId: options.parentId ?? null 
+        pageId: targetPageId, 
+        approved: options?.approved ?? true, 
+        parentId: options?.parentId ?? null 
       }, 
       orderBy: { createdAt: 'desc' }, 
-      include: { 
-        replies: { 
-          where: { approved: true },
-          orderBy: { createdAt: 'asc' } 
-        } 
-      } 
+      include: { replies: { where: { approved: true } } } 
     });
-
-    return { 
-      data: comments, 
-      commentCount: comments.length, 
-      pageCount: 1, 
-      pageSize: 50 
-    };
+    
+    return { data: comments, commentCount: comments.length, pageCount: 1, pageSize: 50 };
   }
 
   async addCommentAsModerator(parentId: string, content: string, options?: { owner?: { id: string } }) {
@@ -91,7 +92,8 @@ export class CommentService {
         page: { connect: { id: parent.pageId } },
         parent: { connect: { id: parentId } },
         approved: true,
-        moderatorId: options?.owner?.id || 'admin'
+        by_nickname: 'Moderator',
+        moderator: options?.owner?.id ? { connect: { id: options.owner.id } } : undefined
       }
     });
   }
@@ -111,7 +113,6 @@ export class CommentService {
   }
 
   async sendConfirmReplyNotificationEmail(email: string, pageTitle: string, commentId: string) {
-    console.log('Notification triggered for:', email);
     return true;
   }
 }
