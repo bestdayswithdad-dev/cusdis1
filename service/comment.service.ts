@@ -5,7 +5,6 @@ export const markdown = {
   render: (content: string) => content
 };
 
-// This is what the dashboard needs!
 export interface CommentWrapper {
   id?: string
   content?: string
@@ -22,14 +21,12 @@ export interface CommentWrapper {
   pageSize?: number
 }
 
-// FIX: Re-add this line so the dashboard build passes
 export type CommentItem = CommentWrapper 
 
 export class CommentService {
-}
+  // FIX: Ensure constructor is inside the class and the extra '}' above it is removed
   constructor(private req: any) {}
 
-  // This is the method the API says is "missing"
   async addComment(
     projectId: string, 
     pageSlug: string, 
@@ -37,7 +34,7 @@ export class CommentService {
     parentId?: string
   ) {
     const page = await prisma.page.upsert({ 
-      where: { id: pageSlug } as any, // Adjusting to match common cusdis patterns
+      where: { slug: pageSlug } as any, 
       create: { slug: pageSlug, projectId, title: body.pageTitle, url: body.pageUrl }, 
       update: { title: body.pageTitle, url: body.pageUrl } 
     });
@@ -65,7 +62,6 @@ export class CommentService {
   }
 
   async getComments(pageId: string, timezoneOffset: number, options: any) {
-    // If we can't find by ID, try finding the page by Slug
     let targetPageId = pageId;
     const pageCheck = await prisma.page.findFirst({
       where: { OR: [{ id: pageId }, { slug: pageId }] }
