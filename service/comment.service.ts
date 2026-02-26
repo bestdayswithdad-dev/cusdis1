@@ -14,6 +14,11 @@ export class CommentService {
     return await prisma.comment.create({ data: { content: body.content, by_email: body.email, by_nickname: body.nickname, pageId: page.id, parentId: parentId, approved: shouldAutoApprove } });
   }
 
+  async addCommentAsModerator(parentId: string, content: string) {
+    const parent = await prisma.comment.findUnique({ where: { id: parentId } });
+    return await prisma.comment.create({ data: { content, pageId: parent.pageId, parentId: parentId, approved: true, moderatorId: 'admin' } });
+  }
+
   async getProject(commentId: string) {
     const comment = await prisma.comment.findUnique({ where: { id: commentId }, include: { page: true } });
     return await prisma.project.findUnique({ where: { id: comment.page.projectId } });
