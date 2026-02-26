@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
+// Combined into a single export to prevent SyntaxErrors
 export const markdown = {
   render: (content: string) => content
 };
@@ -21,10 +22,10 @@ export interface CommentWrapper {
   pageSize?: number
 }
 
+// Required for the dashboard build to pass
 export type CommentItem = CommentWrapper 
 
 export class CommentService {
-  // FIX: Ensure constructor is inside the class and the extra '}' above it is removed
   constructor(private req: any) {}
 
   async addComment(
@@ -33,11 +34,30 @@ export class CommentService {
     body: { content: string, email: string, nickname: string, pageUrl?: string, pageTitle?: string }, 
     parentId?: string
   ) {
-    const page = await prisma.page.upsert({ 
-      where: { slug: pageSlug } as any, 
-      create: { slug: pageSlug, projectId, title: body.pageTitle, url: body.pageUrl }, 
-      update: { title: body.pageTitle, url: body.pageUrl } 
+    // 1. Find the page by slug + project to get the UUID (ID)
+    let page = await prisma.page.findFirst({
+      where: { 
+        slug: pageSlug,
+        projectId: projectId
+      }
     });
+
+    // 2. If it doesn't exist, create it. If it does, update the title/url.
+    if (!page) {
+      page = await prisma.page.create({
+        data: { 
+          slug: pageSlug, 
+          projectId, 
+          title: body.pageTitle, 
+          url: body.pageUrl 
+        }
+      });
+    } else {
+      page = await prisma.page.update({
+        where: { id: page.id },
+        data: { title: body.pageTitle, url: body.pageUrl }
+      });
+    }
 
     let shouldAutoApprove = false;
     try {
@@ -49,6 +69,7 @@ export class CommentService {
       console.error('Auto-approve check failed:', e); 
     }
 
+    // 3. Create comment linked to the UUID page.id
     return await prisma.comment.create({ 
       data: { 
         content: body.content, 
@@ -61,38 +82,39 @@ export class CommentService {
     });
   }
 
-async getComments(pageId: string, timezoneOffset: number, options: any) {
-  console.log("DEBUG: Widget is requesting comments for pageId/Slug:", pageId);
+  async getComments(pageIdOrSlug: string, timezoneOffset: number, options: any) {
+    // 1. Look up the page by ID or Slug first
+    const page = await prisma.page.findFirst({
+      where: { 
+        OR: [
+          { id: pageIdOrSlug },
+          { slug: pageIdOrSlug }
+        ]
+      }
+    });
 
-  // This check is crucial
-  const pageCheck = await prisma.page.findFirst({
-    where: { 
-      OR: [
-        { id: pageId }, 
-        { slug: pageId } 
-      ] 
-    }
-  });
+    // 2. If no page exists, return empty
+    if (!page) return { data: [], commentCount: 0, pageCount: 0, pageSize: 50 };
 
-  if (!pageCheck) {
-    console.log("DEBUG: No page found in database for:", pageId);
-    return { data: [], commentCount: 0, pageCount: 0, pageSize: 50 };
+    // 3. Fetch comments using the validated page UUID
+    const comments = await prisma.comment.findMany({ 
+      where: { 
+        pageId: page.id, 
+        approved: options?.approved ?? true, 
+        parentId: null 
+      }, 
+      orderBy: { createdAt: 'desc' }, 
+      include: { 
+        replies: { 
+          where: { approved: true },
+          orderBy: { createdAt: 'asc' }
+        } 
+      } 
+    });
+    
+    return { data: comments, commentCount: comments.length, pageCount: 1, pageSize: 50 };
   }
 
-  console.log("DEBUG: Found Page! Real Database ID is:", pageCheck.id);
-
-  const comments = await prisma.comment.findMany({ 
-    where: { 
-      pageId: pageCheck.id, // Use the ID from the database, not the slug from the widget
-      approved: true, 
-      parentId: null 
-    }, 
-    orderBy: { createdAt: 'desc' }, 
-    include: { replies: { where: { approved: true } } } 
-  });
-  
-  return { data: comments, commentCount: comments.length, pageCount: 1, pageSize: 50 };
-}
   async addCommentAsModerator(parentId: string, content: string, options?: { owner?: { id: string } }) {
     const parent = await prisma.comment.findUnique({ where: { id: parentId } });
     if (!parent) throw new Error("Parent not found");
@@ -124,6 +146,8 @@ async getComments(pageId: string, timezoneOffset: number, options: any) {
   }
 
   async sendConfirmReplyNotificationEmail(email: string, pageTitle: string, commentId: string) {
+    // Log for debugging visibility in Vercel
+    console.log(`Notification: Reply to ${email} on ${pageTitle}`);
     return true;
   }
 }
