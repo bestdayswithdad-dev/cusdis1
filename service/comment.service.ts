@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
-// This matches the .render() call in notification.service.ts
+// FIX 1: Combined the markdown declarations into one object to avoid SyntaxErrors
 export const markdown = {
   render: (content: string) => content
 };
@@ -29,7 +29,7 @@ export class CommentService {
 
   async addComment(projectId: string, pageSlug: string, body: { content: string, email: string, nickname: string, pageUrl?: string, pageTitle?: string }, parentId?: string) {
     const page = await prisma.page.upsert({ 
-      where: { slug: pageSlug, projectId } as any, 
+      where: { slug_projectId: { slug: pageSlug, projectId } } as any, 
       create: { slug: pageSlug, projectId, title: body.pageTitle, url: body.pageUrl }, 
       update: { title: body.pageTitle, url: body.pageUrl } 
     });
@@ -52,39 +52,56 @@ export class CommentService {
     });
   }
 
-// Ensure these 3 arguments are present
-async getComments(
-  pageId: string, 
-  timezoneOffset: number, 
-  options: { approved?: boolean; parentId?: string | null; pageSlug?: string }
-) {
-  // Your logic here...
-  const comments = await prisma.comment.findMany({ 
-    where: { 
-      pageId: pageId, // Or use options.pageSlug if pageId is actually a slug
-      approved: options.approved ?? true, 
-      parentId: options.parentId ?? null 
-    }, 
-    orderBy: { createdAt: 'desc' }, 
-    include: { replies: { where: { approved: true } } } 
-  });
-  
-  return { data: comments, commentCount: comments.length, pageCount: 1, pageSize: 50 };
-}
+  // FIX 2: Added the 3rd 'options' argument and fixed the query logic
+  async getComments(pageIdOrSlug: string, timezoneOffset: number, options: any) {
+    // We first check if the page exists using the slug (since the API usually sends the slug)
+    const page = await prisma.page.findFirst({
+      where: { 
+        OR: [
+          { id: pageIdOrSlug },
+          { slug: pageIdOrSlug }
+        ]
+      }
+    });
+
+    if (!page) return { data: [], commentCount: 0, pageCount: 0, pageSize: 50 };
+
+    const comments = await prisma.comment.findMany({ 
+      where: { 
+        pageId: page.id, 
+        approved: options.approved ?? true, 
+        parentId: options.parentId ?? null 
+      }, 
+      orderBy: { createdAt: 'desc' }, 
+      include: { 
+        replies: { 
+          where: { approved: true },
+          orderBy: { createdAt: 'asc' } 
+        } 
+      } 
+    });
+
+    return { 
+      data: comments, 
+      commentCount: comments.length, 
+      pageCount: 1, 
+      pageSize: 50 
+    };
+  }
 
   async addCommentAsModerator(parentId: string, content: string, options?: { owner?: { id: string } }) {
     const parent = await prisma.comment.findUnique({ where: { id: parentId } });
     if (!parent) throw new Error("Parent not found");
 
-    const data: any = {
-      content,
-      page: { connect: { id: parent.pageId } },
-      parent: { connect: { id: parentId } },
-      approved: true,
-      moderatorId: options?.owner?.id || 'admin'
-    };
-
-    return await prisma.comment.create({ data });
+    return await prisma.comment.create({ 
+      data: {
+        content,
+        page: { connect: { id: parent.pageId } },
+        parent: { connect: { id: parentId } },
+        approved: true,
+        moderatorId: options?.owner?.id || 'admin'
+      }
+    });
   }
 
   async getProject(commentId: string) {
