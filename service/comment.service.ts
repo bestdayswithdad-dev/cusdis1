@@ -27,31 +27,23 @@ export type CommentItem = CommentWrapper
 export class CommentService {
   constructor(private req: any) {}
 
-  async addComment(projectId: string, pageSlug: string, body: { content: string, email: string, nickname: string, pageUrl?: string, pageTitle?: string }, parentId?: string) {
-    const page = await prisma.page.upsert({ 
-      where: { slug_projectId: { slug: pageSlug, projectId } } as any, 
-      create: { slug: pageSlug, projectId, title: body.pageTitle, url: body.pageUrl }, 
-      update: { title: body.pageTitle, url: body.pageUrl } 
-    });
+  async addCommentAsModerator(parentId: string, content: string, options?: { owner?: { id: string } }) {
+  const parent = await prisma.comment.findUnique({ where: { id: parentId } });
+  if (!parent) throw new Error("Parent not found");
 
-    let shouldAutoApprove = false;
-    try {
-      const existingUser = await prisma.user.findFirst({ where: { email: body.email, emailVerified: { not: null } } });
-      if (existingUser) shouldAutoApprove = true;
-    } catch (e) { console.error('Auto-approve check failed:', e); }
-
-    return await prisma.comment.create({ 
-      data: { 
-        content: body.content, 
-        by_email: body.email, 
-        by_nickname: body.nickname, 
-        page: { connect: { id: page.id } },
-        parent: parentId ? { connect: { id: parentId } } : undefined,
-        approved: shouldAutoApprove 
-      } 
-    });
-  }
-
+  return await prisma.comment.create({ 
+    data: {
+      content,
+      page: { connect: { id: parent.pageId } },
+      parent: { connect: { id: parentId } },
+      approved: true,
+      // If options.owner.id exists, connect to that User record
+      // Otherwise, we leave it null (or you can't use 'admin' unless 'admin' is a valid User UUID)
+      moderator: options?.owner?.id ? { connect: { id: options.owner.id } } : undefined,
+      by_nickname: "Moderator" // Ensure this is included as it is required in your schema
+    }
+  });
+}
   // FIX 2: Added the 3rd 'options' argument and fixed the query logic
   async getComments(pageIdOrSlug: string, timezoneOffset: number, options: any) {
     // We first check if the page exists using the slug (since the API usually sends the slug)
