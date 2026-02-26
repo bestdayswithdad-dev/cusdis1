@@ -52,33 +52,24 @@ export class CommentService {
     });
   }
 
- async getComments(pageSlug: string, projectId: string) {
-  // 1. Find the page first to get the actual ID
-  const page = await prisma.page.findFirst({
-    where: { slug: pageSlug, projectId }
-  });
-
-  if (!page) return { data: [], commentCount: 0 };
-
-  // 2. Fetch comments for that page
-  const comments = await prisma.comment.findMany({
+// Ensure these 3 arguments are present
+async getComments(
+  pageId: string, 
+  timezoneOffset: number, 
+  options: { approved?: boolean; parentId?: string | null; pageSlug?: string }
+) {
+  // Your logic here...
+  const comments = await prisma.comment.findMany({ 
     where: { 
-      pageId: page.id, 
-      parentId: null,
-      // approved: true <--- Comment this out temporarily to debug!
-    },
-    orderBy: { createdAt: 'desc' },
-    include: { 
-      replies: true // Include all replies for now
-    }
+      pageId: pageId, // Or use options.pageSlug if pageId is actually a slug
+      approved: options.approved ?? true, 
+      parentId: options.parentId ?? null 
+    }, 
+    orderBy: { createdAt: 'desc' }, 
+    include: { replies: { where: { approved: true } } } 
   });
-
-  return { 
-    data: comments, 
-    commentCount: comments.length, 
-    pageCount: 1, 
-    pageSize: 50 
-  };
+  
+  return { data: comments, commentCount: comments.length, pageCount: 1, pageSize: 50 };
 }
 
   async addCommentAsModerator(parentId: string, content: string, options?: { owner?: { id: string } }) {
