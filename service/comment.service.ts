@@ -1,5 +1,8 @@
-import { PrismaClient } from '@prisma/client'
+iimport { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
+
+// This is the missing piece the notification service is looking for
+export const markdown = (content: string) => content;
 
 export interface CommentWrapper {
   id?: string
@@ -52,11 +55,10 @@ export class CommentService {
     return { data: comments, commentCount: comments.length, pageCount: 1, pageSize: 50 };
   }
 
- async addCommentAsModerator(parentId: string, content: string, options?: { owner?: { id: string } }) {
+  async addCommentAsModerator(parentId: string, content: string, options?: { owner?: { id: string } }) {
     const parent = await prisma.comment.findUnique({ where: { id: parentId } });
     if (!parent) throw new Error("Parent not found");
 
-    // We use 'as any' on the data object to bypass the strict moderatorId type check
     const data: any = {
       content,
       page: { connect: { id: parent.pageId } },
@@ -78,7 +80,6 @@ export class CommentService {
     return await prisma.comment.update({ where: { id }, data: { approved: true } });
   }
 
-  // Changed from 'delete' to 'deleteComment' to avoid JS reserved keyword issues
   async deleteComment(id: string) {
     return await prisma.comment.delete({ where: { id } });
   }
