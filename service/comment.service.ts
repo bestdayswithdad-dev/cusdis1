@@ -271,34 +271,9 @@ async addComment(
 
     statService.capture('comment_approve')
   }
-
-  async delete(commentId: string) {
-    await prisma.comment.update({
-      where: {
-        id: commentId,
-      },
-      data: {
-        deletedAt: new Date(),
-      },
+  async delete(id: string) {
+    return await prisma.comment.delete({
+      where: { id }
     })
-  }
-
-  async sendConfirmReplyNotificationEmail(
-    to: string,
-    pageSlug: string,
-    commentId: string,
-  ) {
-    const confirmToken = this.tokenService.genAcceptNotifyToken(commentId)
-    const confirmLink = `${resolvedConfig.host}/api/open/confirm_reply_notification?token=${confirmToken}`
-    this.emailService.send({
-      to,
-      from: this.emailService.sender,
-      subject: `Please confirm reply notification`,
-      html: makeConfirmReplyNotificationTemplate({
-        page_slug: pageSlug,
-        confirm_url: confirmLink,
-      }),
-    })
-    statService.capture('send_reply_confirm_email')
   }
 }
