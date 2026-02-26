@@ -182,7 +182,25 @@ async addComment(
 
     // Wrap the check in a try/catch so a DB mismatch doesn't crash the site
     try {
-      const verifiedUser = await prisma.user.findFirst({
+      const existingUser = await prisma.user.findFirst({
+        where: {
+          email: body.email,
+          emailVerified: { not: null }
+        }
+      });
+      if (existingUser) shouldAutoApprove = true;
+    } catch (e) {
+      console.error("Auto-approve check failed:", e);
+    }
+        where: {
+          email: body.email,
+          emailVerified: { not: null }
+        }
+      });
+      if (existingUser) shouldAutoApprove = true;
+    } catch (e) {
+      console.error("Auto-approve check failed:", e);
+    }
         where: {
           email: body.email.toLowerCase(),
           emailVerified: { not: null }
