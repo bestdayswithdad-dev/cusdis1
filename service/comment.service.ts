@@ -14,6 +14,8 @@ export interface CommentWrapper {
   pageSize?: number
 }
 
+export type CommentItem = CommentWrapper
+
 export class CommentService {
   constructor(private req: any) {}
 
