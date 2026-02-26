@@ -9,6 +9,7 @@ export interface CommentWrapper {
   approved?: boolean
   createdAt?: Date
   parsedCreatedAt?: string
+  page?: { slug: string; url: string }
   replies?: CommentWrapper[]
   commentCount?: number
   data?: CommentWrapper[]
