@@ -6,6 +6,7 @@ export interface CommentWrapper {
   content?: string
   by_nickname?: string
   by_email?: string
+  approved?: boolean
   createdAt?: Date
   replies?: CommentWrapper[]
   commentCount?: number
