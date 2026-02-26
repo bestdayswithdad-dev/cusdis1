@@ -10,6 +10,13 @@ export interface CommentWrapper {
   replies?: CommentWrapper[]
 }
 
+export interface CommentListWrapper {
+  commentCount: number
+  data: CommentWrapper[]
+  pageCount: number
+  pageSize: number
+}
+
 export class CommentService {
   constructor(private req: any) {}
 
