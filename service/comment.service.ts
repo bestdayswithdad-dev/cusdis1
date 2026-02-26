@@ -1,4 +1,4 @@
-iimport { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
 // This is the missing piece the notification service is looking for
