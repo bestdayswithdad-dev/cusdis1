@@ -59,21 +59,20 @@ export class CommentService {
     return { data: comments, commentCount: comments.length, pageCount: 1, pageSize: 50 };
   }
 
-  async addCommentAsModerator(parentId: string, content: string, options?: any) {
+ async addCommentAsModerator(parentId: string, content: string, options?: { owner?: { id: string } }) {
     const parent = await prisma.comment.findUnique({ where: { id: parentId } });
     if (!parent) throw new Error("Parent not found");
 
     return await prisma.comment.create({ 
       data: { 
         content, 
-        // Use connect for relations here as well
         page: { connect: { id: parent.pageId } }, 
         parent: { connect: { id: parentId } }, 
         approved: true, 
-        moderatorId: options?.owner?.id || 'admin' 
+        moderatorId: (options?.owner?.id || 'admin') as string
       } 
     });
-  }
+  }}
 
   async getProject(commentId: string) {
     const comment = await prisma.comment.findUnique({ where: { id: commentId }, include: { page: true } });
