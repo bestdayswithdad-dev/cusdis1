@@ -1,11 +1,11 @@
 import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
-// FIX: Combined markdown into ONE export to prevent build crash
 export const markdown = {
   render: (content: string) => content
 };
 
+// This is what the dashboard needs!
 export interface CommentWrapper {
   id?: string
   content?: string
@@ -22,7 +22,11 @@ export interface CommentWrapper {
   pageSize?: number
 }
 
+// FIX: Re-add this line so the dashboard build passes
+export type CommentItem = CommentWrapper 
+
 export class CommentService {
+}
   constructor(private req: any) {}
 
   // This is the method the API says is "missing"
