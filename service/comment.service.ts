@@ -235,12 +235,12 @@ export class CommentService extends RequestScopeService {
     statService.capture('comment_approve')
   }
 
-  async delete(commentId: string) {
-    await prisma.comment.update({
-      where: { id: commentId },
-      data: { deletedAt: new Date() },
-    })
-  }
+ async deleteComment(commentId: string) {
+  await prisma.comment.update({
+    where: { id: commentId },
+    data: { deletedAt: new Date() },
+  })
+}}
 
   async sendConfirmReplyNotificationEmail(to: string, pageSlug: string, commentId: string) {
     const confirmToken = this.tokenService.genAcceptNotifyToken(commentId)
