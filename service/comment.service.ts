@@ -68,4 +68,28 @@ export class CommentService {
     ownerId: 'admin' // Added this to satisfy the projectOwnerGuard type
   };
 }
+  async addCommentAsModerator(parentId: string, content: string) {
+  // We first need to find the original comment to get the correct pageId
+  const { data: parentComment } = await supabase
+    .from('comments')
+    .select('pageId')
+    .eq('id', parentId)
+    .single();
+
+  const { data, error } = await supabase
+    .from('comments')
+    .insert([{ 
+      content: content, 
+      by_nickname: 'Dad', // Your moderator name
+      by_email: 'admin@bestdayswithdad.com', 
+      pageId: parentComment?.pageId,
+      parentId: parentId,
+      approved: true 
+    }])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
 }
