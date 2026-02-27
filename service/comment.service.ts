@@ -56,6 +56,7 @@ export class CommentService {
   }
 
   async getComments(pageIdOrSlug: string, timezoneOffset: number, options: any) {
+    // 1. Find the page record first
     const page = await prisma.page.findFirst({
       where: { 
         OR: [{ id: pageIdOrSlug }, { slug: pageIdOrSlug }]
@@ -64,18 +65,29 @@ export class CommentService {
 
     if (!page) return { data: [], commentCount: 0, pageCount: 0, pageSize: 50 };
 
+    // 2. Fetch comments that are NOT deleted
     const comments = await prisma.comment.findMany({ 
       where: { 
         pageId: page.id,
-        parentId: null   
+        parentId: null,
+        deletedAt: null, // ONLY show comments that haven't been deleted
+        approved: true   // Your DB shows they are TRUE, so we can keep this
       }, 
       orderBy: { createdAt: 'desc' }, 
       include: { 
-        replies: true 
+        replies: {
+          where: { deletedAt: null, approved: true }
+        },
+        page: true 
       } 
     });
     
-    return { data: comments, commentCount: comments.length, pageCount: 1, pageSize: 50 };
+    return { 
+      data: comments, 
+      commentCount: comments.length, 
+      pageCount: 1, 
+      pageSize: 50 
+    };
   }
 
   // Restored getProject to fix the build error
