@@ -6,28 +6,29 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
 export class CommentService {
-  constructor(private req?: any) {
-    // Re-linking the global window object so your HTML buttons work again
-    if (typeof window !== 'undefined') {
-      (window as any).supabaseClient = supabase;
-    }
-  }
+  // Cusdis often requires a Project ID to validate the request
+  private projectId = 'cbcd61ec-f2ef-425c-a952-30034c2de4e1';
 
   async getComments(pageId: string) {
-    // Fetches all approved comments without requiring a User ID
     const { data, error } = await supabase
       .from('comments')
-      .select('*, replies:comments(*)')
+      .select('*')
       .eq('pageId', pageId)
-      .eq('approved', true)
-      .is('parentId', null)
+      // If you aren't using an admin panel, auto-showing 'approved' is key
+      .eq('approved', true) 
       .order('createdAt', { ascending: false });
 
     if (error) throw error;
-    return { data, commentCount: data?.length || 0 };
+    return data;
   }
 
-  async addComment(body: { content: string, nickname: string, email: string, pageId: string }) {
+  async addComment(body: { 
+    content: string, 
+    nickname: string, 
+    email: string, 
+    pageId: string, 
+    parentId?: string 
+  }) {
     const { data, error } = await supabase
       .from('comments')
       .insert([{ 
@@ -35,30 +36,29 @@ export class CommentService {
         by_nickname: body.nickname, 
         by_email: body.email, 
         pageId: body.pageId,
-        approved: true // Back to auto-approve to bypass auth issues
-      }]);
+        parentId: body.parentId || null, // Critical for threaded replies
+        approved: true, 
+        createdAt: new Date().toISOString()
+      }])
+      .select()
+      .single();
 
     if (error) throw error;
     return data;
   }
 
-  async deleteComment(id: string) {
-    const { data, error } = await supabase.from('comments').delete().eq('id', id);
+  // This matches the specific hook Cusdis hits for moderation
+  async approve(id: string) {
+    const { data, error } = await supabase
+      .from('comments')
+      .update({ approved: true })
+      .eq('id', id);
     if (error) throw error;
     return data;
   }
-}
-// Add these inside your CommentService class
-async approve(id: string) {
-  const { data, error } = await supabase
-    .from('comments')
-    .update({ approved: true })
-    .eq('id', id);
-  if (error) throw error;
-  return data;
-}
 
-async getProject(commentId: string) {
-  // Returns a simple object to satisfy the API route
-  return { id: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1' };
+  // To satisfy the Cusdis 'Project' requirement
+  async getProject() {
+    return { id: this.projectId };
+  }
 }
