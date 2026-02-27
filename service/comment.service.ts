@@ -82,13 +82,13 @@ export class CommentService {
     return data;
   }
 
-  async getProject(commentId?: string) {
-    return { 
-      id: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1',
-      ownerId: 'admin' 
-    };
-  }
-
+async getProject(commentId?: string) {
+  return { 
+    // CHANGE THIS from 'cbcd61ec...' to:
+    id: '081c8a30-0550-4716-aae6-c553d7b545f6', 
+    ownerId: 'admin' 
+  };
+}
   async addCommentAsModerator(parentId: string, content: string, options?: any) {
     const { data: parentComment } = await supabase
       .from('comments')
