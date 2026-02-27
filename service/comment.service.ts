@@ -94,16 +94,25 @@ async addCommentAsModerator(parentId: string, content: string, options?: any) {
 }
   // Add this at the very bottom of service/comment.service.ts
 export class CommentWrapper {
-  constructor(private data: any) {}
+  // We use 'any' and an optional data property to prevent the "overlap" error
+  constructor(public data?: any) {}
 
   toJSON() {
+    // If there is no data (404/Empty state), return a safe empty structure
+    if (!this.data) {
+      return {
+        commentCount: 0,
+        data: [],
+        pageCount: 0,
+        pageSize: 0
+      }
+    }
+
+    // Otherwise, return the mapped data for the Cusdis widget
     return {
       ...this.data,
-      // Ensures dates are in the format the Cusdis widget expects
       createdAt: new Date(this.data.createdAt || Date.now()).getTime(),
-      // Maps your Supabase 'by_nickname' to the 'nickname' field Cusdis expects
-      nickname: this.data.by_nickname,
+      nickname: this.data.by_nickname || 'Guest',
     }
   }
-}
 }
