@@ -13,18 +13,19 @@ export class CommentService {
     }
   }
 
-  async getComments(pageId: string) {
-    const { data, error } = await supabase
-      .from('comments')
-      .select('*, replies:comments(*)')
-      .eq('pageId', pageId)
-      .eq('approved', true)
-      .is('parentId', null)
-      .order('createdAt', { ascending: false });
+ // Added timezoneOffset and options as optional arguments
+async getComments(pageId: string, timezoneOffset?: number, options?: any) {
+  const { data, error } = await supabase
+    .from('comments')
+    .select('*, replies:comments(*)')
+    .eq('pageId', pageId)
+    .eq('approved', true)
+    .is('parentId', null)
+    .order('createdAt', { ascending: false });
 
-    if (error) throw error;
-    return { data, commentCount: data?.length || 0 };
-  }
+  if (error) throw error;
+  return { data: data || [], commentCount: data?.length || 0 };
+}
 
   async addComment(body: { content: string, nickname: string, email: string, pageId: string, parentId?: string }) {
     const { data, error } = await supabase
