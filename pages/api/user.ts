@@ -18,7 +18,7 @@ export default async function handler(req, res) {
   } = req.body;
 
   // 3. Use 'session.uid' instead of the missing 'user.uid'
-  await userService.update(session.uid, {
+ await userService.update((session as any).uid, {
     enableNotifications,
     notificationEmail,
     displayName
