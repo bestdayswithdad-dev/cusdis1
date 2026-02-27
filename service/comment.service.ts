@@ -93,25 +93,39 @@ async addCommentAsModerator(parentId: string, content: string, options?: any) {
   return data;
 }
   // Add this at the very bottom of service/comment.service.ts
+// Add this interface above the class
+interface CommentData {
+  commentCount?: number;
+  data?: any[];
+  pageCount?: number;
+  pageSize?: number;
+  [key: string]: any;
+}
+
 export class CommentWrapper {
-  // We use public data: any to allow the API to pass in any object shape
+  // Using 'any' here is the shortcut to bypass the "overlap" error
   constructor(public data: any) {}
 
-  toJSON() {
-    // If data exists and is an array (list of comments)
+  toJSON(): any {
+    // If we have an empty state object (no comments found)
+    if (this.data && typeof this.data === 'object' && !Array.isArray(this.data)) {
+      return {
+        commentCount: this.data.commentCount ?? 0,
+        data: this.data.data ?? [],
+        pageCount: this.data.pageCount ?? 0,
+        pageSize: this.data.pageSize ?? 0
+      };
+    }
+
+    // If we have an array of actual comments
     if (Array.isArray(this.data)) {
       return this.data.map(item => ({
         ...item,
         createdAt: new Date(item.createdAt || Date.now()).getTime(),
         nickname: item.by_nickname || 'Guest',
-      }))
+      }));
     }
-    
-    // If it's a single object (like the empty state structure)
-    return {
-      ...this.data,
-      commentCount: this.data?.commentCount ?? 0,
-      data: this.data?.data ?? [],
-    }
+
+    return this.data;
   }
 }
