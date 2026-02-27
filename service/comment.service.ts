@@ -39,18 +39,7 @@ export class CommentService {
   }
 
  // Look for this section in your CommentService class
-async getComments(pageId: string, timezoneOffset?: number, options?: any) {
-  const { data, error } = await supabase
-    .from('comments')
-    .select('*, replies:comments(*)')
-    .eq('pageId', pageId)
-    .eq('approved', true)
-    .is('parentId', null)
-    .order('created_at', { ascending: false }); // CHANGE 'createdAt' TO 'created_at'
-
-  if (error) throw error;
-  return { data: data || [], commentCount: data?.length || 0 };
-}
+V
 
   async addComment(body: { content: string, nickname: string, email: string, pageId: string, parentId?: string }) {
     const { data, error } = await supabase
