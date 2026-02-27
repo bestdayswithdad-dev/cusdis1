@@ -56,39 +56,54 @@ export class CommentService {
   }
 
   async getComments(pageIdOrSlug: string, timezoneOffset: number, options: any) {
-    // 1. Find the page record first
-    const page = await prisma.page.findFirst({
-      where: { 
-        OR: [{ id: pageIdOrSlug }, { slug: pageIdOrSlug }]
-      }
-    });
+  // 1. Log what we are receiving to Vercel for easier debugging
+  console.log("Cusdis Request: Fetching comments for ID/Slug:", pageIdOrSlug);
 
-    if (!page) return { data: [], commentCount: 0, pageCount: 0, pageSize: 50 };
+  // 2. We search for the page using a broader OR condition.
+  // This checks the ID, the Slug, and the URL columns simultaneously.
+  const page = await prisma.page.findFirst({
+    where: { 
+      OR: [
+        { id: pageIdOrSlug }, 
+        { slug: pageIdOrSlug },
+        { url: pageIdOrSlug }
+      ],
+      // Ensure the page belongs to your specific project
+      projectId: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1' 
+    }
+  });
 
-    // 2. Fetch comments that are NOT deleted
-    const comments = await prisma.comment.findMany({ 
-      where: { 
-        pageId: page.id,
-        parentId: null,
-        deletedAt: null, // ONLY show comments that haven't been deleted
-        approved: true   // Your DB shows they are TRUE, so we can keep this
-      }, 
-      orderBy: { createdAt: 'desc' }, 
-      include: { 
-        replies: {
-          where: { deletedAt: null, approved: true }
-        },
-        page: true 
-      } 
-    });
-    
-    return { 
-      data: comments, 
-      commentCount: comments.length, 
-      pageCount: 1, 
-      pageSize: 50 
-    };
+  if (!page) {
+    console.log("Cusdis Error: No page found for identifier:", pageIdOrSlug);
+    return { data: [], commentCount: 0, pageCount: 0, pageSize: 50 };
   }
+
+  // 3. Fetch comments
+  // For debugging, you can temporarily comment out 'approved: true' 
+  // to see if the comments exist but are just unapproved.
+  const comments = await prisma.comment.findMany({ 
+    where: { 
+      pageId: page.id,
+      parentId: null,
+      deletedAt: null, 
+      approved: true  // This matches your @default(false) in schema
+    }, 
+    orderBy: { createdAt: 'desc' }, 
+    include: { 
+      replies: {
+        where: { deletedAt: null, approved: true }
+      },
+      page: true 
+    } 
+  });
+  
+  return { 
+    data: comments, 
+    commentCount: comments.length, 
+    pageCount: 1, 
+    pageSize: 50 
+  };
+}
 
   // Restored getProject to fix the build error
   async getProject(commentId: string) {
