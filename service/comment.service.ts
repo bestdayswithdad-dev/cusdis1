@@ -7,8 +7,8 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
 export class CommentService {
-  constructor() {
-    // Re-linking the global window object for your HTML templates
+  // Add 'private req: any' here to match what the API expects
+  constructor(private req?: any) {
     if (typeof window !== 'undefined') {
       (window as any).supabaseClient = supabase;
     }
