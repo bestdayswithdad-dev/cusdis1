@@ -6,8 +6,8 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
 export class CommentService {
-  // Cusdis often requires a Project ID to validate the request
-  private projectId = 'cbcd61ec-f2ef-425c-a952-30034c2de4e1';
+  // Add the constructor here to accept the 'req' argument
+  constructor(private req?: any) {}
 
   async getComments(pageId: string) {
     const { data, error } = await supabase
