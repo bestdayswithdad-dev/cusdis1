@@ -94,25 +94,24 @@ async addCommentAsModerator(parentId: string, content: string, options?: any) {
 }
   // Add this at the very bottom of service/comment.service.ts
 export class CommentWrapper {
-  // We use 'any' and an optional data property to prevent the "overlap" error
-  constructor(public data?: any) {}
+  // We use public data: any to allow the API to pass in any object shape
+  constructor(public data: any) {}
 
   toJSON() {
-    // If there is no data (404/Empty state), return a safe empty structure
-    if (!this.data) {
-      return {
-        commentCount: 0,
-        data: [],
-        pageCount: 0,
-        pageSize: 0
-      }
+    // If data exists and is an array (list of comments)
+    if (Array.isArray(this.data)) {
+      return this.data.map(item => ({
+        ...item,
+        createdAt: new Date(item.createdAt || Date.now()).getTime(),
+        nickname: item.by_nickname || 'Guest',
+      }))
     }
-
-    // Otherwise, return the mapped data for the Cusdis widget
+    
+    // If it's a single object (like the empty state structure)
     return {
       ...this.data,
-      createdAt: new Date(this.data.createdAt || Date.now()).getTime(),
-      nickname: this.data.by_nickname || 'Guest',
+      commentCount: this.data?.commentCount ?? 0,
+      data: this.data?.data ?? [],
     }
   }
 }
