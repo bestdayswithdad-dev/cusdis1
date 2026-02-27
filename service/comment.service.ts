@@ -68,8 +68,8 @@ export class CommentService {
     ownerId: 'admin' // Added this to satisfy the projectOwnerGuard type
   };
 }
-  async addCommentAsModerator(parentId: string, content: string) {
-  // We first need to find the original comment to get the correct pageId
+// Add the 'options' parameter as the 3rd argument
+async addCommentAsModerator(parentId: string, content: string, options?: any) {
   const { data: parentComment } = await supabase
     .from('comments')
     .select('pageId')
@@ -80,7 +80,7 @@ export class CommentService {
     .from('comments')
     .insert([{ 
       content: content, 
-      by_nickname: 'Dad', // Your moderator name
+      by_nickname: 'Dad', 
       by_email: 'admin@bestdayswithdad.com', 
       pageId: parentComment?.pageId,
       parentId: parentId,
