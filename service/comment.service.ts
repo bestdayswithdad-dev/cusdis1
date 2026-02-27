@@ -3,7 +3,6 @@ import MarkdownIt from 'markdown-it'
 import { getSession } from '../utils.server'
 
 const md = new MarkdownIt()
-
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 export const supabase = createClient(supabaseUrl, supabaseKey)
@@ -11,13 +10,12 @@ export const supabase = createClient(supabaseUrl, supabaseKey)
 export class CommentService {
   constructor(private req?: any) {}
 
-  // 1. GET COMMENTS: Must match the numeric pageId sent by Blogger
   async getComments(pageId: string, timezoneOffset?: number, options?: any) {
     const { data, error } = await supabase
       .from('comments')
       .select('*, replies:comments(*)')
       .eq('pageId', pageId)
-      .eq('projectId', '081c8a30-0550-4716-aae6-c553d7b545f6') // Added strict project filtering
+      .eq('projectId', '081c8a30-0550-4716-aae6-c553d7b545f6')
       .eq('approved', true)
       .is('parentId', null)
       .order('created_at', { ascending: false });
@@ -26,19 +24,40 @@ export class CommentService {
     return { data: data || [], commentCount: data?.length || 0 };
   }
 
-  // 2. GET PROJECT: This tells the Dashboard what to show
   async getProject(commentId?: string) {
     const session = await getSession(this.req);
-    // Use (session as any) to bypass the build error we saw earlier
     const currentUid = (session as any)?.uid || 'admin';
-
     return { 
       id: '081c8a30-0550-4716-aae6-c553d7b545f6', 
-      ownerId: currentUid // Matches your login session so the dashboard isn't empty
+      ownerId: currentUid 
     };
   }
 
-  // 3. ADD COMMENT: Restoring the IP logic and correct field names
+  // ADD THIS BACK TO FIX THE BUILD ERROR
+  async addCommentAsModerator(parentId: string, content: string, options?: any) {
+    const { data: parentComment } = await supabase
+      .from('comments')
+      .select('pageId')
+      .eq('id', parentId)
+      .single();
+
+    const { data, error } = await supabase
+      .from('comments')
+      .insert([{ 
+        content, 
+        by_nickname: 'Dad', 
+        by_email: 'admin@bestdayswithdad.com', 
+        pageId: parentComment?.pageId,
+        projectId: '081c8a30-0550-4716-aae6-c553d7b545f6',
+        parentId,
+        approved: true 
+      }])
+      .select().single();
+
+    if (error) throw error;
+    return data;
+  }
+
   async addComment(body: { content: string, nickname: string, email: string, pageId: string, parentId?: string }) {
     const { data, error } = await supabase
       .from('comments')
@@ -47,12 +66,11 @@ export class CommentService {
         by_nickname: body.nickname, 
         by_email: body.email, 
         pageId: body.pageId,
-        projectId: '081c8a30-0550-4716-aae6-c553d7b545f6', // Ensure new comments link to the dashboard
+        projectId: '081c8a30-0550-4716-aae6-c553d7b545f6',
         parentId: body.parentId || null,
         approved: true 
       }])
-      .select()
-      .single();
+      .select().single();
 
     if (error) throw error;
     return data;
