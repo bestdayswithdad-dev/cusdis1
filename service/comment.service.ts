@@ -41,9 +41,9 @@ export class CommentService extends RequestScopeService {
   emailService = new EmailService()
   tokenService = new TokenService()
 
-  async getComments(
+async getComments(
     projectId: string,
-    timezoneOffset: number,
+    timezoneOffset?: number, // Made optional
     options?: {
       parentId?: string
       page?: number
