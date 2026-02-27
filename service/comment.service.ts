@@ -134,4 +134,12 @@ export class CommentWrapper {
       })),
     };
   }
+  // Add this at the very bottom of service/comment.service.ts
+import MarkdownIt from 'markdown-it'
+
+const md = new MarkdownIt()
+
+export const markdown = (content: string) => {
+  return md.render(content)
+}
 }
