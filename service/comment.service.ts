@@ -22,7 +22,6 @@ interface CommentData {
   data?: any[];
   pageCount?: number;
   pageSize?: number;
-  [key: string]: any;
 }
 
 // 3. Supabase Client Setup
@@ -112,26 +111,21 @@ export class CommentService {
     if (error) throw error;
     return data;
   }
+
+  // Helper for internal use if needed
+  sendConfirmReplyNotificationEmail(email: string, title: any, id: any) {
+    console.log('Notification placeholder for:', email);
+  }
 }
 
-// Add this interface above the class
-interface CommentData {
-  commentCount?: number;
-  data?: any[];
-  pageCount?: number;
-  pageSize?: number;
-  [key: string]: any;
-}
-
+// 5. Wrapper Class (Handles Dashboard and API responses)
 export class CommentWrapper {
-  // These public declarations are required for the dashboard to "see" them
   public commentCount: number = 0;
   public pageCount: number = 0;
   public data: any[] = [];
 
   constructor(data: any) {
     if (data && typeof data === 'object') {
-      // If data is the wrapper object itself
       this.commentCount = data.commentCount || 0;
       this.pageCount = data.pageCount || 0;
       this.data = Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []);
@@ -151,20 +145,9 @@ export class CommentWrapper {
   }
 }
 
-    // If we have an array of actual comments
-    if (Array.isArray(this.data)) {
-      return this.data.map(item => ({
-        ...item,
-        createdAt: new Date(item.createdAt || Date.now()).getTime(),
-        nickname: item.by_nickname || 'Guest',
-      }));
-    }
-
-    return this.data;
+// 6. Exported Helper Object for notification service
+export const markdown = {
+  render: (content: string) => {
+    return md.render(content)
   }
-}
-
-// 6. Exported Helper
-export const markdown = (content: string) => {
-  return md.render(content)
 }
