@@ -27,8 +27,9 @@
     "build:count": "vite build --config scripts/vite.count.config.js"
   },
   "prettier": "@egoist/prettier-config",
-  "dependencies": {
-    "@emotion/react": "^11.10.4",
+ "dependencies": {
+  "@supabase/supabase-js": "^2.39.0", 
+  "@emotion/react": "^11.10.4",
     "@emotion/server": "^11.11.0",
     "@hapi/boom": "^9.1.2",
     "@mantine/core": "^6.0.16",
