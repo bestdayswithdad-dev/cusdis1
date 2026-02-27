@@ -39,7 +39,23 @@ export class CommentService {
   }
 
  // Look for this section in your CommentService class
-V
+async getComments(pageId: string) {
+    const { data, error } = await supabase
+      .from('comments')
+      .select('*, replies:comments(*)')
+      .eq('pageId', pageId)
+      .eq('approved', true)
+      .is('parentId', null)
+      .order('created_at', { ascending: false }); // Using the fixed underscore version
+
+    if (error) throw error;
+    
+    // Returning the shape the Wrapper expects
+    return { 
+      data: data || [], 
+      commentCount: data?.length || 0 
+    };
+  }
 
   async addComment(body: { content: string, nickname: string, email: string, pageId: string, parentId?: string }) {
     const { data, error } = await supabase
