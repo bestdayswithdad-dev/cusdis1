@@ -38,23 +38,18 @@ export class CommentService {
     }
   }
 
- // Look for this section in your CommentService class
-async getComments(pageId: string) {
+  // UPDATED: Now accepts 3 arguments to satisfy the dashboard build
+  async getComments(pageId: string, timezoneOffset?: number, options?: any) {
     const { data, error } = await supabase
       .from('comments')
       .select('*, replies:comments(*)')
       .eq('pageId', pageId)
       .eq('approved', true)
       .is('parentId', null)
-      .order('created_at', { ascending: false }); // Using the fixed underscore version
+      .order('created_at', { ascending: false }); // FIXED: Using underscore for Supabase
 
     if (error) throw error;
-    
-    // Returning the shape the Wrapper expects
-    return { 
-      data: data || [], 
-      commentCount: data?.length || 0 
-    };
+    return { data: data || [], commentCount: data?.length || 0 };
   }
 
   async addComment(body: { content: string, nickname: string, email: string, pageId: string, parentId?: string }) {
@@ -118,13 +113,12 @@ async getComments(pageId: string) {
     return data;
   }
 
-  // Helper for internal use if needed
   sendConfirmReplyNotificationEmail(email: string, title: any, id: any) {
     console.log('Notification placeholder for:', email);
   }
 }
 
-// 5. Wrapper Class (Handles Dashboard and API responses)
+// 5. Wrapper Class
 export class CommentWrapper {
   public commentCount: number = 0;
   public pageCount: number = 0;
@@ -144,14 +138,14 @@ export class CommentWrapper {
       pageCount: this.pageCount,
       data: this.data.map((item: any) => ({
         ...item,
-        createdAt: new Date(item.createdAt || Date.now()).getTime(),
+        // Check both common naming styles
+        createdAt: new Date(item.created_at || item.createdAt || Date.now()).getTime(),
         nickname: item.by_nickname || 'Guest',
       })),
     };
   }
 }
 
-// 6. Exported Helper Object for notification service
 export const markdown = {
   render: (content: string) => {
     return md.render(content)
