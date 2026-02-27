@@ -62,7 +62,10 @@ export class CommentService {
     return data;
   }
 
- async getProject(commentId?: string) { // Added (commentId?: string)
-  return { id: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1' };
+ async getProject(commentId?: string) {
+  return { 
+    id: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1',
+    ownerId: 'admin' // Added this to satisfy the projectOwnerGuard type
+  };
 }
 }
