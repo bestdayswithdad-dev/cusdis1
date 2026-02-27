@@ -1,6 +1,10 @@
 import { createClient } from '@supabase/supabase-js'
+import MarkdownIt from 'markdown-it'
 
-// 1. Interfaces must be at the top level
+// 1. Initialize Markdown Helper
+const md = new MarkdownIt()
+
+// 2. Interfaces
 export interface CommentItem {
   id: string;
   content: string;
@@ -21,12 +25,13 @@ interface CommentData {
   [key: string]: any;
 }
 
+// 3. Supabase Client Setup
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
-// 2. The Main Service Class
+// 4. Main Service Class
 export class CommentService {
   constructor(private req?: any) {
     if (typeof window !== 'undefined') {
@@ -109,7 +114,7 @@ export class CommentService {
   }
 }
 
-// 3. The Wrapper Class (Lives outside the Service class)
+// 5. Wrapper Class
 export class CommentWrapper {
   public commentCount: number = 0;
   public pageCount: number = 0;
@@ -134,12 +139,9 @@ export class CommentWrapper {
       })),
     };
   }
-  // Add this at the very bottom of service/comment.service.ts
-import MarkdownIt from 'markdown-it'
+}
 
-const md = new MarkdownIt()
-
+// 6. Exported Helper
 export const markdown = (content: string) => {
   return md.render(content)
-}
 }
