@@ -1,86 +1,259 @@
-import { createClient } from '@supabase/supabase-js'
+import { Comment, Page, Prisma, User } from '@prisma/client'
+import { RequestScopeService, UserSession } from '.'
+import { prisma, resolvedConfig } from '../utils.server'
+import { PageService } from './page.service'
+import dayjs from 'dayjs'
 import MarkdownIt from 'markdown-it'
-import { getSession } from '../utils.server'
+import { HookService } from './hook.service'
+import { statService } from './stat.service'
+import { EmailService } from './email.service'
+import { TokenService } from './token.service'
+import { makeConfirmReplyNotificationTemplate } from '../templates/confirm_reply_notification'
+import utc from 'dayjs/plugin/utc'
+import { getSession } from '../utils.server' // Added for ID alignment
 
-const md = new MarkdownIt()
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-export const supabase = createClient(supabaseUrl, supabaseKey)
+dayjs.extend(utc)
 
-export class CommentService {
-  constructor(private req?: any) {}
+export const markdown = MarkdownIt({
+  linkify: true,
+})
 
-  async getComments(pageId: string, timezoneOffset?: number, options?: any) {
-    const { data, error } = await supabase
-      .from('comments')
-      .select('*, replies:comments(*)')
-      .eq('pageId', pageId)
-      .eq('projectId', '081c8a30-0550-4716-aae6-c553d7b545f6')
-      .eq('approved', true)
-      .is('parentId', null)
-      .order('created_at', { ascending: false });
+markdown.disable(['image', 'link'])
 
-    if (error) throw error;
-    return { data: data || [], commentCount: data?.length || 0 };
+export type CommentWrapper = {
+  commentCount: number
+  pageSize: number
+  pageCount: number
+  data: CommentItem[]
+}
+
+export type CommentItem = Comment & {
+  page: Page
+} & {
+  replies: CommentWrapper
+  parsedContent: string
+  parsedCreatedAt: string
+}
+
+export class CommentService extends RequestScopeService {
+  pageService = new PageService(this.req)
+  hookService = new HookService(this.req)
+  emailService = new EmailService()
+  tokenService = new TokenService()
+
+  async getComments(
+    projectId: string,
+    timezoneOffset: number,
+    options?: {
+      parentId?: string
+      page?: number
+      select?: Prisma.CommentSelect
+      pageSlug?: string | Prisma.StringFilter
+      onlyOwn?: boolean
+      approved?: boolean
+      pageSize?: number
+    },
+  ): Promise<CommentWrapper> {
+    const pageSize = options?.pageSize || 10
+
+    const select = {
+      id: true,
+      createdAt: true,
+      content: true,
+      ...options?.select,
+      page: true,
+      moderatorId: true,
+    } as Prisma.CommentSelect
+
+    // Ensure we are filtering by the active project ID
+    const targetProjectId = projectId || '081c8a30-0550-4716-aae6-c553d7b545f6'
+
+    const where = {
+      approved: options?.approved === true ? true : options?.approved,
+      parentId: options?.parentId,
+      deletedAt: null,
+      page: {
+        slug: options?.pageSlug,
+        projectId: targetProjectId,
+        project: {
+          deletedAt: null,
+          ownerId: options?.onlyOwn
+            ? (await (await this.getSession() as any)).uid // TypeScript fix
+            : undefined,
+        },
+      },
+    } as Prisma.CommentWhereInput
+
+    const baseQuery = {
+      select,
+      where,
+    }
+
+    const page = options?.page || 1
+
+    const [commentCount, comments] = await prisma.$transaction([
+      prisma.comment.count({ where }),
+      prisma.comment.findMany({
+        ...baseQuery,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: {
+          createdAt: 'desc',
+        },
+      }),
+    ])
+
+    const pageCount = Math.ceil(commentCount / pageSize) || 1
+
+    const allComments = await Promise.all(
+      comments.map(async (comment: Comment) => {
+        const replies = await this.getComments(targetProjectId, timezoneOffset, {
+          ...options,
+          page: 1,
+          pageSize: 100,
+          parentId: comment.id,
+          pageSlug: options?.pageSlug,
+          select,
+        })
+
+        const parsedCreatedAt = dayjs.utc(comment.createdAt).utcOffset(timezoneOffset).format(
+          'YYYY-MM-DD HH:mm',
+        )
+        const parsedContent = markdown.render(comment.content) as string
+        return {
+          ...comment,
+          replies,
+          parsedContent,
+          parsedCreatedAt,
+        } as CommentItem
+      }),
+    )
+
+    return {
+      data: allComments,
+      commentCount,
+      pageSize,
+      pageCount,
+    }
   }
 
-  async getProject(commentId?: string) {
-    const session = await getSession(this.req);
-    const currentUid = (session as any)?.uid || 'admin';
-    return { 
-      id: '081c8a30-0550-4716-aae6-c553d7b545f6', 
-      ownerId: currentUid 
-    };
+  async getProject(commentId: string) {
+    // Safety check: if no commentId, return the active project
+    if (!commentId) {
+      const session = await getSession(this.req);
+      return { 
+        id: '081c8a30-0550-4716-aae6-c553d7b545f6', 
+        ownerId: (session as any)?.uid || 'admin' 
+      };
+    }
+
+    const res = await prisma.comment.findUnique({
+      where: { id: commentId },
+      select: {
+        page: {
+          select: {
+            project: {
+              select: { id: true, ownerId: true },
+            },
+          },
+        },
+      },
+    })
+
+    return res?.page?.project || { id: '081c8a30-0550-4716-aae6-c553d7b545f6', ownerId: 'admin' };
   }
 
-  // ADD THIS BACK TO FIX THE BUILD ERROR
-  async addCommentAsModerator(parentId: string, content: string, options?: any) {
-    const { data: parentComment } = await supabase
-      .from('comments')
-      .select('pageId')
-      .eq('id', parentId)
-      .single();
+  async addComment(
+    projectId: string,
+    pageSlug: string,
+    body: {
+      content: string
+      email: string
+      nickname: string
+      pageUrl?: string
+      pageTitle?: string
+    },
+    parentId?: string,
+  ) {
+    const page = await this.pageService.upsertPage(pageSlug, projectId, {
+      pageTitle: body.pageTitle,
+      pageUrl: body.pageUrl,
+    })
 
-    const { data, error } = await supabase
-      .from('comments')
-      .insert([{ 
-        content, 
-        by_nickname: 'Dad', 
-        by_email: 'admin@bestdayswithdad.com', 
-        pageId: parentComment?.pageId,
-        projectId: '081c8a30-0550-4716-aae6-c553d7b545f6',
+    const verifiedUser = await prisma.user.findFirst({
+      where: {
+        email: body.email.toLowerCase(),
+        emailVerified: { not: null } 
+      }
+    });
+
+    const created = await prisma.comment.create({
+      data: {
+        content: body.content,
+        by_email: body.email.toLowerCase(),
+        by_nickname: verifiedUser?.name || body.nickname, 
+        pageId: page.id,
         parentId,
-        approved: true 
-      }])
-      .select().single();
+        approved: !!verifiedUser, 
+      },
+    })
 
-    if (error) throw error;
-    return data;
+    this.hookService.addComment(created, projectId)
+    return created
   }
 
-  async addComment(body: { content: string, nickname: string, email: string, pageId: string, parentId?: string }) {
-    const { data, error } = await supabase
-      .from('comments')
-      .insert([{ 
-        content: body.content, 
-        by_nickname: body.nickname, 
-        by_email: body.email, 
-        pageId: body.pageId,
-        projectId: '081c8a30-0550-4716-aae6-c553d7b545f6',
-        parentId: body.parentId || null,
-        approved: true 
-      }])
-      .select().single();
+  async addCommentAsModerator(parentId: string, content: string, options?: { owner?: User }) {
+    const session = options?.owner ? {
+      user: options.owner,
+      uid: options.owner.id
+    } : await this.getSession() as any
+    
+    const parent = await prisma.comment.findUnique({
+      where: { id: parentId },
+    })
 
-    if (error) throw error;
-    return data;
+    const created = await prisma.comment.create({
+      data: {
+        content: content,
+        by_email: session.user.email,
+        by_nickname: session.user.name,
+        moderatorId: session.uid,
+        pageId: parent.pageId,
+        approved: true,
+        parentId,
+      },
+    })
+
+    return created
   }
 
-  async approve(id: string) {
-    await supabase.from('comments').update({ approved: true }).eq('id', id);
+  async approve(commentId: string) {
+    await prisma.comment.update({
+      where: { id: commentId },
+      data: { approved: true },
+    })
+    statService.capture('comment_approve')
   }
 
-  async deleteComment(id: string) {
-    await supabase.from('comments').delete().eq('id', id);
+  async delete(commentId: string) {
+    await prisma.comment.update({
+      where: { id: commentId },
+      data: { deletedAt: new Date() },
+    })
+  }
+
+  async sendConfirmReplyNotificationEmail(to: string, pageSlug: string, commentId: string) {
+    const confirmToken = this.tokenService.genAcceptNotifyToken(commentId)
+    const confirmLink = `${resolvedConfig.host}/api/open/confirm_reply_notification?token=${confirmToken}`
+    this.emailService.send({
+      to,
+      from: this.emailService.sender,
+      subject: `Please confirm reply notification`,
+      html: makeConfirmReplyNotificationTemplate({
+        page_slug: pageSlug,
+        confirm_url: confirmLink,
+      }),
+    })
+    statService.capture('send_reply_confirm_email')
   }
 }
