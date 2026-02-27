@@ -116,28 +116,32 @@ interface CommentData {
 }
 
 export class CommentWrapper {
-  // Using 'any' here is the shortcut to bypass the "overlap" error
-  constructor(public data: any) {}
+  // Explicitly declare these so the dashboard can "see" them
+  public commentCount: number = 0;
+  public pageCount: number = 0;
+  public data: any[] = [];
 
-  toJSON(): any {
-    // If we have an empty state object (no comments found)
-    if (this.data && typeof this.data === 'object' && !Array.isArray(this.data)) {
-      return {
-        commentCount: this.data.commentCount ?? 0,
-        data: this.data.data ?? [],
-        pageCount: this.data.pageCount ?? 0,
-        pageSize: this.data.pageSize ?? 0
-      };
+  constructor(data: any) {
+    // If the incoming data has these properties, assign them
+    if (data && typeof data === 'object') {
+      this.commentCount = data.commentCount || 0;
+      this.pageCount = data.pageCount || 0;
+      this.data = Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []);
     }
+  }
 
-    // If we have an array of actual comments
-    if (Array.isArray(this.data)) {
-      return this.data.map(item => ({
+  toJSON() {
+    return {
+      commentCount: this.commentCount,
+      pageCount: this.pageCount,
+      data: this.data.map((item: any) => ({
         ...item,
         createdAt: new Date(item.createdAt || Date.now()).getTime(),
         nickname: item.by_nickname || 'Guest',
-      }));
-    }
+      })),
+    };
+  }
+}
 
     return this.data;
   }
