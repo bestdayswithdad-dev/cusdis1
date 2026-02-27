@@ -1,4 +1,16 @@
 import { createClient } from '@supabase/supabase-js'
+// Add this interface to define the shape of a comment
+export interface CommentItem {
+  id: string;
+  content: string;
+  by_nickname: string;
+  by_email: string;
+  pageId: string;
+  parentId?: string | null;
+  approved: boolean;
+  createdAt: string | number;
+  replies?: CommentItem[];
+}
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
