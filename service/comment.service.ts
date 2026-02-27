@@ -17,7 +17,7 @@ dayjs.extend(utc)
 export const markdown = MarkdownIt({ linkify: true })
 markdown.disable(['image', 'link'])
 
-// FIX 1: Convert 'type' to 'class' so the API can use 'new CommentWrapper'
+// Class definition to satisfy 'new CommentWrapper' calls
 export class CommentWrapper {
   public commentCount: number = 0;
   public pageCount: number = 0;
@@ -48,31 +48,14 @@ export class CommentService extends RequestScopeService {
   emailService = new EmailService()
   tokenService = new TokenService()
 
-  // FIX 2: Make projectId and timezoneOffset optional to match API calls
+  // Flexible arguments to satisfy both Dashboard and Blog API calls
   async getComments(
     projectId?: string,
     timezoneOffset?: number,
-    options?: {
-      parentId?: string
-      page?: number
-      select?: Prisma.CommentSelect
-      pageSlug?: string | Prisma.StringFilter
-      onlyOwn?: boolean
-      approved?: boolean
-      pageSize?: number
-    },
+    options?: any
   ): Promise<CommentWrapper> {
     const pageSize = options?.pageSize || 10
-    const targetProjectId = projectId || '081c8a30-0550-4716-aae6-c553d7b545f6'
-
-    const select = {
-      id: true,
-      createdAt: true,
-      content: true,
-      ...options?.select,
-      page: true,
-      moderatorId: true,
-    } as Prisma.CommentSelect
+    const targetProjectId = projectId || 'cbcd61ec-f2ef-425c-a952-30034c2de4e1'
 
     const where = {
       approved: options?.approved === true ? true : options?.approved,
@@ -81,20 +64,17 @@ export class CommentService extends RequestScopeService {
       page: {
         slug: options?.pageSlug,
         projectId: targetProjectId,
-        project: { deletedAt: null },
       },
     } as Prisma.CommentWhereInput
-
-    const page = options?.page || 1
 
     const [commentCount, comments] = await prisma.$transaction([
       prisma.comment.count({ where }),
       prisma.comment.findMany({
         where,
-        select,
-        skip: (page - 1) * pageSize,
+        skip: ((options?.page || 1) - 1) * pageSize,
         take: pageSize,
         orderBy: { createdAt: 'desc' },
+        include: { page: true }
       }),
     ])
 
@@ -105,8 +85,6 @@ export class CommentService extends RequestScopeService {
           page: 1,
           pageSize: 100,
           parentId: comment.id,
-          pageSlug: options?.pageSlug,
-          select,
         })
 
         return {
@@ -128,46 +106,36 @@ export class CommentService extends RequestScopeService {
 
   async getProject(commentId: string) {
     if (!commentId) {
-      const session = await getSession(this.req);
-      return { id: '081c8a30-0550-4716-aae6-c553d7b545f6', ownerId: (session as any)?.uid || 'admin' };
+      const session = await (await this.getSession() as any);
+      return { id: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1', ownerId: session?.uid || 'admin' };
     }
     const res = await prisma.comment.findUnique({
       where: { id: commentId },
-      select: { page: { select: { project: { select: { id: true, ownerId: true } } } } },
+      include: { page: { include: { project: true } } }
     })
-    return res?.page?.project || { id: '081c8a30-0550-4716-aae6-c553d7b545f6', ownerId: 'admin' };
+    return res?.page?.project || { id: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1', ownerId: 'admin' };
   }
 
-async addComment(
-    projectIdOrBody: string | any,
-    pageSlug?: string,
-    body?: any,
-    parentId?: string,
-  ) {
-    let finalProjectId: string;
-    let finalPageSlug: string;
-    let finalBody: any;
-    let finalParentId: string | undefined = parentId;
+  async addComment(projectIdOrBody: any, pageSlug?: string, body?: any, parentId?: string) {
+    let finalProjectId = 'cbcd61ec-f2ef-425c-a952-30034c2de4e1';
+    let finalPageSlug = pageSlug;
+    let finalBody = body;
+    let finalParentId = parentId;
 
-    // Detect if we were called with a single object (from API) or multiple args (from Dashboard)
     if (typeof projectIdOrBody === 'object') {
       finalBody = projectIdOrBody;
-      finalProjectId = projectIdOrBody.projectId || '081c8a30-0550-4716-aae6-c553d7b545f6';
+      finalProjectId = projectIdOrBody.projectId || finalProjectId;
       finalPageSlug = projectIdOrBody.pageId || projectIdOrBody.pageSlug;
       finalParentId = projectIdOrBody.parentId;
     } else {
       finalProjectId = projectIdOrBody;
-      finalPageSlug = pageSlug!;
-      finalBody = body;
     }
 
-    // 1. Ensure the page exists in the database
-    const page = await this.pageService.upsertPage(finalPageSlug, finalProjectId, {
+    const page = await this.pageService.upsertPage(finalPageSlug!, finalProjectId, {
       pageTitle: finalBody.pageTitle,
       pageUrl: finalBody.pageUrl,
     })
 
-    // 2. Create the comment
     const created = await prisma.comment.create({
       data: {
         content: finalBody.content,
@@ -175,15 +143,16 @@ async addComment(
         by_nickname: finalBody.nickname, 
         pageId: page.id,
         parentId: finalParentId || null,
-        approved: true, // Auto-approve for now to get your comments live
+        approved: true, 
       },
     })
 
     this.hookService.addComment(created, finalProjectId)
     return created
   }
-  async addCommentAsModerator(parentId: string, content: string, options?: { owner?: User }) {
-    const session = await this.getSession() as any
+
+  async addCommentAsModerator(parentId: string, content: string, options?: any) {
+    const session = (await this.getSession() as any)
     const parent = await prisma.comment.findUnique({ where: { id: parentId } })
     return await prisma.comment.create({
       data: {
@@ -191,7 +160,7 @@ async addComment(
         by_email: session.user.email,
         by_nickname: session.user.name,
         moderatorId: session.uid,
-        pageId: parent.pageId,
+        pageId: parent!.pageId,
         approved: true,
         parentId,
       },
