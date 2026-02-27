@@ -138,25 +138,50 @@ export class CommentService extends RequestScopeService {
     return res?.page?.project || { id: '081c8a30-0550-4716-aae6-c553d7b545f6', ownerId: 'admin' };
   }
 
-  async addComment(projectId: string, pageSlug: string, body: any, parentId?: string) {
-    const page = await this.pageService.upsertPage(pageSlug, projectId, {
-      pageTitle: body.pageTitle,
-      pageUrl: body.pageUrl,
+async addComment(
+    projectIdOrBody: string | any,
+    pageSlug?: string,
+    body?: any,
+    parentId?: string,
+  ) {
+    let finalProjectId: string;
+    let finalPageSlug: string;
+    let finalBody: any;
+    let finalParentId: string | undefined = parentId;
+
+    // Detect if we were called with a single object (from API) or multiple args (from Dashboard)
+    if (typeof projectIdOrBody === 'object') {
+      finalBody = projectIdOrBody;
+      finalProjectId = projectIdOrBody.projectId || '081c8a30-0550-4716-aae6-c553d7b545f6';
+      finalPageSlug = projectIdOrBody.pageId || projectIdOrBody.pageSlug;
+      finalParentId = projectIdOrBody.parentId;
+    } else {
+      finalProjectId = projectIdOrBody;
+      finalPageSlug = pageSlug!;
+      finalBody = body;
+    }
+
+    // 1. Ensure the page exists in the database
+    const page = await this.pageService.upsertPage(finalPageSlug, finalProjectId, {
+      pageTitle: finalBody.pageTitle,
+      pageUrl: finalBody.pageUrl,
     })
+
+    // 2. Create the comment
     const created = await prisma.comment.create({
       data: {
-        content: body.content,
-        by_email: body.email.toLowerCase(),
-        by_nickname: body.nickname, 
+        content: finalBody.content,
+        by_email: finalBody.email.toLowerCase(),
+        by_nickname: finalBody.nickname, 
         pageId: page.id,
-        parentId,
-        approved: true, 
+        parentId: finalParentId || null,
+        approved: true, // Auto-approve for now to get your comments live
       },
     })
-    this.hookService.addComment(created, projectId)
+
+    this.hookService.addComment(created, finalProjectId)
     return created
   }
-
   async addCommentAsModerator(parentId: string, content: string, options?: { owner?: User }) {
     const session = await this.getSession() as any
     const parent = await prisma.comment.findUnique({ where: { id: parentId } })
