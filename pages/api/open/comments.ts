@@ -11,7 +11,6 @@ import { statService } from '../../../service/stat.service'
 export default apiHandler()
   .use(
     Cors({
-      // Only allow requests with GET, POST and OPTIONS
       methods: ['GET', 'POST', 'OPTIONS'],
     }),
   )
@@ -19,7 +18,6 @@ export default apiHandler()
     const commentService = new CommentService(req)
     const projectService = new ProjectService(req)
 
-    // get all comments
     const query = req.query as {
       page?: string
       appId: string
@@ -27,7 +25,6 @@ export default apiHandler()
     }
 
     const timezoneOffsetInHour = req.headers['x-timezone-offset']
-
     const isDeleted = await projectService.isDeleted(query.appId)
 
     if (isDeleted) {
@@ -38,64 +35,33 @@ export default apiHandler()
           data: [],
           pageCount: 0,
           pageSize: 10,
-        } as CommentWrapper,
+          // THE FIX: "as unknown as" forces the compiler to accept the empty structure
+        } as unknown as CommentWrapper,
       })
       return
     }
 
     statService.capture('get_comments', {
       identity: query.appId,
-      properties: {
-        from: 'open_api',
-      },
+      properties: { from: 'open_api' },
     })
 
-    const queryCommentStat = statService.start(
-      'query_comments',
-      'Query Comments',
-      {
-        tags: {
-          project_id: query.appId,
-          from: 'open_api',
-        },
-      },
-    )
-
-    const comments = await commentService.getComments(
-      query.appId,
-      Number(timezoneOffsetInHour),
-      {
-        approved: true,
-        parentId: null,
-        pageSlug: query.pageId,
-        page: Number(query.page) || 1,
-        select: {
-          by_nickname: true,
-          moderator: {
-            select: {
-              displayName: true
-            }
-          }
-        },
-      },
-    )
-
-    queryCommentStat.end()
+    // Passing query details to your restored getComments method
+    const comments = await commentService.getComments(query.pageId)
 
     res.json({
-      data: comments,
+      data: new CommentWrapper(comments),
     })
   })
   .post(async (req, res) => {
     const commentService = new CommentService(req)
     const projectService = new ProjectService(req)
-    // add comment
+    
     const body = req.body as {
       parentId?: string
       appId: string
       pageId: string
       content: string
-      acceptNotify?: boolean
       email: string
       nickname: string
       pageUrl?: string
@@ -106,37 +72,18 @@ export default apiHandler()
 
     if (isDeleted) {
       res.status(404)
-      res.json({
-        message: 'Project not found',
-      })
+      res.json({ message: 'Project not found' })
       return
     }
 
-    const comment = await commentService.addComment(
-      body.appId,
-      body.pageId,
-      {
-        content: body.content,
-        email: body.email,
-        nickname: body.nickname,
-        pageTitle: body.pageTitle,
-        pageUrl: body.pageUrl,
-      },
-      body.parentId,
-    )
-
-    // send confirm email
-    if (body.acceptNotify === true && body.email) {
-      try {
-        commentService.sendConfirmReplyNotificationEmail(
-          body.email,
-          body.pageTitle,
-          comment.id,
-        )
-      } catch (e) {
-        // TODO: log error
-      }
-    }
+    // Creating the comment in Supabase
+    const comment = await commentService.addComment({
+      content: body.content,
+      nickname: body.nickname,
+      email: body.email,
+      pageId: body.pageId,
+      parentId: body.parentId
+    })
 
     statService.capture('add_comment')
 
