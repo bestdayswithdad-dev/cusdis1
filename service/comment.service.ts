@@ -59,7 +59,8 @@ export class CommentService extends RequestScopeService {
     const where = {
       approved: options?.approved === true ? true : options?.approved,
       parentId: options?.parentId,
-      deleted_at: null,
+      // FIXED: Using mapped name 'deletedAt'
+      deletedAt: null,
       Page: {
         slug: options?.pageSlug,
         projectId: targetProjectId,
@@ -72,7 +73,8 @@ export class CommentService extends RequestScopeService {
         where,
         skip: ((options?.page || 1) - 1) * pageSize,
         take: pageSize,
-        orderBy: { created_at: 'desc' },
+        // FIXED: Using mapped name 'createdAt'
+        orderBy: { createdAt: 'desc' },
         include: { Page: true }
       }),
     ])
@@ -91,7 +93,7 @@ export class CommentService extends RequestScopeService {
           page: comment.Page,
           replies,
           parsedContent: markdown.render(comment.content),
-          parsedCreatedAt: dayjs.utc(comment.created_at).utcOffset(timezoneOffset || 0).format('YYYY-MM-DD HH:mm'),
+          parsedCreatedAt: dayjs.utc(comment.createdAt).utcOffset(timezoneOffset || 0).format('YYYY-MM-DD HH:mm'),
         } as CommentItem
       }),
     )
@@ -142,14 +144,12 @@ export class CommentService extends RequestScopeService {
         content: finalBody.content,
         by_email: finalBody.email.toLowerCase(),
         by_nickname: finalBody.nickname, 
-        // Using connect for Page as it's a cross-schema relation
         Page: {
           connect: { id: page.id }
         },
-        // FIXED: Using parentId directly as suggested by the error log
         parentId: finalParentId || null,
         approved: true, 
-      } as any, // Cast to any to bypass the complex union type check
+      } as any,
     })
 
     this.hookService.addComment(created, finalProjectId)
@@ -169,7 +169,6 @@ export class CommentService extends RequestScopeService {
         Page: {
           connect: { id: parent!.pageId }
         },
-        // FIXED: Using parentId directly as suggested by the error log
         parentId: parentId,
         approved: true,
       } as any,
@@ -181,6 +180,7 @@ export class CommentService extends RequestScopeService {
   }
 
   async deleteComment(commentId: string) {
-    await prisma.comment.update({ where: { id: commentId }, data: { deleted_at: new Date() } })
+    // FIXED: Using mapped name 'deletedAt'
+    await prisma.comment.update({ where: { id: commentId }, data: { deletedAt: new Date() } })
   }
 }
