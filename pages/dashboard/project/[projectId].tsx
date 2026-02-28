@@ -18,16 +18,13 @@ import { List, Stack, Box, Text, Group, Anchor, Button, Pagination, Textarea, Ti
 import { MainLayoutData, ViewDataService } from '../../../service/viewData.service'
 import { notifications } from '@mantine/notifications'
 
-// ... (getComments, approveComment, deleteComment, replyAsModerator, deleteProject, updateProjectSettings functions stay the same)
-
+// API Handlers
 const getComments = async ({ queryKey }) => {
   const [_key, { projectId, page }] = queryKey
   const res = await apiClient.get<{
     data: CommentWrapper,
   }>(`/project/${projectId}/comments`, {
-    params: {
-      page,
-    }
+    params: { page }
   })
   return res.data.data
 }
@@ -49,18 +46,7 @@ const replyAsModerator = async ({ parentId, content }) => {
   return res.data.data
 }
 
-const deleteProject = async ({ projectId }) => {
-  const res = await apiClient.delete<{
-    data: string
-  }>(`/project/${projectId}`)
-  return res.data.data
-}
-
-const updateProjectSettings = async ({ projectId, body }) => {
-  const res = await apiClient.put(`/project/${projectId}`, body)
-  return res.data
-}
-
+// Components
 function CommentToolbar(props: {
   comment: CommentItem,
   refetch: any,
@@ -69,16 +55,10 @@ function CommentToolbar(props: {
   const [isOpenReplyForm, setIsOpenReplyForm] = React.useState(false)
 
   const approveCommentMutation = useMutation(approveComment, {
-    onSuccess() {
-      props.refetch()
-    },
+    onSuccess() { props.refetch() },
     onError(data: any) {
-      const { error: message } = data.response.data
-      notifications.show({
-        title: "Error",
-        message,
-        color: 'yellow'
-      })
+      const message = data.response?.data?.error || "Error approving comment"
+      notifications.show({ title: "Error", message, color: 'yellow' })
     }
   })
   const replyCommentMutation = useMutation(replyAsModerator, {
@@ -88,9 +68,7 @@ function CommentToolbar(props: {
     }
   })
   const deleteCommentMutation = useMutation(deleteComment, {
-    onSuccess() {
-      props.refetch()
-    }
+    onSuccess() { props.refetch() }
   })
 
   return (
@@ -99,15 +77,15 @@ function CommentToolbar(props: {
         {props.comment.approved ? (
           <Button leftIcon={<AiOutlineCheck />} color="green" size="xs" variant={'light'}>Approved</Button>
         ) : (
-          <Button loading={approveCommentMutation.isLoading} onClick={_ => {
-            if (window.confirm("Are you sure you want to approve this comment?")) {
+          <Button loading={approveCommentMutation.isLoading} onClick={() => {
+            if (window.confirm("Approve this comment?")) {
               approveCommentMutation.mutate({ commentId: props.comment.id })
             }
           }} leftIcon={<AiOutlineSmile />} size="xs" variant={'subtle'}>Approve</Button>
         )}
-        <Button onClick={_ => setIsOpenReplyForm(!isOpenReplyForm)} size="xs" variant={'subtle'}>Reply</Button>
-        <Button loading={deleteCommentMutation.isLoading} onClick={_ => {
-          if (window.confirm("Are you sure you want to delete this comment?")) {
+        <Button onClick={() => setIsOpenReplyForm(!isOpenReplyForm)} size="xs" variant={'subtle'}>Reply</Button>
+        <Button loading={deleteCommentMutation.isLoading} onClick={() => {
+          if (window.confirm("Delete this comment?")) {
             deleteCommentMutation.mutate({ commentId: props.comment.id })
           }
         }} color="red" size="xs" variant={'subtle'}>Delete</Button>
@@ -115,13 +93,24 @@ function CommentToolbar(props: {
       {isOpenReplyForm && (
         <Stack>
           <Textarea autosize minRows={2} onChange={e => setReplyContent(e.currentTarget.value)} placeholder="Reply as moderator" />
-          <Button loading={replyCommentMutation.isLoading} onClick={_ => {
+          <Button loading={replyCommentMutation.isLoading} onClick={() => {
             replyCommentMutation.mutate({ parentId: props.comment.id, content: replyContent })
           }} disabled={replyContent.length === 0} size="xs">Reply and approve</Button>
         </Stack>
       )}
     </Stack>
   )
+}
+
+// FIXED: Property types now match the Prisma Model names (snake_case)
+export type ProjectServerSideProps = {
+  id: string
+  title: string
+  owner_id: string
+  token: string | null
+  enable_notification: boolean
+  webhook: string | null
+  enable_webhook: boolean
 }
 
 function ProjectPage(props: {
@@ -131,7 +120,7 @@ function ProjectPage(props: {
 }) {
   React.useEffect(() => {
     if (!props.session) { signIn() }
-  }, [!props.session])
+  }, [props.session])
 
   if (!props.session) { return <div>Redirecting to signin..</div> }
 
@@ -141,7 +130,7 @@ function ProjectPage(props: {
 
   return (
     <>
-      <MainLayout id="comments" project={props.project} {...props.mainLayoutData}>
+      <MainLayout id="comments" project={props.project as any} {...props.mainLayoutData}>
         <Stack>
           <List listStyleType={'none'} styles={{
             root: { border: '1px solid #eee' },
@@ -176,50 +165,39 @@ function ProjectPage(props: {
   )
 }
 
-// TYPES: This mapping is critical for Vercel build success
-type ProjectWithMappedFields = Omit<Project, 'enable_notification' | 'owner_id' | 'enableWebhook'> & { 
-  enableNotification: boolean,
-  enableWebhook: boolean,
-  ownerId: string 
-}
-
-type ProjectServerSideProps = Pick<ProjectWithMappedFields, 'ownerId' | 'id' | 'title' | 'token' | 'enableNotification' | 'webhook' | 'enableWebhook'>
-
 export async function getServerSideProps(ctx) {
   const projectService = new ProjectService(ctx.req)
-  const session = await getSession(ctx.req)
   const viewDataService = new ViewDataService(ctx.req)
-  
-  // Use 'as any' here because raw Prisma results now use snake_case
-  const project = await projectService.get(ctx.query.projectId) as any
+  const session = await getSession(ctx.req)
 
   if (!session) {
     return { redirect: { destination: '/dashboard', permanent: false } }
   }
 
-  // Check for deletion using new snake_case
+  const project = await projectService.get(ctx.query.projectId) as any
+
   if (!project || project.deleted_at) {
     return { redirect: { destination: '/404', permanent: false } }
   }
 
-  // Check ownership using new owner_id
+  // FIXED: Validate ownership using the snake_case column
   if (session && (project.owner_id !== session.uid)) {
     return { redirect: { destination: '/forbidden', permanent: false } }
   }
 
   return {
     props: {
-      session: await getSession(ctx.req),
+      session,
       mainLayoutData: await viewDataService.fetchMainLayoutData(),
       project: {
         id: project.id,
         title: project.title,
-        ownerId: project.owner_id, // Map DB owner_id to Component ownerId
+        owner_id: project.owner_id,
         token: project.token,
-        enableNotification: !!project.enable_notification, // Map DB to Component
-        enableWebhook: !!project.enableWebhook,
+        enable_notification: !!project.enable_notification,
+        enable_webhook: !!project.enable_webhook,
         webhook: project.webhook
-      } as ProjectServerSideProps
+      }
     }
   }
 }
