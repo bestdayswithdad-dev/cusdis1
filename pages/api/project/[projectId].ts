@@ -19,10 +19,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       enableWebhook?: boolean
     }
 
-    // UPDATED: Using owner_id to match the schema property name
     const project = (await projectService.get(projectId, {
       select: {
-        owner_id: true,
+        owner_id: true, // Matches your updated schema property
       },
     })) as Pick<Project, 'owner_id'>
 
@@ -35,9 +34,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         id: projectId,
       },
       data: {
-        // FIXED: Using property names exactly as they appear in schema.prisma
+        // FIXED: Renamed to enable_webhook to match schema.prisma
         enable_notification: body.enableNotification, 
-        enableWebhook: body.enableWebhook,           
+        enable_webhook: body.enableWebhook,           
         webhook: body.webhookUrl
       },
     })
