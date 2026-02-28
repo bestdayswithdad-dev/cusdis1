@@ -24,7 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
       select:{
         token: true,
-        fetchLatestCommentsAt: true
+        fetch_latest_comments_at: true
       }
     })
 
@@ -36,10 +36,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return
     }
 
-    const comments = await projectService.fetchLatestComment(projectId, {
-      from: project.fetchLatestCommentsAt,
-      markAsRead: true
-    })
+  const comments = await projectService.fetchLatestComment(projectId, {
+  from: project.fetch_latest_comments_at, // Use the new snake_case name
+  markAsRead: true
+})
 
     res.json({
       comments: comments
