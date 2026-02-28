@@ -258,8 +258,8 @@ function ProjectPage(props: {
   )
 }
 
-type ProjectServerSideProps = Pick<Project, 'ownerId' | 'id' | 'title' | 'token' | 'enable_notification' | 'webhook' | 'enableWebhook'>
-
+type ProjectWithMappedFields = Omit<Project, 'enable_notification'> & { enableNotification: boolean }
+type ProjectServerSideProps = Pick<ProjectWithMappedFields, 'ownerId' | 'id' | 'title' | 'token' | 'enableNotification' | 'webhook' | 'enableWebhook'>
 export async function getServerSideProps(ctx) {
   const projectService = new ProjectService(ctx.req)
   const session = await getSession(ctx.req)
