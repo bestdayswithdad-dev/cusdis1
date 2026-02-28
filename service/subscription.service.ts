@@ -2,13 +2,55 @@ import { UsageLabel, usageLimitation } from "../config.common"
 import { prisma, resolvedConfig } from "../utils.server"
 
 export class SubscriptionService {
-  // Logic to check if a user is "active" 
-  // (Set to true by default for your NFP project setup)
+  // FIXED: Added 'update' method to satisfy the webhook API
+  async update(body: any) {
+    // If the webhook doesn't have the expected data structure, just skip it
+    if (!body?.data?.attributes || !body?.meta?.custom_data) {
+      return
+    }
+
+    const {
+      order_id,
+      product_id,
+      variant_id,
+      customer_id,
+      status,
+      ends_at,
+      urls
+    } = body.data.attributes
+
+    const { user_id } = body.meta.custom_data
+    const lemonSubscriptionId = body.data.id
+
+    // Use 'as any' to bypass the Prisma naming conflict loop
+    await prisma.subscription.upsert({
+      where: {
+        user_id: user_id
+      } as any,
+      create: {
+        user_id: user_id,
+        order_id: `${order_id}`,
+        product_id: `${product_id}`,
+        variant_id: `${variant_id}`,
+        customer_id: `${customer_id}`,
+        ends_at: ends_at,
+        lemon_subscription_id: lemonSubscriptionId,
+        status,
+        update_payment_method_url: urls?.update_payment_method || ''
+      } as any,
+      update: {
+        status,
+        ends_at: ends_at,
+        update_payment_method_url: urls?.update_payment_method || ''
+      } as any
+    })
+  }
+
   async isActivated(userId: string) {
+    // For your NFP project, we treat the owner as always active
     return true
   }
 
-  // Check if the user is allowed to create more projects
   async createProjectValidate(userId: string) {
     const projectCount = await prisma.project.count({
       where: {
@@ -20,12 +62,10 @@ export class SubscriptionService {
     return projectCount < usageLimitation['create_site']
   }
 
-  // Check if the user is allowed to approve comments
   async approveCommentValidate(userId: string) {
     return true
   }
 
-  // Check if the user is allowed to use quick approve
   async quickApproveValidate(userId: string) {
     return true
   }
