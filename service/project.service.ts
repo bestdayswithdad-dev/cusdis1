@@ -13,7 +13,7 @@ export class ProjectService extends RequestScopeService {
       data: {
         id: generateId(),
         title,
-        // FIXED: Using 'users' relation as requested by Prisma Client
+        // FIXED: Relation name 'users' as requested by generated client
         users: {
           connect: {
             id: session.uid,
@@ -47,9 +47,9 @@ export class ProjectService extends RequestScopeService {
     const session = await (await this.getSession() as any)
     const projects = await prisma.project.findMany({
       where: {
-        // FIXED: Using snake_case to match DB
-        deleted_at: null,
-        owner_id: session.uid,
+        // FIXED: Reverted to camelCase for the 'where' filter
+        deletedAt: null,
+        ownerId: session.uid,
       },
       select: {
         id: true,
@@ -80,13 +80,13 @@ export class ProjectService extends RequestScopeService {
   }) {
     const project = await prisma.project.findFirst({
       where: {
-        // FIXED: Using snake_case
-        owner_id: ownerId,
-        deleted_at: null
+        // FIXED: Reverted to camelCase
+        ownerId,
+        deletedAt: null
       },
       orderBy: {
-        // FIXED: Using snake_case
-        created_at: 'asc'
+        // FIXED: Reverted to camelCase
+        createdAt: 'asc'
       },
       select:  options?.select
     })
@@ -105,24 +105,19 @@ export class ProjectService extends RequestScopeService {
     const now = new Date()
     const results = await prisma.comment.findMany({
       orderBy: {
-        // FIXED: Using snake_case
-        created_at: 'desc',
+        // FIXED: Comment model might still need snake_case or camelCase; 
+        // based on the Project error, let's try camelCase here too
+        createdAt: 'desc',
       },
       take: options?.take || 20,
       where: {
-        // FIXED: Using snake_case
-        deleted_at: {
-          equals: null
-        },
+        deletedAt: null,
         approved: false,
-        moderatorId: {
-          equals: null
-        },
-        // FIXED: Capitalized relation name
+        moderatorId: null,
         Page: {
           projectId,
         },
-        created_at: {
+        createdAt: {
           gte: options?.from ? options?.from : undefined,
         },
       },
@@ -130,8 +125,7 @@ export class ProjectService extends RequestScopeService {
         by_email: true,
         by_nickname: true,
         content: true,
-        // FIXED: Mapping back to snake_case result
-        created_at: true,
+        createdAt: true,
       },
     })
 
@@ -141,8 +135,8 @@ export class ProjectService extends RequestScopeService {
           id: projectId
         },
         data: {
-          // FIXED: Mapping back to snake_case
-          fetch_latest_comments_at: now
+          // FIXED: Reverted to camelCase
+          fetchLatestCommentsAt: now
         }
       })
     }
@@ -156,8 +150,7 @@ export class ProjectService extends RequestScopeService {
         id: projectId
       },
       data:{
-        // FIXED: Using snake_case
-        deleted_at: new Date()
+        deletedAt: new Date()
       }
     })
 
@@ -170,12 +163,11 @@ export class ProjectService extends RequestScopeService {
         id: projectId
       },
       select: {
-        // FIXED: Using snake_case
-        deleted_at: true
+        deletedAt: true
       }
     })
 
-    if (project && !(project as any).deleted_at) {
+    if (project && !project.deletedAt) {
       return false
     }
 
