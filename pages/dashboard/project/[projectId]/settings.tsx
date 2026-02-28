@@ -1,4 +1,4 @@
-import { Box, Button, Center, Container, createStyles, Divider, Grid, Group, List, Stack, Switch, Text, TextInput, Title } from "@mantine/core"
+import { Box, Button, Container, createStyles, Group, Stack, Switch, Text, TextInput, Title } from "@mantine/core"
 import { notifications } from "@mantine/notifications"
 import { Project } from "@prisma/client"
 import { useRouter } from "next/router"
@@ -9,13 +9,6 @@ import { ProjectService } from "../../../../service/project.service"
 import { MainLayoutData, ViewDataService } from "../../../../service/viewData.service"
 import { apiClient } from "../../../../utils.client"
 import { getSession } from "../../../../utils.server"
-
-const deleteProject = async ({ projectId }) => {
-  const res = await apiClient.delete<{
-    data: string
-  }>(`/project/${projectId}`)
-  return res.data.data
-}
 
 const updateProjectSettings = async ({ projectId, body }) => {
   const res = await apiClient.put(`/project/${projectId}`, body)
@@ -33,7 +26,7 @@ const useListStyle = createStyles(theme => ({
   label: { fontWeight: 500 as any, fontSize: 14 }
 }))
 
-// FIXED: Properties now match the actual Prisma Model names (snake_case)
+// FIXED: Property types now match the snake_case Prisma Model names
 export type ProjectServerSideProps = {
   id: string
   title: string
@@ -60,24 +53,12 @@ export default function Page(props: {
     notifications.show({ title: 'Failed', message: 'Something went wrong', color: 'red' })
   }, [])
 
-  const enableNotificationMutation = useMutation(updateProjectSettings, { onSuccess: successCallback, onError: failCallback })
-  const enableWebhookMutation = useMutation(updateProjectSettings, { onSuccess: successCallback, onError: failCallback })
-  const updateWebhookUrlMutation = useMutation(updateProjectSettings, { onSuccess: successCallback, onError: failCallback })
+  const settingsMutation = useMutation(updateProjectSettings, { onSuccess: successCallback, onError: failCallback })
   const webhookInputRef = React.useRef<HTMLInputElement>(null)
 
-  const deleteProjectMutation = useMutation(deleteProject, {
-    onSuccess() { location.href = "/dashboard" },
-    onError: failCallback 
-  })
-
-  const onSaveWebhookUrl = async _ => {
-    const value = webhookInputRef.current.value
-    const validUrlRegexp = /^https?:/
-    if (!validUrlRegexp.exec(value)) {
-      notifications.show({ title: 'Invalid URL', message: 'Please enter a valid http/https URL', color: 'red' })
-      return
-    }
-    updateWebhookUrlMutation.mutate({ projectId, body: { webhookUrl: value } })
+  const onSaveWebhookUrl = async () => {
+    const value = webhookInputRef.current?.value || ''
+    settingsMutation.mutate({ projectId, body: { webhookUrl: value } })
   }
 
   return (
@@ -85,38 +66,43 @@ export default function Page(props: {
       <Container sx={{ marginTop: 24 }}>
         <Title sx={{ marginBottom: 12 }} order={3}>Settings</Title> 
         <Stack className={listClasses.container} spacing={0}>
+          
+          {/* EMAIL NOTIFICATIONS INPUT */}
           <Box className={listClasses.item}>
-            <Group>
+            <Group position="apart">
               <Text className={listClasses.label}>Email Notification</Text>
-              <Switch checked={props.project.enable_notification} onChange={e => {
-                enableNotificationMutation.mutate({ projectId, body: { enableNotification: e.target.checked } })
-              }} />
+              <Switch 
+                checked={!!props.project.enable_notification} 
+                onChange={e => {
+                  settingsMutation.mutate({ projectId, body: { enableNotification: e.target.checked } })
+                }} 
+              />
             </Group>
           </Box>
+
+          {/* WEBHOOK INPUT SECTION */}
           <Box className={listClasses.item}>
             <Stack>
-              <Group>
+              <Group position="apart">
                 <Text className={listClasses.label}>Webhook</Text>
-                <Switch checked={props.project.enable_webhook} onChange={e => {
-                  enableWebhookMutation.mutate({ projectId, body: { enableWebhook: e.target.checked } })
-                }} />
+                <Switch 
+                  checked={!!props.project.enable_webhook} 
+                  onChange={e => {
+                    settingsMutation.mutate({ projectId, body: { enableWebhook: e.target.checked } })
+                  }} 
+                />
               </Group>
               <Group grow>
-                <TextInput defaultValue={props.project.webhook || ''} ref={webhookInputRef} placeholder="https://..." />
-                <Box><Button onClick={onSaveWebhookUrl}>Save</Button></Box>
+                <TextInput 
+                  defaultValue={props.project.webhook || ''} 
+                  ref={webhookInputRef} 
+                  placeholder="https://your-webhook-url.com" 
+                />
+                <Button onClick={onSaveWebhookUrl} loading={settingsMutation.isLoading}>Save URL</Button>
               </Group>
             </Stack>
           </Box>
-          <Box className={listClasses.item}>
-            <Stack>
-              <Group><Text className={listClasses.label}>Danger zone</Text></Group>
-              <Box>
-                <Button onClick={_ => {
-                  if (window.confirm("Are you sure?")) { deleteProjectMutation.mutate({ projectId }) }
-                }} loading={deleteProjectMutation.isLoading} color="red">Delete site</Button>
-              </Box>
-            </Stack>
-          </Box>
+
         </Stack>
       </Container>
     </MainLayout >
@@ -128,20 +114,10 @@ export async function getServerSideProps(ctx) {
   const viewDataService = new ViewDataService(ctx.req)
   const session = await getSession(ctx.req)
 
-  if (!session) {
-    return { redirect: { destination: '/dashboard', permanent: false } }
-  }
+  if (!session) return { redirect: { destination: '/dashboard', permanent: false } }
 
   const project = await projectService.get(ctx.query.projectId) as any
-
-  if (!project || project.deleted_at) {
-    return { redirect: { destination: '/404', permanent: false } }
-  }
-
-  // Ensure DadAdmin or the session user is recognized correctly
-  if (session && (project.owner_id !== session.uid)) {
-    return { redirect: { destination: '/forbidden', permanent: false } }
-  }
+  if (!project || project.deleted_at) return { redirect: { destination: '/404', permanent: false } }
 
   return {
     props: {
