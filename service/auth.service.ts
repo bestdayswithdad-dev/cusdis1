@@ -17,14 +17,16 @@ export class AuthService extends RequestScopeService {
     return session
   }
 
-  async projectOwnerGuard(project: Pick<Project, 'ownerId'>) {
+  // UPDATED: Changed ownerId to owner_id to match the new schema
+  async projectOwnerGuard(project: Pick<Project, 'owner_id'>) {
     const session = await this.authGuard()
 
     if (!session) {
       return null
     }
 
-    if (project.ownerId !== session.uid) {
+    // UPDATED: Using project.owner_id instead of ownerId
+    if (project.owner_id !== session.uid) {
       this.res.status(403).json({
         message: 'Permission denied',
       })
