@@ -1,4 +1,4 @@
-import { Container, Stack, Title, Text, Divider, Textarea, Box, Button, Anchor } from "@mantine/core"
+import { Container, Stack, Title, Text, Divider, Textarea, Box, Button, Anchor, Center } from "@mantine/core"
 import { notifications } from "@mantine/notifications"
 import { Comment, Page, Project } from "@prisma/client"
 import { useRouter } from "next/router"
@@ -23,7 +23,7 @@ const appendReply = async ({ replyContent, token }) => {
   return res.data
 }
 
-// FIXED: Using Mapped Types to satisfy the UI while using the new DB schema
+// Bridging types for the frontend
 type CommentWithPage = Comment & {
   page: Page & {
     project: Project
@@ -47,11 +47,7 @@ function ApprovePage(props: {
       setReplyContent('')
     },
     onError(data: any) {
-      const {
-        error: message,
-        status: statusCode
-      } = data.response.data
-
+      const message = data.response?.data?.error || "Something went wrong"
       notifications.show({
         title: "Error",
         message,
@@ -70,11 +66,7 @@ function ApprovePage(props: {
       location.reload()
     },
     onError(data: any) {
-      const {
-        error: message,
-        status: statusCode
-      } = data.response.data
-
+      const message = data.response?.data?.error || "Something went wrong"
       notifications.show({
         title: "Error",
         message,
@@ -86,8 +78,12 @@ function ApprovePage(props: {
   if (!props.comment) {
     return (
       <Container mt={50}>
-        <Title order={2}>Comment Not Found</Title>
-        <Text color="gray">This link may have expired.</Text>
+        <Center>
+          <Stack align="center">
+            <Title order={2}>Comment Not Found</Title>
+            <Text color="gray">This link may have expired or the comment was deleted.</Text>
+          </Stack>
+        </Center>
       </Container>
     )
   }
@@ -100,7 +96,7 @@ function ApprovePage(props: {
           <Title mb={12}>Cusdis</Title>
 
           <Stack spacing={4}>
-            <Text>New comment on site <strong>{props.comment.page.project.title}</strong>, page <Anchor weight={'bold'} target="_blank" href={props.comment.page.url}>{props.comment.page.title || props.comment.page.slug}</Anchor></Text>
+            <Text>New comment on site <strong>{props.comment.page?.project?.title}</strong>, page <Anchor weight={'bold'} target="_blank" href={props.comment.page?.url}>{props.comment.page?.title || props.comment.page?.slug}</Anchor></Text>
             <Text>From: <strong>{props.comment.by_nickname}</strong> ({props.comment.by_email || 'Email not provided'})</Text>
             <Text sx={theme =>({
               whiteSpace: 'pre-wrap',
@@ -164,7 +160,7 @@ export async function getServerSideProps(ctx) {
     return redirectError(ErrorCode.INVALID_TOKEN)
   }
 
-  // FIXED: Prisma select block must use 'Page' (Capital P) to match your schema
+  // FIXED: Both 'Page' and 'Project' must be capitalized to match your schema relations
   const data = await prisma.comment.findUnique({
     where: {
       id: commentId
@@ -180,7 +176,7 @@ export async function getServerSideProps(ctx) {
           title: true,
           slug: true,
           url: true,
-          project: {
+          Project: { // Capital P
             select: {
               title: true
             }
@@ -190,10 +186,13 @@ export async function getServerSideProps(ctx) {
     }
   })
 
-  // FIXED: Manually mapping the 'Page' property back to lowercase 'page' for the UI
+  // FIXED: Manually mapping nested data back to lowercase for the UI components
   const comment = data ? {
     ...data,
-    page: data.Page
+    page: data.Page ? {
+      ...data.Page,
+      project: data.Page.Project
+    } : null
   } : null
 
   return {
