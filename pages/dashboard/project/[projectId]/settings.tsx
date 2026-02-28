@@ -3,7 +3,6 @@ import { notifications } from "@mantine/notifications"
 import { Project } from "@prisma/client"
 import { useRouter } from "next/router"
 import React from "react"
-import { useForm } from "react-hook-form"
 import { useMutation } from "react-query"
 import {  MainLayout } from "../../../../components/Layout"
 import { ProjectService } from "../../../../service/project.service"
@@ -24,26 +23,20 @@ const updateProjectSettings = async ({ projectId, body }) => {
 }
 
 const useListStyle = createStyles(theme => ({
-  container: {
-    border: `1px solid #eee`,
-  },
+  container: { border: `1px solid #eee` },
   item: {
     backgroundColor: '#fff',
     alignItems: 'center',
     padding: theme.spacing.md,
-    ':not(:last-child)': {
-      borderBottom: '1px solid #eee'
-    }
+    ':not(:last-child)': { borderBottom: '1px solid #eee' }
   },
-  label: {
-    fontWeight: 500 as any,
-    fontSize: 14
-  }
+  label: { fontWeight: 500 as any, fontSize: 14 }
 }))
 
-// FIXED: Using a type alias to bridge DB snake_case to Frontend camelCase
-type ProjectWithMappedFields = Omit<Project, 'enable_notification' | 'deleted_at'> & { 
+// BRIDGE TYPE: Satisfies the TypeScript Pick constraint
+type ProjectWithMappedFields = Omit<Project, 'enable_notification' | 'owner_id' | 'deleted_at'> & { 
   enableNotification: boolean,
+  ownerId: string,
   deletedAt?: Date | null 
 }
 
@@ -55,132 +48,70 @@ export default function Page(props: {
   mainLayoutData: MainLayoutData
 }) {
   const { classes: listClasses } = useListStyle()
-
   const router = useRouter()
   const projectId = router.query.projectId as string
 
   const successCallback = React.useCallback(() => {
-    notifications.show({
-      title: 'Saved',
-      message: 'Settings saved',
-      color: 'green'
-    })
+    notifications.show({ title: 'Saved', message: 'Settings saved', color: 'green' })
   }, [])
   const failCallback = React.useCallback(() => {
-    notifications.show({
-      title: 'Failed',
-      message: 'Something went wrong',
-      color: 'red'
-    })
+    notifications.show({ title: 'Failed', message: 'Something went wrong', color: 'red' })
   }, [])
 
-  const enableNotificationMutation = useMutation(updateProjectSettings, {
-    onSuccess: successCallback,
-    onError: failCallback
-  })
-  const enableWebhookMutation = useMutation(updateProjectSettings, {
-    onSuccess: successCallback,
-    onError: failCallback
-  })
-  const updateWebhookUrlMutation = useMutation(updateProjectSettings, {
-    onSuccess: successCallback,
-    onError: failCallback
-  })
+  const enableNotificationMutation = useMutation(updateProjectSettings, { onSuccess: successCallback, onError: failCallback })
+  const enableWebhookMutation = useMutation(updateProjectSettings, { onSuccess: successCallback, onError: failCallback })
+  const updateWebhookUrlMutation = useMutation(updateProjectSettings, { onSuccess: successCallback, onError: failCallback })
   const webhookInputRef = React.useRef<HTMLInputElement>(null)
 
   const deleteProjectMutation = useMutation(deleteProject, {
-    onSuccess() {
-      location.href = "/dashboard"
-    },
+    onSuccess() { location.href = "/dashboard" },
     onError: failCallback 
   })
 
   const onSaveWebhookUrl = async _ => {
     const value = webhookInputRef.current.value
-
     const validUrlRegexp = /^https?:/
-
     if (!validUrlRegexp.exec(value)) {
-      notifications.show({
-        title: 'Not a valid http/https URL',
-        message: 'Please enter a valid http/https URL',
-        color: 'red'
-      })
+      notifications.show({ title: 'Invalid URL', message: 'Please enter a valid http/https URL', color: 'red' })
       return
     }
-
-    updateWebhookUrlMutation.mutate({
-      projectId,
-      body: {
-        webhookUrl: value
-      }
-    })
+    updateWebhookUrlMutation.mutate({ projectId, body: { webhookUrl: value } })
   }
 
   return (
     <MainLayout id="settings" project={props.project} {...props.mainLayoutData}>
-      <Container sx={{
-        marginTop: 24
-      }}>
-        <Title sx={{
-          marginBottom: 12
-        }} order={3}>Settings</Title> 
+      <Container sx={{ marginTop: 24 }}>
+        <Title sx={{ marginBottom: 12 }} order={3}>Settings</Title> 
         <Stack className={listClasses.container} spacing={0}>
           <Box className={listClasses.item}>
             <Group>
-              <Text className={listClasses.label}>
-                Email Notification
-              </Text>
+              <Text className={listClasses.label}>Email Notification</Text>
               <Switch defaultChecked={props.project.enableNotification} onChange={e => {
-                enableNotificationMutation.mutate({
-                  projectId: router.query.projectId,
-                  body: {
-                    enableNotification: e.target.checked
-                  }
-                })
+                enableNotificationMutation.mutate({ projectId, body: { enableNotification: e.target.checked } })
               }} />
             </Group>
           </Box>
           <Box className={listClasses.item}>
             <Stack>
               <Group>
-                <Text className={listClasses.label}>
-                  Webhook
-                </Text>
+                <Text className={listClasses.label}>Webhook</Text>
                 <Switch defaultChecked={props.project.enableWebhook} onChange={e => {
-                  enableWebhookMutation.mutate({
-                    projectId: router.query.projectId,
-                    body: {
-                      enableWebhook: e.target.checked
-                    }
-                  })
+                  enableWebhookMutation.mutate({ projectId, body: { enableWebhook: e.target.checked } })
                 }} />
               </Group>
               <Group grow>
                 <TextInput defaultValue={props.project.webhook} ref={webhookInputRef} placeholder="https://..." />
-                <Box>
-                  <Button onClick={onSaveWebhookUrl}>Save</Button>
-                </Box>
+                <Box><Button onClick={onSaveWebhookUrl}>Save</Button></Box>
               </Group>
             </Stack>
           </Box>
           <Box className={listClasses.item}>
             <Stack>
-              <Group>
-                <Text className={listClasses.label}>
-                  Danger zone
-                </Text>
-              </Group>
+              <Group><Text className={listClasses.label}>Danger zone</Text></Group>
               <Box>
-                <Stack align={'start'}>
-                  <Button onClick={_ => {
-                    if (window.confirm("Are you sure you want to delete this site?")) {
-                      deleteProjectMutation.mutate({
-                        projectId
-                      })
-                    }
-                  }} loading={deleteProjectMutation.isLoading} color="red">Delete site</Button>
-                </Stack>
+                <Button onClick={_ => {
+                  if (window.confirm("Are you sure?")) { deleteProjectMutation.mutate({ projectId }) }
+                }} loading={deleteProjectMutation.isLoading} color="red">Delete site</Button>
               </Box>
             </Stack>
           </Box>
@@ -193,37 +124,22 @@ export default function Page(props: {
 export async function getServerSideProps(ctx) {
   const projectService = new ProjectService(ctx.req)
   const viewDataService = new ViewDataService(ctx.req)
-
   const session = await getSession(ctx.req)
 
   if (!session) {
-    return {
-      redirect: {
-        destination: '/dashboard',
-        permanent: false
-      }
-    }
+    return { redirect: { destination: '/dashboard', permanent: false } }
   }
 
   const project = await projectService.get(ctx.query.projectId) as any
 
-  // FIXED: Changed deletedAt to deleted_at
-  if (project.deleted_at) {
-    return {
-      redirect: {
-        destination: '/404',
-        permanent: false
-      }
-    }
+  // FIXED: Checked against snake_case column from DB
+  if (!project || project.deleted_at) {
+    return { redirect: { destination: '/404', permanent: false } }
   }
 
-  if (session && (project.ownerId !== session.uid)) {
-    return {
-      redirect: {
-        destination: '/forbidden',
-        permanent: false
-      }
-    }
+  // FIXED: Changed ownerId to owner_id to match DB result
+  if (session && (project.owner_id !== session.uid)) {
+    return { redirect: { destination: '/forbidden', permanent: false } }
   }
 
   return {
@@ -233,13 +149,12 @@ export async function getServerSideProps(ctx) {
       project: {
         id: project.id,
         title: project.title,
-        ownerId: project.ownerId,
+        ownerId: project.owner_id, // Map DB to UI
         token: project.token,
-        // FIXED: Map DB snake_case to Frontend camelCase
-        enableNotification: project.enable_notification,
-        enableWebhook: project.enableWebhook,
+        enableNotification: !!project.enable_notification, // Map DB to UI
+        enableWebhook: !!project.enableWebhook,
         webhook: project.webhook
-      }
+      } as ProjectServerSideProps
     }
   }
 }
