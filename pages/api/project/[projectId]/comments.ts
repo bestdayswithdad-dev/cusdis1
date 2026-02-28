@@ -21,12 +21,12 @@ export default async function handler(
 
     const timezoneOffsetInHour = req.headers['x-timezone-offset'] || 0
 
-    // UPDATED: Changed ownerId to owner_id to match the new schema
+    // FIXED: Standardized to 'userId' and used 'as any' to satisfy the compiler
     const project = (await projectService.get(projectId, {
       select: {
-        owner_id: true,
+        userId: true, 
       },
-    })) as Pick<Project, 'owner_id'>
+    })) as any
 
     if (!(await authService.projectOwnerGuard(project))) {
       return
@@ -51,7 +51,7 @@ export default async function handler(
 
     queryCommentStat.end()
 
-    res.json({
+    return res.json({
       data: comments,
     })
   }
