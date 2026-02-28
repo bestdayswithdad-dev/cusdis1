@@ -13,6 +13,39 @@ datasource db {
   schemas   = ["auth", "public"]
 }
 
+model Account {
+  id                Int       @id @default(autoincrement())
+  compoundId        String    @unique @map("compound_id")
+  userId            String    @map("user_id")
+  providerType      String    @map("provider_type")
+  providerId        String    @map("provider_id")
+  providerAccountId String    @map("provider_account_id")
+  refreshToken      String?   @map("refresh_token")
+  accessToken       String?   @map("access_token")
+  accessTokenExpires DateTime? @map("access_token_expires")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @default(now()) @map("updated_at")
+
+  @@index([providerAccountId], map: "providerAccountId")
+  @@index([providerId], map: "providerId")
+  @@index([userId], map: "userId")
+  @@map("accounts")
+  @@schema("public")
+}
+
+model Session {
+  id           Int      @id @default(autoincrement())
+  userId       String   @map("user_id")
+  expires      DateTime
+  sessionToken String   @unique @map("session_token")
+  accessToken  String   @unique @map("access_token")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @map("updated_at")
+
+  @@map("sessions")
+  @@schema("public")
+}
+
 model User {
   id                  String         @id @default(uuid())
   name                String?
@@ -30,7 +63,7 @@ model User {
   subscription        Subscription?
   usage               Usage[]
 
-  @@map("user") // FIXED: Mapping to lowercase table name
+  @@map("user")
   @@schema("public")
 }
 
@@ -113,7 +146,7 @@ model Project {
   updated_at               DateTime  @default(now())
   ownerId                  String    @map("owner_id")
   token                    String?
-  fetch_latest_comments_at DateTime?
+  fetch_latest_comments_at DateTime? @map("fetch_latest_comments_at")
   enable_notification      Boolean?  @default(true) @map("enable_notification")
   webhook                  String?
   enableWebhook            Boolean?  @map("enable_webhook")
@@ -127,15 +160,13 @@ model Project {
 
 model comment_likes {
   id         String    @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  comment_id String
-  user_ip    String?
-  created_at DateTime? @default(now()) @db.Timestamptz(6)
+  comment_id String    @map("comment_id")
+  user_ip    String?   @map("user_ip")
+  created_at DateTime? @default(now()) @db.Timestamptz(6) @map("created_at")
   Comment    Comment   @relation(fields: [comment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@id([comment_id, id])
   @@unique([comment_id, user_ip])
+  @@map("comment_likes")
   @@schema("public")
 }
-
-// Keeping the auth models as they were to ensure login stays stable
-// ... (Your Account, Session, FlowState, etc. models go here)
