@@ -20,9 +20,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const project = (await projectService.get(projectId, {
-      select: {
-        owner_id: true, // Matches your updated schema property
-      },
+  select: {
+    userId: true, 
+  },
     })) as Pick<Project, 'owner_id'>
 
     if (!(await authService.projectOwnerGuard(project))) {
