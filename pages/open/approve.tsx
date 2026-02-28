@@ -23,16 +23,18 @@ const appendReply = async ({ replyContent, token }) => {
   return res.data
 }
 
-function ApprovePage(props: {
-  comment: Comment & {
-    page: Page & {
-      project: Project
-    }
+// FIXED: Using Mapped Types to satisfy the UI while using the new DB schema
+type CommentWithPage = Comment & {
+  page: Page & {
+    project: Project
   }
+}
+
+function ApprovePage(props: {
+  comment: CommentWithPage
 }) {
 
   const router = useRouter()
-
   const [replyContent, setReplyContent] = React.useState('')
 
   const appendReplyMutation = useMutation(appendReply, {
@@ -57,14 +59,14 @@ function ApprovePage(props: {
       })
     }
   })
+
   const approveCommentMutation = useMutation(approveComment, {
     onSuccess() {
       notifications.show({
         title: 'Success',
-        message: 'Reply appended',
+        message: 'Comment approved',
         color: 'green'
       })
-
       location.reload()
     },
     onError(data: any) {
@@ -81,14 +83,21 @@ function ApprovePage(props: {
     }
   })
 
+  if (!props.comment) {
+    return (
+      <Container mt={50}>
+        <Title order={2}>Comment Not Found</Title>
+        <Text color="gray">This link may have expired.</Text>
+      </Container>
+    )
+  }
+
   return (
     <>
       <Head title="New comment - Cusdis" />
       <Container mt={12} my={12}>
         <Stack>
-          <Title mb={12}>
-            Cusdis
-          </Title>
+          <Title mb={12}>Cusdis</Title>
 
           <Stack spacing={4}>
             <Text>New comment on site <strong>{props.comment.page.project.title}</strong>, page <Anchor weight={'bold'} target="_blank" href={props.comment.page.url}>{props.comment.page.title || props.comment.page.slug}</Anchor></Text>
@@ -125,10 +134,7 @@ function ApprovePage(props: {
               })
             }} loading={appendReplyMutation.isLoading} mt={4}>Append reply</Button>
           </Stack>
-
         </Stack>
-
-
       </Container>
     </>
   )
@@ -144,10 +150,7 @@ function redirectError(code: ErrorCode) {
 }
 
 export async function getServerSideProps(ctx) {
-
   const tokenService = new TokenService()
-  const commentService = new CommentService(ctx.req)
-
   const { token } = ctx.query
 
   if (!token) {
@@ -155,23 +158,24 @@ export async function getServerSideProps(ctx) {
   }
 
   let commentId
-
   try {
     commentId = tokenService.validate(token, SecretKey.ApproveComment).commentId
   } catch (e) {
     return redirectError(ErrorCode.INVALID_TOKEN)
   }
 
-  const comment = await prisma.comment.findUnique({
+  // FIXED: Prisma select block must use 'Page' (Capital P) to match your schema
+  const data = await prisma.comment.findUnique({
     where: {
       id: commentId
     },
     select: {
+      id: true,
       by_nickname: true,
       by_email: true,
       content: true,
       approved: true,
-      page: {
+      Page: { 
         select: {
           title: true,
           slug: true,
@@ -186,9 +190,15 @@ export async function getServerSideProps(ctx) {
     }
   })
 
+  // FIXED: Manually mapping the 'Page' property back to lowercase 'page' for the UI
+  const comment = data ? {
+    ...data,
+    page: data.Page
+  } : null
+
   return {
     props: {
-      comment
+      comment: JSON.parse(JSON.stringify(comment))
     }
   }
 }
