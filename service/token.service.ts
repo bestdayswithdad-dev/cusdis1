@@ -53,7 +53,7 @@ export class TokenService {
             Project: {
               select: {
                 // FIXED: Using 'users' which is the relation name for the owner
-                users: true 
+                user: true 
               }
             }
           }
