@@ -13,7 +13,8 @@ export class ProjectService extends RequestScopeService {
       data: {
         id: generateId(),
         title,
-        users: {
+        // FIXED: Using 'user' (singular) as defined in your schema
+        user: {
           connect: {
             id: session.uid,
           },
@@ -46,7 +47,8 @@ export class ProjectService extends RequestScopeService {
     const projects = await prisma.project.findMany({
       where: {
         deleted_at: null,
-        owner_id: session.uid,
+        // FIXED: Changed owner_id to userId
+        userId: session.uid,
       } as any,
       select: {
         id: true,
@@ -76,7 +78,8 @@ export class ProjectService extends RequestScopeService {
   }) {
     const project = await prisma.project.findFirst({
       where: {
-        owner_id: ownerId,
+        // FIXED: Changed owner_id to userId
+        userId: ownerId,
         deleted_at: null
       } as any,
       orderBy: {
