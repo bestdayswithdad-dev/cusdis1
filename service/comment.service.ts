@@ -8,16 +8,13 @@ import { HookService } from './hook.service'
 import { statService } from './stat.service'
 import { EmailService } from './email.service'
 import { TokenService } from './token.service'
-import { makeConfirmReplyNotificationTemplate } from '../templates/confirm_reply_notification'
 import utc from 'dayjs/plugin/utc'
-import { getSession } from '../utils.server'
 
 dayjs.extend(utc)
 
 export const markdown = MarkdownIt({ linkify: true })
 markdown.disable(['image', 'link'])
 
-// Class definition to satisfy 'new CommentWrapper' calls
 export class CommentWrapper {
   public commentCount: number = 0;
   public pageCount: number = 0;
@@ -48,7 +45,6 @@ export class CommentService extends RequestScopeService {
   emailService = new EmailService()
   tokenService = new TokenService()
 
-  // Flexible arguments to satisfy both Dashboard and Blog API calls
   async getComments(
     projectId?: string,
     timezoneOffset?: number,
@@ -60,8 +56,10 @@ export class CommentService extends RequestScopeService {
     const where = {
       approved: options?.approved === true ? true : options?.approved,
       parentId: options?.parentId,
-      deletedAt: null,
-      page: {
+      // FIXED: deletedAt -> deleted_at
+      deleted_at: null,
+      // FIXED: Relation names must match schema (Page)
+      Page: {
         slug: options?.pageSlug,
         projectId: targetProjectId,
       },
@@ -73,8 +71,10 @@ export class CommentService extends RequestScopeService {
         where,
         skip: ((options?.page || 1) - 1) * pageSize,
         take: pageSize,
-        orderBy: { createdAt: 'desc' },
-        include: { page: true }
+        // FIXED: createdAt -> created_at
+        orderBy: { created_at: 'desc' },
+        // FIXED: page -> Page
+        include: { Page: true }
       }),
     ])
 
@@ -89,9 +89,12 @@ export class CommentService extends RequestScopeService {
 
         return {
           ...comment,
+          // BRIDGE: Mapping Page back to page for frontend compatibility
+          page: comment.Page,
           replies,
           parsedContent: markdown.render(comment.content),
-          parsedCreatedAt: dayjs.utc(comment.createdAt).utcOffset(timezoneOffset || 0).format('YYYY-MM-DD HH:mm'),
+          // FIXED: createdAt -> created_at
+          parsedCreatedAt: dayjs.utc(comment.created_at).utcOffset(timezoneOffset || 0).format('YYYY-MM-DD HH:mm'),
         } as CommentItem
       }),
     )
@@ -111,9 +114,11 @@ export class CommentService extends RequestScopeService {
     }
     const res = await prisma.comment.findUnique({
       where: { id: commentId },
-      include: { page: { include: { project: true } } }
+      // FIXED: Relation names must be capitalized (Page, Project)
+      include: { Page: { include: { Project: true } } }
     })
-    return res?.page?.project || { id: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1', ownerId: 'admin' };
+    // FIXED: Accessing via capitalized names
+    return (res as any)?.Page?.Project || { id: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1', ownerId: 'admin' };
   }
 
   async addComment(projectIdOrBody: any, pageSlug?: string, body?: any, parentId?: string) {
@@ -172,6 +177,7 @@ export class CommentService extends RequestScopeService {
   }
 
   async deleteComment(commentId: string) {
-    await prisma.comment.update({ where: { id: commentId }, data: { deletedAt: new Date() } })
+    // FIXED: deletedAt -> deleted_at
+    await prisma.comment.update({ where: { id: commentId }, data: { deleted_at: new Date() } })
   }
 }
