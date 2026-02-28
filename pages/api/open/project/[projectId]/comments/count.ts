@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next'
-// FIXED: Adjusted to 4 levels up to reach the root utils.server
-import { prisma } from '../../../../utils.server'
+// FIXED: 6 levels up to reach the root utils.server
+import { prisma } from '../../../../../../utils.server'
 
 export default async function handler(
   req: NextApiRequest,
