@@ -56,9 +56,9 @@ export class CommentService extends RequestScopeService {
     const where = {
       approved: options?.approved === true ? true : options?.approved,
       parentId: options?.parentId,
-      // FIXED: deletedAt -> deleted_at
+      // FIXED: Naming aligned to snake_case schema
       deleted_at: null,
-      // FIXED: Relation names must match schema (Page)
+      // FIXED: Relation name must be capitalized
       Page: {
         slug: options?.pageSlug,
         projectId: targetProjectId,
@@ -71,9 +71,9 @@ export class CommentService extends RequestScopeService {
         where,
         skip: ((options?.page || 1) - 1) * pageSize,
         take: pageSize,
-        // FIXED: createdAt -> created_at
+        // FIXED: Using database column name
         orderBy: { created_at: 'desc' },
-        // FIXED: page -> Page
+        // FIXED: Using capitalized relation name
         include: { Page: true }
       }),
     ])
@@ -89,11 +89,10 @@ export class CommentService extends RequestScopeService {
 
         return {
           ...comment,
-          // BRIDGE: Mapping Page back to page for frontend compatibility
+          // BRIDGE: Mapping back to lowercase for UI components
           page: comment.Page,
           replies,
           parsedContent: markdown.render(comment.content),
-          // FIXED: createdAt -> created_at
           parsedCreatedAt: dayjs.utc(comment.created_at).utcOffset(timezoneOffset || 0).format('YYYY-MM-DD HH:mm'),
         } as CommentItem
       }),
@@ -114,10 +113,8 @@ export class CommentService extends RequestScopeService {
     }
     const res = await prisma.comment.findUnique({
       where: { id: commentId },
-      // FIXED: Relation names must be capitalized (Page, Project)
       include: { Page: { include: { Project: true } } }
     })
-    // FIXED: Accessing via capitalized names
     return (res as any)?.Page?.Project || { id: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1', ownerId: 'admin' };
   }
 
@@ -146,7 +143,10 @@ export class CommentService extends RequestScopeService {
         content: finalBody.content,
         by_email: finalBody.email.toLowerCase(),
         by_nickname: finalBody.nickname, 
-        pageId: page.id,
+        // FIXED: Using 'connect' syntax for type-safe relations
+        Page: {
+          connect: { id: page.id }
+        },
         parentId: finalParentId || null,
         approved: true, 
       },
@@ -165,7 +165,10 @@ export class CommentService extends RequestScopeService {
         by_email: session.user.email,
         by_nickname: session.user.name,
         moderatorId: session.uid,
-        pageId: parent!.pageId,
+        // FIXED: Using 'connect' syntax for type-safe relations
+        Page: {
+          connect: { id: parent!.pageId }
+        },
         approved: true,
         parentId,
       },
@@ -177,7 +180,6 @@ export class CommentService extends RequestScopeService {
   }
 
   async deleteComment(commentId: string) {
-    // FIXED: deletedAt -> deleted_at
     await prisma.comment.update({ where: { id: commentId }, data: { deleted_at: new Date() } })
   }
 }
