@@ -59,8 +59,8 @@ export class CommentService extends RequestScopeService {
     const where = {
       approved: options?.approved === true ? true : options?.approved,
       parentId: options?.parentId,
-      // Using database column name to satisfy Where input
-      deleted_at: null,
+      // FIXED: Use deletedAt (property name) instead of deleted_at
+      deletedAt: null,
       Page: {
         slug: options?.pageSlug,
         projectId: targetProjectId,
@@ -73,7 +73,7 @@ export class CommentService extends RequestScopeService {
         where,
         skip: ((options?.page || 1) - 1) * pageSize,
         take: pageSize,
-        // Using database column name to satisfy OrderBy input
+        // FIXED: Use created_at (as defined in your schema property)
         orderBy: { created_at: 'desc' },
         include: { Page: true }
       }),
@@ -93,8 +93,8 @@ export class CommentService extends RequestScopeService {
           page: comment.Page,
           replies,
           parsedContent: markdown.render(comment.content),
-          // Access whichever field is returned by the client
-          parsedCreatedAt: dayjs.utc(comment.created_at || comment.createdAt).utcOffset(timezoneOffset || 0).format('YYYY-MM-DD HH:mm'),
+          // FIXED: Use the schema property created_at
+          parsedCreatedAt: dayjs.utc(comment.created_at).utcOffset(timezoneOffset || 0).format('YYYY-MM-DD HH:mm'),
         } as CommentItem
       }),
     )
@@ -181,7 +181,7 @@ export class CommentService extends RequestScopeService {
   }
 
   async deleteComment(commentId: string) {
-    // FIXED: Using 'deletedAt' as requested by the Prisma Update Type
+    // FIXED: Using property name 'deletedAt' to match your schema
     await prisma.comment.update({ 
       where: { id: commentId }, 
       data: { deletedAt: new Date() } 
