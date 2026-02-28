@@ -25,8 +25,10 @@ export class NotificationService extends RequestScopeService {
         id: projectId,
       },
       select: {
-        enableNotification: true,
-        owner: {
+        // FIXED: Changed to snake_case to match DB
+        enable_notification: true,
+        // FIXED: Changed 'owner' to 'User' to match schema relation name
+        User: {
           select: {
             id: true,
             email: true,
@@ -36,12 +38,14 @@ export class NotificationService extends RequestScopeService {
     })
 
     // Safety check if project or owner is missing
-    if (!project || !project.owner) {
+    // FIXED: Using User instead of owner
+    if (!project || !project.User) {
       return
     }
 
     // don't notify if disabled in project settings
-    if (!project.enableNotification) {
+    // FIXED: Using enable_notification
+    if (!project.enable_notification) {
       return
     }
 
@@ -50,11 +54,13 @@ export class NotificationService extends RequestScopeService {
         id: comment.id,
       },
       select: {
-        page: {
+        // FIXED: Using 'Page' (Capitalized) to match schema relation
+        Page: {
           select: {
             title: true,
             slug: true,
-            project: {
+            // FIXED: Using 'Project' (Capitalized)
+            Project: {
               select: {
                 title: true,
               },
@@ -64,23 +70,28 @@ export class NotificationService extends RequestScopeService {
       },
     })
 
-    // Use the standard email field (Ghost column 'notificationEmail' removed)
-    const notificationEmail = project.owner.email
+    // Use the standard email field
+    // FIXED: Accessing through User
+    const notificationEmail = project.User.email
 
     // Only proceed if an email exists
     if (notificationEmail) {
       let unsubscribeToken = this.tokenService.genUnsubscribeNewCommentToken(
-        project.owner.id,
+        project.User.id,
       )
 
       const approveToken = await this.tokenService.genApproveToken(comment.id)
 
+      // Bridge the data for the template
+      const pageData = (fullComment as any).Page
+      const projectData = pageData?.Project
+
       const msg = {
         to: notificationEmail,
         from: resolvedConfig.smtp.senderAddress,
-        subject: `New comment on "${fullComment.page.project.title}"`,
+        subject: `New comment on "${projectData?.title}"`,
         html: makeNewCommentEmailTemplate({
-          page_slug: fullComment.page.title || fullComment.page.slug,
+          page_slug: pageData?.title || pageData?.slug,
           by_nickname: comment.by_nickname,
           approve_link: `${resolvedConfig.host}/open/approve?token=${approveToken}`,
           unsubscribe_link: `${resolvedConfig.host}/api/open/unsubscribe?token=${unsubscribeToken}`,
