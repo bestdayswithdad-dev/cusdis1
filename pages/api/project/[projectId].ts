@@ -1,6 +1,6 @@
 import { Project } from "@prisma/client";
 import { NextApiRequest, NextApiResponse } from "next";
-import { AuthService } from "../../../service/auth.server"; // Note: Ensure path is correct
+import { AuthService } from "../../../service/auth.service"; // Fixed .service instead of .server
 import { ProjectService } from "../../../service/project.service";
 import { prisma } from "../../../utils.server";
 
