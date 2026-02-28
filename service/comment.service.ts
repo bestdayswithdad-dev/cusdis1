@@ -56,9 +56,7 @@ export class CommentService extends RequestScopeService {
     const where = {
       approved: options?.approved === true ? true : options?.approved,
       parentId: options?.parentId,
-      // FIXED: Naming aligned to snake_case schema
       deleted_at: null,
-      // FIXED: Relation name must be capitalized
       Page: {
         slug: options?.pageSlug,
         projectId: targetProjectId,
@@ -71,9 +69,7 @@ export class CommentService extends RequestScopeService {
         where,
         skip: ((options?.page || 1) - 1) * pageSize,
         take: pageSize,
-        // FIXED: Using database column name
         orderBy: { created_at: 'desc' },
-        // FIXED: Using capitalized relation name
         include: { Page: true }
       }),
     ])
@@ -89,7 +85,6 @@ export class CommentService extends RequestScopeService {
 
         return {
           ...comment,
-          // BRIDGE: Mapping back to lowercase for UI components
           page: comment.Page,
           replies,
           parsedContent: markdown.render(comment.content),
@@ -143,11 +138,15 @@ export class CommentService extends RequestScopeService {
         content: finalBody.content,
         by_email: finalBody.email.toLowerCase(),
         by_nickname: finalBody.nickname, 
-        // FIXED: Using 'connect' syntax for type-safe relations
         Page: {
           connect: { id: page.id }
         },
-        parentId: finalParentId || null,
+        // FIXED: Use relation connect for Parent comment if it exists
+        ...(finalParentId ? {
+          Parent: {
+            connect: { id: finalParentId }
+          }
+        } : {}),
         approved: true, 
       },
     })
@@ -165,12 +164,14 @@ export class CommentService extends RequestScopeService {
         by_email: session.user.email,
         by_nickname: session.user.name,
         moderatorId: session.uid,
-        // FIXED: Using 'connect' syntax for type-safe relations
         Page: {
           connect: { id: parent!.pageId }
         },
+        // FIXED: Use relation connect for Parent comment
+        Parent: {
+          connect: { id: parentId }
+        },
         approved: true,
-        parentId,
       },
     })
   }
