@@ -1,43 +1,100 @@
-import { NextApiRequest, NextApiResponse } from 'next'
-import { ProjectService } from '@/services/project'
-import { getSession } from 'next-auth/react'
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
-  const session = await getSession({ req })
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+  schemas   = ["auth", "public"]
+}
 
-  if (!session) {
-    return res.status(401).json({ message: 'Unauthorized' })
-  }
+model User {
+  id                              String          @id @default(uuid())
+  name                            String?
+  email                           String?         @unique
+  emailVerified                   DateTime?       @map("email_verified")
+  image                           String?
+  createdAt                       DateTime        @default(now()) @map("created_at")
+  updatedAt                       DateTime        @default(now()) @map("updated_at")
+  enable_notifications            Boolean?        @default(true) @map("enable_notifications")
+  notification_email              String?         @map("notification_email")
+  display_name                    String?         @map("display_name")
+  enable_new_comment_notification Boolean?        @default(true)
+  Comment                         Comment[]
+  Project                         Project[]
+  subscription                    Subscription?
+  usage                           Usage[]
 
-  const { projectId } = req.query
-  const projectService = new ProjectService()
+  @@map("user")
+  @@schema("public")
+}
 
-  if (req.method === 'GET') {
-    const project = await projectService.get(projectId as string)
-    return res.status(200).json(project)
-  }
+model Project {
+  id                       String    @id(map: "projects_pkey")
+  title                    String
+  created_at               DateTime  @default(now())
+  updated_at               DateTime  @default(now())
+  owner_id                 String    @map("owner_id")
+  token                    String?
+  fetch_latest_comments_at DateTime? @map("fetch_latest_comments_at")
+  enable_notification      Boolean?  @default(true) @map("enable_notification")
+  webhook                  String?
+  enable_webhook           Boolean?  @map("enable_webhook")
+  deleted_at               DateTime? @map("deleted_at")
+  Page                     Page[]
+  users                    User      @relation(fields: [owner_id], references: [id])
 
-  if (req.method === 'POST') {
-    const body = req.body
-    
-    // FIXED: Property names now match the schema.prisma 'User' and 'Project' models
-    const updatedProject = await projectService.update(projectId as string, {
-      title: body.title,
-      enable_notification: body.enableNotification,
-      enable_webhook: body.enableWebhook, // Matches @map("enable_webhook") in schema
-      webhook: body.webhookUrl,
-    })
+  @@map("project")
+  @@schema("public")
+}
 
-    return res.status(200).json(updatedProject)
-  }
+model Comment {
+  id            String    @id(map: "comments_pkey")
+  pageId        String    @map("page_id")
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @default(now())
+  deleted_at    DateTime? @map("deleted_at")
+  moderatorId   String?   @map("moderator_id")
+  by_email      String?
+  by_nickname   String
+  content       String
+  approved      Boolean   @default(false)
+  parentId      String?   @map("parent_id")
+  projectId     String?   @map("project_id")
+  users         User?     @relation(fields: [moderatorId], references: [id])
+  Page          Page      @relation(fields: [pageId], references: [id])
 
-  if (req.method === 'DELETE') {
-    await projectService.delete(projectId as string)
-    return res.status(204).end()
-  }
+  @@map("comment")
+  @@schema("public")
+}
 
-  return res.status(405).json({ message: 'Method not allowed' })
+model Page {
+  id         String    @id(map: "pages_pkey")
+  slug       String
+  url        String?
+  title      String?
+  projectId  String    @map("project_id")
+  Comment    Comment[]
+  Project    Project   @relation(fields: [projectId], references: [id])
+
+  @@map("page")
+  @@schema("public")
+}
+
+model Subscription {
+  id      String @id @default(uuid())
+  userId  String @unique @map("user_id")
+  user    User   @relation(fields: [userId], references: [id])
+  @@map("subscription")
+  @@schema("public")
+}
+
+model Usage {
+  id      String @id @default(uuid())
+  userId  String @map("user_id")
+  user    User   @relation(fields: [userId], references: [id])
+  @@map("usage")
+  @@schema("public")
 }
