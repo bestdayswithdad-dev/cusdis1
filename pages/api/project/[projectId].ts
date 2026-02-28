@@ -19,7 +19,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       enableWebhook?: boolean
     }
 
-    // UPDATED: Changed ownerId to owner_id to match the new schema
+    // UPDATED: Using owner_id to match the schema property name
     const project = (await projectService.get(projectId, {
       select: {
         owner_id: true,
@@ -35,9 +35,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         id: projectId,
       },
       data: {
-        // UPDATED: Both key and value must match the new schema names
+        // FIXED: Using property names exactly as they appear in schema.prisma
         enable_notification: body.enableNotification, 
-        enable_webhook: body.enableWebhook,           
+        enableWebhook: body.enableWebhook,           
         webhook: body.webhookUrl
       },
     })
@@ -50,7 +50,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       projectId: string
     }
 
-    // UPDATED: Changed ownerId to owner_id
     const project = (await projectService.get(projectId, {
       select: {
         owner_id: true,
