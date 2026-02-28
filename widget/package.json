@@ -1,8 +1,8 @@
 {
   "name": "cusdis",
   "version": "1.1.2",
-  "main": "dist/cusdis.umd.js",
-  "module": "dist/cusdis.es.js",
+  "main": "dist/cusdis.umd.mjs",
+  "module": "dist/cusdis.es.mjs",
   "files": [
     "dist"
   ]
