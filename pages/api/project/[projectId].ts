@@ -19,11 +19,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       enableWebhook?: boolean
     }
 
+    // UPDATED: Changed ownerId to owner_id to match the new schema
     const project = (await projectService.get(projectId, {
       select: {
-        ownerId: true,
+        owner_id: true,
       },
-    })) as Pick<Project, 'ownerId'>
+    })) as Pick<Project, 'owner_id'>
 
     if (!(await authService.projectOwnerGuard(project))) {
       return
@@ -33,11 +34,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       where: {
         id: projectId,
       },
-    data: {
-  enable_notification: body.enableNotification, // Changed to snake_case
-  enableWebhook: body.enableWebhook,           
-  webhook: body.webhookUrl
-},
+      data: {
+        // UPDATED: Both key and value must match the new schema names
+        enable_notification: body.enableNotification, 
+        enable_webhook: body.enableWebhook,           
+        webhook: body.webhookUrl
+      },
     })
 
     res.json({
@@ -48,11 +50,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       projectId: string
     }
 
+    // UPDATED: Changed ownerId to owner_id
     const project = (await projectService.get(projectId, {
       select: {
-        ownerId: true,
+        owner_id: true,
       },
-    })) as Pick<Project, 'ownerId'>
+    })) as Pick<Project, 'owner_id'>
 
     if (!(await authService.projectOwnerGuard(project))) {
       return
