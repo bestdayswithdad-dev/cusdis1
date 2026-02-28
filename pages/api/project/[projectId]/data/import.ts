@@ -29,12 +29,12 @@ export default async function handler(
       projectId: string
     }
 
-    // only owner can import
+    // FIXED: Changed ownerId to owner_id to match the new schema
     const project = (await projectService.get(projectId, {
       select: {
-        ownerId: true,
+        owner_id: true,
       },
-    })) as Pick<Project, 'ownerId'>
+    })) as Pick<Project, 'owner_id'>
 
     if (!(await authService.projectOwnerGuard(project))) {
       return
@@ -49,9 +49,12 @@ export default async function handler(
         return
       }
 
+      // @ts-ignore - handling formidable v1 vs v2 file path property
+      const filePath = files.file.path || files.file.filepath
+      
       const imported = await dataService.importFromDisqus(
         projectId,
-        fs.readFileSync(files.file.path, { encoding: 'utf-8' }),
+        fs.readFileSync(filePath, { encoding: 'utf-8' }),
       )
 
       res.json({
