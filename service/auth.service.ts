@@ -17,16 +17,16 @@ export class AuthService extends RequestScopeService {
     return session
   }
 
-  // UPDATED: Changed ownerId to owner_id to match the new schema
-  async projectOwnerGuard(project: Pick<Project, 'owner_id'>) {
+  // FIXED: Changed Pick constraint from 'owner_id' to 'userId'
+  async projectOwnerGuard(project: Pick<Project, 'userId'>) {
     const session = await this.authGuard()
 
     if (!session) {
       return null
     }
 
-    // UPDATED: Using project.owner_id instead of ownerId
-    if (project.owner_id !== session.uid) {
+    // FIXED: Using project.userId to match the updated schema.prisma
+    if (project.userId !== session.uid) {
       this.res.status(403).json({
         message: 'Permission denied',
       })
