@@ -52,7 +52,6 @@ model User {
   createdAt                       DateTime        @default(now()) @map("created_at")
   updatedAt                       DateTime        @default(now()) @map("updated_at")
   
-  // FIXED: Standardized names to match service calls
   enable_notifications            Boolean?        @default(true) @map("enable_notifications")
   notification_email              String?         @map("notification_email")
   display_name                    String?         @map("display_name")
@@ -63,7 +62,8 @@ model User {
   subscription                    Subscription?
   usage                           Usage[]
 
-  @@map("user")
+  // FIXED: Pointing to plural "users" to match your DB
+  @@map("users") 
   @@schema("public")
 }
 
@@ -83,7 +83,8 @@ model Project {
   Page                     Page[]
   users                    User      @relation(fields: [owner_id], references: [id])
 
-  @@map("project")
+  // FIXED: Pointing to plural "projects" 
+  @@map("projects")
   @@schema("public")
 }
 
@@ -105,7 +106,8 @@ model Comment {
   users         User?     @relation(fields: [moderatorId], references: [id])
   Page          Page      @relation(fields: [pageId], references: [id])
 
-  @@map("comment")
+  // FIXED: Pointing to plural "comments"
+  @@map("comments")
   @@schema("public")
 }
 
@@ -121,15 +123,14 @@ model Page {
   Project    Project   @relation(fields: [projectId], references: [id])
 
   @@index([projectId], map: "projectId")
-  @@map("page")
+  // FIXED: Pointing to plural "pages"
+  @@map("pages")
   @@schema("public")
 }
 
 model Subscription {
   id                     String    @id @default(uuid())
   userId                 String    @unique @map("user_id")
-  
-  // FIXED: Added fields to match axios calls in subscription.ts
   lemonSubscriptionId    String?   @map("lemon_subscription_id")
   orderId                String?   @map("order_id")
   productId              String?   @map("product_id")
@@ -138,11 +139,10 @@ model Subscription {
   status                 String?
   endsAt                 DateTime? @map("ends_at")
   updatePaymentMethodUrl String?   @map("update_payment_method_url")
-  
   createdAt              DateTime  @default(now()) @map("created_at")
   user                   User      @relation(fields: [userId], references: [id])
 
-  @@map("subscription")
+  @@map("subscriptions")
   @@schema("public")
 }
 
@@ -155,7 +155,7 @@ model Usage {
   user      User     @relation(fields: [userId], references: [id])
 
   @@unique([userId, label])
-  @@map("usage")
+  @@map("usages")
   @@schema("public")
 }
 
