@@ -24,7 +24,6 @@ function validateEmail(email) {
   return re.test(String(email).toLowerCase());
 }
 
-// Fixed naming to match pgsql/schema.prisma
 const updateUserSettings = async (params: {
   notificationEmail?: string,
   enableNotifications?: boolean,
@@ -50,10 +49,10 @@ export function MainLayout(props: {
 
   const userSettingsForm = useForm({
     defaultValues: {
-      username: props.userInfo.name,
-      displayName: props.userInfo.displayName,
-      email: props.userInfo.email,
-      notificationEmail: props.userInfo.notificationEmail,
+      username: props.userInfo?.name || "",
+      displayName: props.userInfo?.display_name || "",
+      email: props.userInfo?.email || "",
+      notificationEmail: props.userInfo?.notification_email || "",
     },
   })
 
@@ -95,7 +94,12 @@ export function MainLayout(props: {
 
   const onClickSaveUserSettings = async () => {
     const data = userSettingsForm.getValues()
-    if (!validateEmail(data.notificationEmail)) {
+    
+    // FIXED: Explicitly cast to string to satisfy type requirements
+    const notificationEmail = String(data.notificationEmail || "")
+    const displayName = String(data.displayName || "")
+
+    if (!validateEmail(notificationEmail)) {
       notifications.show({
         title: 'Invalid email',
         message: 'Please enter a valid email address',
@@ -103,9 +107,10 @@ export function MainLayout(props: {
       })
       return
     }
+
     updateUserSettingsMutation.mutate({
-      displayName: data.displayName,
-      notificationEmail: data.notificationEmail,
+      displayName: displayName,
+      notificationEmail: notificationEmail,
     })
   }
 
@@ -161,7 +166,7 @@ export function MainLayout(props: {
         </Stack>
       </Stack>
     )
-  }, [])
+  }, [projectId, props.id])
 
   const openEmbededCodeModal = React.useCallback(() => {
     const code = `<div id="cusdis_thread"
@@ -193,13 +198,13 @@ export function MainLayout(props: {
         </Stack>
       )
     })
-  }, [])
+  }, [props.project.id, clipboard])
 
   const badge = React.useMemo(() => {
     if (props.subscription.isActived) return <Badge color="green" size="xs">PRO</Badge>
     if (!props.config.isHosted) return <Badge color="gray" size="xs">OSS</Badge>
     return <Badge color="green" size="xs">FREE</Badge>
-  }, [])
+  }, [props.subscription.isActived, props.config.isHosted])
 
   const header = React.useMemo(() => {
     return (
@@ -224,7 +229,7 @@ export function MainLayout(props: {
         </Group>
       </Group>
     )
-  }, [])
+  }, [props.session.user.name, badge, ProjectMenu, openEmbededCodeModal, openUserModal])
 
   const usageBoard = React.useMemo(() => {
     return (
@@ -246,7 +251,7 @@ export function MainLayout(props: {
         </Stack>
       </>
     )
-  }, [])
+  }, [props.usage])
 
   return (
     <>
@@ -264,17 +269,17 @@ export function MainLayout(props: {
           <Stack>
             <Stack spacing={8}>
               <Text weight={500} size="sm">Username</Text>
-              <TextInput defaultValue={props.userInfo.name} size="sm" disabled />
+              <TextInput defaultValue={props.userInfo?.name || ""} size="sm" disabled />
             </Stack>
             <Stack spacing={8}>
               <Text weight={500} size="sm">Email (for login)</Text>
-              <TextInput defaultValue={props.userInfo.email} size="sm" disabled />
+              <TextInput defaultValue={props.userInfo?.email || ""} size="sm" disabled />
             </Stack>
             <Stack spacing={8}>
               <Text weight={500} size="sm">Email (for notification)</Text>
-              <TextInput placeholder={props.userInfo.email} {...userSettingsForm.register("notificationEmail")} size="sm" />
+              <TextInput placeholder={props.userInfo?.email || ""} {...userSettingsForm.register("notificationEmail")} size="sm" />
               <Switch 
-                defaultChecked={props.userInfo.enableNotifications} 
+                defaultChecked={props.userInfo?.enable_notifications} 
                 onChange={e => {
                   updateUserSettingsMutation.mutate({
                     enableNotifications: e.target.checked 
@@ -285,7 +290,7 @@ export function MainLayout(props: {
             </Stack>
             <Stack spacing={8}>
               <Text weight={500} size="sm">Display name</Text>
-              <TextInput placeholder={props.userInfo.name} {...userSettingsForm.register("displayName")} size="sm" />
+              <TextInput placeholder={props.userInfo?.name || ""} {...userSettingsForm.register("displayName")} size="sm" />
             </Stack>
             {props.config.checkout.enabled && (
               <>
