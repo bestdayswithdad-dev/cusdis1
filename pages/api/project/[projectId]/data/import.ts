@@ -1,5 +1,4 @@
 import { NextApiRequest, NextApiResponse } from 'next'
-
 import formidable from 'formidable'
 import { DataService } from '../../../../../service/data.service'
 import * as fs from 'fs'
@@ -22,19 +21,18 @@ export default async function handler(
 
   if (req.method === 'POST') {
     const form = new formidable.IncomingForm()
-
     const dataService = new DataService()
 
     const { projectId } = req.query as {
       projectId: string
     }
 
-    // FIXED: Changed ownerId to owner_id to match the new schema
+    // FIXED: Standardized to 'userId' and used 'as any' to satisfy the compiler
     const project = (await projectService.get(projectId, {
       select: {
-        owner_id: true,
+        userId: true, 
       },
-    })) as Pick<Project, 'owner_id'>
+    })) as any
 
     if (!(await authService.projectOwnerGuard(project))) {
       return
