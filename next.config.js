@@ -10,21 +10,13 @@ export default {
   async headers() {
     return [
       {
-        // Target your script files to prevent ORB blocking
-        source: "/:path*.(js|mjs)",
+        // This ensures that even if there's a minor path error, 
+        // the browser knows how to handle the cross-origin request
+        source: "/(.*)",
         headers: [
-          {
-            key: "Content-Type",
-            value: "application/javascript",
-          },
-          {
-            key: "Access-Control-Allow-Origin",
-            value: "*", // Allows your blog to fetch the script from this Vercel domain
-          },
-          {
-            key: "Cross-Origin-Resource-Policy",
-            value: "cross-origin", // Explicitly tells ORB this is a shared resource
-          }
+          { key: "Access-Control-Allow-Origin", value: "*" },
+          { key: "Access-Control-Allow-Methods", value: "GET,OPTIONS" },
+          { key: "Cross-Origin-Resource-Policy", value: "cross-origin" }
         ],
       },
     ];
