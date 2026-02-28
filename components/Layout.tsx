@@ -49,10 +49,10 @@ export function MainLayout(props: {
 
   const userSettingsForm = useForm({
     defaultValues: {
-      username: props.userInfo?.name || "",
-      displayName: props.userInfo?.display_name || "",
-      email: props.userInfo?.email || "",
-      notificationEmail: props.userInfo?.notification_email || "",
+      username: String(props.userInfo?.name || ""),
+      displayName: String(props.userInfo?.display_name || ""),
+      email: String(props.userInfo?.email || ""),
+      notificationEmail: String(props.userInfo?.notification_email || ""),
     },
   })
 
@@ -95,7 +95,7 @@ export function MainLayout(props: {
   const onClickSaveUserSettings = async () => {
     const data = userSettingsForm.getValues()
     
-    // FIXED: Explicitly cast to string to satisfy type requirements
+    // Explicitly cast to string to satisfy type requirements
     const notificationEmail = String(data.notificationEmail || "")
     const displayName = String(data.displayName || "")
 
@@ -142,7 +142,7 @@ export function MainLayout(props: {
         })}
       </Menu.Dropdown>
     </Menu>
-  }, [props.project.id])
+  }, [props.project.id, props.projects])
 
   const Menubar = React.useMemo(() => {
     const styles = {
@@ -269,15 +269,16 @@ export function MainLayout(props: {
           <Stack>
             <Stack spacing={8}>
               <Text weight={500} size="sm">Username</Text>
-              <TextInput defaultValue={props.userInfo?.name || ""} size="sm" disabled />
+              {/* FIXED: Explicit String casting for linting safety */}
+              <TextInput defaultValue={String(props.userInfo?.name || "")} size="sm" disabled />
             </Stack>
             <Stack spacing={8}>
               <Text weight={500} size="sm">Email (for login)</Text>
-              <TextInput defaultValue={props.userInfo?.email || ""} size="sm" disabled />
+              <TextInput defaultValue={String(props.userInfo?.email || "")} size="sm" disabled />
             </Stack>
             <Stack spacing={8}>
               <Text weight={500} size="sm">Email (for notification)</Text>
-              <TextInput placeholder={props.userInfo?.email || ""} {...userSettingsForm.register("notificationEmail")} size="sm" />
+              <TextInput placeholder={String(props.userInfo?.email || "")} {...userSettingsForm.register("notificationEmail")} size="sm" />
               <Switch 
                 defaultChecked={props.userInfo?.enable_notifications} 
                 onChange={e => {
@@ -290,7 +291,7 @@ export function MainLayout(props: {
             </Stack>
             <Stack spacing={8}>
               <Text weight={500} size="sm">Display name</Text>
-              <TextInput placeholder={props.userInfo?.name || ""} {...userSettingsForm.register("displayName")} size="sm" />
+              <TextInput placeholder={String(props.userInfo?.name || "")} {...userSettingsForm.register("displayName")} size="sm" />
             </Stack>
             {props.config.checkout.enabled && (
               <>
