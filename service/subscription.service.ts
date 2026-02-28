@@ -1,63 +1,41 @@
-import { prisma, resolvedConfig } from '../utils.server'
-import jwt from 'jsonwebtoken'
+import { UsageLabel, usageLimitation } from "../config.common"
+import { prisma, resolvedConfig } from "../utils.server"
 
-export enum SecretKey {
-  ApproveComment = 'ApproveComment',
-  UnsubscribeNewComment = 'UnsubscribeNewComment'
-}
+export class SubscriptionService {
+  // Logic to check if a user is "active" 
+  // (Set to true by default for your NFP project setup)
+  async isActivated(userId: string) {
+    return true
+  }
 
-export class TokenService {
-  private secret = resolvedConfig.db.url // Using DB URL as a stable secret base
-
-  async genApproveToken(commentId: string) {
-    const comment = await prisma.comment.findUnique({
+  // Check if the user is allowed to create more projects
+  async createProjectValidate(userId: string) {
+    const projectCount = await prisma.project.count({
       where: {
-        id: commentId
-      },
-      select: {
-        // FIXED: Capitalized 'Page' and 'Project' to match schema
-        Page: {
-          select: {
-            Project: {
-              select: {
-                // FIXED: Using 'users' relation name
-                users: {
-                  select: {
-                    id: true
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
+        owner_id: userId,
+        deleted_at: null
+      } as any
     })
-
-    const userId = (comment as any)?.Page?.Project?.users?.id
-
-    return jwt.sign({
-      commentId,
-      userId,
-      type: SecretKey.ApproveComment
-    }, this.secret, { expiresIn: '30d' })
+    
+    return projectCount < usageLimitation['create_site']
   }
 
-  genUnsubscribeNewCommentToken(userId: string) {
-    return jwt.sign({
-      userId,
-      type: SecretKey.UnsubscribeNewComment
-    }, this.secret)
+  // Check if the user is allowed to approve comments
+  async approveCommentValidate(userId: string) {
+    return true
   }
 
-  validate(token: string, type: SecretKey): any {
-    try {
-      const decoded = jwt.verify(token, this.secret) as any
-      if (decoded.type !== type) {
-        throw new Error('Invalid token type')
-      }
-      return decoded
-    } catch (e) {
-      throw new Error('Invalid token')
+  // Check if the user is allowed to use quick approve
+  async quickApproveValidate(userId: string) {
+    return true
+  }
+
+  async getStatus(userId: string) {
+    return {
+      isActived: true,
+      status: 'active',
+      endAt: new Date(2099, 1, 1).toISOString(),
+      updatePaymentMethodUrl: ''
     }
   }
 }
