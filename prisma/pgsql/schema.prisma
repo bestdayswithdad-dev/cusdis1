@@ -70,17 +70,20 @@ model Project {
   created_at               DateTime  @default(now())
   updated_at               DateTime  @default(now())
   
-  // Bridge for the owner_id error
-  ownerId                  String    @map("owner_id")
+  // CHANGED: Property name is now owner_id to match service queries
+  owner_id                 String    @map("owner_id")
   
   token                    String?
   fetch_latest_comments_at DateTime? @map("fetch_latest_comments_at")
   enable_notification      Boolean?  @default(true) @map("enable_notification")
   webhook                  String?
   enableWebhook            Boolean?  @map("enable_webhook")
-  deleted_at               DateTime?
+  
+  // CHANGED: Property name is now deleted_at
+  deleted_at               DateTime? @map("deleted_at")
+  
   Page                     Page[]
-  users                    User      @relation(fields: [ownerId], references: [id])
+  users                    User      @relation(fields: [owner_id], references: [id])
 
   @@map("project")
   @@schema("public")
@@ -92,8 +95,8 @@ model Comment {
   created_at    DateTime       @default(now())
   updated_at    DateTime       @default(now())
   
-  // This @map specifically fixes the "Unknown argument deleted_at" error
-  deletedAt     DateTime?      @map("deleted_at")
+  // CHANGED: Property name is now deleted_at
+  deleted_at    DateTime?      @map("deleted_at")
   
   moderatorId   String?        @map("moderator_id")
   by_email      String?
