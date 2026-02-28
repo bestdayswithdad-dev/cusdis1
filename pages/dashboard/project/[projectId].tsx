@@ -260,10 +260,11 @@ function ProjectPage(props: {
 
 type ProjectWithMappedFields = Omit<Project, 'enable_notification'> & { enableNotification: boolean }
 type ProjectServerSideProps = Pick<ProjectWithMappedFields, 'ownerId' | 'id' | 'title' | 'token' | 'enableNotification' | 'webhook' | 'enableWebhook'>
+
 export async function getServerSideProps(ctx) {
   const projectService = new ProjectService(ctx.req)
   const session = await getSession(ctx.req)
-  const project = await projectService.get(ctx.query.projectId) as Project
+  const project = await projectService.get(ctx.query.projectId) as any
   const viewDataService = new ViewDataService(ctx.req)
 
   if (!session) {
@@ -275,7 +276,8 @@ export async function getServerSideProps(ctx) {
     }
   }
 
-  if (project.deletedAt) {
+  // FIXED: Changed deletedAt to deleted_at
+  if (project.deleted_at) {
     return {
       redirect: {
         destination: '/404',
@@ -293,8 +295,6 @@ export async function getServerSideProps(ctx) {
     }
   }
 
-  const projects = await projectService.list()
-
   return {
     props: {
       session: await getSession(ctx.req),
@@ -304,12 +304,12 @@ export async function getServerSideProps(ctx) {
         title: project.title,
         ownerId: project.ownerId,
         token: project.token,
-        enableNotification: project.enableNotification,
+        // FIXED: Maps enable_notification from DB to the UI's enableNotification
+        enableNotification: project.enable_notification, 
         enableWebhook: project.enableWebhook,
         webhook: project.webhook
       } as ProjectServerSideProps
     }
-
   }
 }
 
