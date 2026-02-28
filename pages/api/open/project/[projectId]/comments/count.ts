@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next'
-// FIXED: Removed one set of '../' to point to the correct root directory
-import { prisma } from '../../../../../utils.server'
+// FIXED: Adjusted to 4 levels up to reach the root utils.server
+import { prisma } from '../../../../utils.server'
 
 export default async function handler(
   req: NextApiRequest,
@@ -11,7 +11,7 @@ export default async function handler(
   if (req.method === 'GET') {
     const count = await prisma.comment.count({
       where: {
-        // Aligned with your new snake_case schema
+        // Aligned with your snake_case schema
         deleted_at: null,
         approved: true,
         Page: {
