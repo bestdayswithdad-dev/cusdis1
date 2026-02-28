@@ -1,46 +1,27 @@
 import { NextApiRequest, NextApiResponse } from 'next'
-import {
-  apiHandler,
-  initMiddleware,
-  prisma,
-} from '../../../../../../utils.server'
-import Cors from 'cors'
+import { prisma } from '../../../../../utils.server'
 
-export default apiHandler()
-  .use(
-    Cors({
-      // Only allow requests with GET, POST and OPTIONS
-      methods: ['GET', 'POST', 'OPTIONS'],
-    })
-  )
-  .get(async (req, res) => {
-    const { projectId, pageIds } = req.query as {
-      pageIds: string
-      projectId: string
-    }
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  const { projectId, id } = req.query as { projectId: string; id: string }
 
-    const data = {}
-
-    const counts = (
-      await prisma.$transaction(
-        pageIds.split(',').map((id) => {
-          return prisma.comment.count({
-            where: {
-              deletedAt: null,
-              approved: true,
-              Page: {
-                slug: id,
-                projectId,
-              },
-            },
-          })
-        }),
-      )
-    ).forEach((count, index) => {
-      data[pageIds.split(',')[index]] = count
+  if (req.method === 'GET') {
+    const count = await prisma.comment.count({
+      where: {
+        // FIXED: Changed from deletedAt to deleted_at to match new schema
+        deleted_at: null,
+        approved: true,
+        Page: {
+          slug: id,
+          projectId: projectId
+        }
+      }
     })
 
-    res.json({
-      data,
-    })
-  })
+    res.status(200).json(count)
+  } else {
+    res.status(405).end()
+  }
+}
