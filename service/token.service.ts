@@ -42,17 +42,18 @@ export class TokenService {
   }
 
   async genApproveToken(commentId: string) {
-
     const comment = await prisma.comment.findUnique({
       where: {
         id: commentId
       },
       select: {
-        page: {
+        // FIXED: Capitalized to match your Prisma Schema relations
+        Page: {
           select: {
-            project: {
+            Project: {
               select: {
-                owner: true
+                // FIXED: Using 'users' which is the relation name for the owner
+                users: true 
               }
             }
           }
@@ -60,11 +61,15 @@ export class TokenService {
       }
     })
 
+    // Safely extract the owner (users) data
+    const projectData = (comment as any)?.Page?.Project
+    const ownerData = projectData?.users
+
     return this.sign(
       SecretKey.ApproveComment,
       {
         commentId,
-        owner: comment.page.project.owner,
+        owner: ownerData,
       } as TokenBody.ApproveComment,
       '3 days',
     )
