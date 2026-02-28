@@ -41,7 +41,13 @@ const useListStyle = createStyles(theme => ({
   }
 }))
 
-export type ProjectServerSideProps = Pick<Project, 'ownerId' | 'id' | 'title' | 'token' | 'enableNotification' | 'webhook' | 'enableWebhook'>
+// FIXED: Using a type alias to bridge DB snake_case to Frontend camelCase
+type ProjectWithMappedFields = Omit<Project, 'enable_notification' | 'deleted_at'> & { 
+  enableNotification: boolean,
+  deletedAt?: Date | null 
+}
+
+export type ProjectServerSideProps = Pick<ProjectWithMappedFields, 'ownerId' | 'id' | 'title' | 'token' | 'enableNotification' | 'webhook' | 'enableWebhook'>
 
 export default function Page(props: {
   session: any,
@@ -180,11 +186,10 @@ export default function Page(props: {
           </Box>
         </Stack>
       </Container>
-
-
     </MainLayout >
   )
 }
+
 export async function getServerSideProps(ctx) {
   const projectService = new ProjectService(ctx.req)
   const viewDataService = new ViewDataService(ctx.req)
@@ -200,9 +205,10 @@ export async function getServerSideProps(ctx) {
     }
   }
 
-  const project = await projectService.get(ctx.query.projectId) as Project
+  const project = await projectService.get(ctx.query.projectId) as any
 
-  if (project.deletedAt) {
+  // FIXED: Changed deletedAt to deleted_at
+  if (project.deleted_at) {
     return {
       redirect: {
         destination: '/404',
@@ -220,17 +226,17 @@ export async function getServerSideProps(ctx) {
     }
   }
 
-  
-
   return {
     props: {
+      session,
       mainLayoutData: await viewDataService.fetchMainLayoutData(),
       project: {
         id: project.id,
         title: project.title,
         ownerId: project.ownerId,
         token: project.token,
-        enableNotification: project.enableNotification,
+        // FIXED: Map DB snake_case to Frontend camelCase
+        enableNotification: project.enable_notification,
         enableWebhook: project.enableWebhook,
         webhook: project.webhook
       }
