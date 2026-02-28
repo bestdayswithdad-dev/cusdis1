@@ -6,7 +6,6 @@ export class UserService extends RequestScopeService {
   async update(userId: string, options: {
     displayName?: string,
     notificationEmail?: string,
-    // RENAME THIS:
     enableNotifications?: boolean
   }) {
     await prisma.user.update({
@@ -14,10 +13,10 @@ export class UserService extends RequestScopeService {
         id: userId
       },
       data: {
-        displayName: options.displayName,
-        notificationEmail: options.notificationEmail,
-        // RENAME THIS:
-        enableNotifications: options.enableNotifications
+        // FIXED: Mapping the camelCase options to snake_case database fields
+        display_name: options.displayName,
+        notification_email: options.notificationEmail,
+        enable_notifications: options.enableNotifications
       }
     })
   }
