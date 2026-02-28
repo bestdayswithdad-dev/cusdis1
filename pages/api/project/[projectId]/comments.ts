@@ -12,6 +12,7 @@ export default async function handler(
   const projectService = new ProjectService(req)
   const commentService = new CommentService(req)
   const authService = new AuthService(req, res)
+  
   if (req.method === 'GET') {
     const { projectId, page } = req.query as {
       projectId: string
@@ -20,12 +21,12 @@ export default async function handler(
 
     const timezoneOffsetInHour = req.headers['x-timezone-offset'] || 0
 
-    // only owner can get comments
+    // UPDATED: Changed ownerId to owner_id to match the new schema
     const project = (await projectService.get(projectId, {
       select: {
-        ownerId: true,
+        owner_id: true,
       },
-    })) as Pick<Project, 'ownerId'>
+    })) as Pick<Project, 'owner_id'>
 
     if (!(await authService.projectOwnerGuard(project))) {
       return
@@ -39,7 +40,6 @@ export default async function handler(
     })
 
     const comments = await commentService.getComments(projectId, Number(timezoneOffsetInHour), {
-      // parentId: null,
       page: Number(page),
       onlyOwn: true,
       select: {
