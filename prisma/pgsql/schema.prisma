@@ -44,21 +44,24 @@ model Session {
 }
 
 model User {
-  id                  String         @id @default(uuid())
-  name                String?
-  email               String?        @unique
-  emailVerified       DateTime?      @map("email_verified")
-  image               String?
-  createdAt           DateTime       @default(now()) @map("created_at")
-  updatedAt           DateTime       @default(now()) @map("updated_at")
-  enableNotifications Boolean?       @default(true) @map("enable_notifications")
-  notificationEmail   String?        @map("notification_email")
-  displayName         String?        @map("display_name")
-  enable_new_comment_notification Boolean? @default(true)
-  Comment             Comment[]
-  Project             Project[]
-  subscription        Subscription?
-  usage               Usage[]
+  id                              String          @id @default(uuid())
+  name                            String?
+  email                           String?         @unique
+  emailVerified                   DateTime?       @map("email_verified")
+  image                           String?
+  createdAt                       DateTime        @default(now()) @map("created_at")
+  updatedAt                       DateTime        @default(now()) @map("updated_at")
+  
+  // FIXED: These names now match the "Unknown field" errors in your logs
+  enable_notifications            Boolean?        @default(true) @map("enable_notifications")
+  notification_email              String?         @map("notification_email")
+  display_name                    String?         @map("display__name")
+  
+  enable_new_comment_notification Boolean?        @default(true)
+  Comment                         Comment[]
+  Project                         Project[]
+  subscription                    Subscription?
+  usage                           Usage[]
 
   @@map("user")
   @@schema("public")
@@ -69,17 +72,12 @@ model Project {
   title                    String
   created_at               DateTime  @default(now())
   updated_at               DateTime  @default(now())
-  
-  // CHANGED: Property name is now owner_id to match service queries
   owner_id                 String    @map("owner_id")
-  
   token                    String?
   fetch_latest_comments_at DateTime? @map("fetch_latest_comments_at")
   enable_notification      Boolean?  @default(true) @map("enable_notification")
   webhook                  String?
-  enableWebhook            Boolean?  @map("enable_webhook")
-  
-  // CHANGED: Property name is now deleted_at
+  enable_webhook           Boolean?  @map("enable_webhook")
   deleted_at               DateTime? @map("deleted_at")
   
   Page                     Page[]
@@ -90,27 +88,24 @@ model Project {
 }
 
 model Comment {
-  id            String         @id(map: "comments_pkey")
-  pageId        String         @map("page_id")
-  created_at    DateTime       @default(now())
-  updated_at    DateTime       @default(now())
-  
-  // CHANGED: Property name is now deleted_at
-  deleted_at    DateTime?      @map("deleted_at")
-  
-  moderatorId   String?        @map("moderator_id")
+  id            String          @id(map: "comments_pkey")
+  pageId        String          @map("page_id")
+  created_at    DateTime        @default(now())
+  updated_at    DateTime        @default(now())
+  deleted_at    DateTime?       @map("deleted_at")
+  moderatorId   String?         @map("moderator_id")
   by_email      String?
   by_nickname   String
   content       String
-  approved      Boolean        @default(false)
-  parentId      String?        @map("parent_id")
-  votes_count   BigInt         @default(0)
-  projectId     String?        @map("project_id")
+  approved      Boolean         @default(false)
+  parentId      String?         @map("parent_id")
+  votes_count   BigInt          @default(0)
+  projectId     String?         @map("project_id")
   ip            String?
-  users         User?          @relation(fields: [moderatorId], references: [id])
-  Page          Page           @relation(fields: [pageId], references: [id])
-  Comment       Comment?       @relation("CommentToComment", fields: [parentId], references: [id])
-  other_Comment Comment[]      @relation("CommentToComment")
+  users         User?           @relation(fields: [moderatorId], references: [id])
+  Page          Page            @relation(fields: [pageId], references: [id])
+  Comment       Comment?        @relation("CommentToComment", fields: [parentId], references: [id])
+  other_Comment Comment[]       @relation("CommentToComment")
   comment_likes comment_likes[]
 
   @@map("comment")
