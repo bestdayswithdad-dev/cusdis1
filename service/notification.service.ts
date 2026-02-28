@@ -25,10 +25,9 @@ export class NotificationService extends RequestScopeService {
         id: projectId,
       },
       select: {
-        // FIXED: Changed to snake_case to match DB
         enable_notification: true,
-        // FIXED: Changed 'owner' to 'User' to match schema relation name
-        User: {
+        // FIXED: Using 'users' (lowercase plural) as requested by the compiler
+        users: {
           select: {
             id: true,
             email: true,
@@ -38,13 +37,11 @@ export class NotificationService extends RequestScopeService {
     })
 
     // Safety check if project or owner is missing
-    // FIXED: Using User instead of owner
-    if (!project || !project.User) {
+    if (!project || !(project as any).users) {
       return
     }
 
     // don't notify if disabled in project settings
-    // FIXED: Using enable_notification
     if (!project.enable_notification) {
       return
     }
@@ -71,13 +68,13 @@ export class NotificationService extends RequestScopeService {
     })
 
     // Use the standard email field
-    // FIXED: Accessing through User
-    const notificationEmail = project.User.email
+    const owner = (project as any).users
+    const notificationEmail = owner?.email
 
     // Only proceed if an email exists
     if (notificationEmail) {
       let unsubscribeToken = this.tokenService.genUnsubscribeNewCommentToken(
-        project.User.id,
+        owner.id,
       )
 
       const approveToken = await this.tokenService.genApproveToken(comment.id)
