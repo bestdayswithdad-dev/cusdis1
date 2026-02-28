@@ -13,13 +13,12 @@ export class ProjectService extends RequestScopeService {
       data: {
         id: generateId(),
         title,
-        // FIXED: Relation name 'users' as requested by generated client
         users: {
           connect: {
             id: session.uid,
           },
         },
-      },
+      } as any,
     })
 
     statService.capture('project_create')
@@ -42,15 +41,13 @@ export class ProjectService extends RequestScopeService {
     return project
   }
 
-  // list all projects
   async list() {
     const session = await (await this.getSession() as any)
     const projects = await prisma.project.findMany({
       where: {
-        // FIXED: Reverted to camelCase for the 'where' filter
-        deletedAt: null,
-        ownerId: session.uid,
-      },
+        deleted_at: null,
+        owner_id: session.uid,
+      } as any,
       select: {
         id: true,
         title: true,
@@ -60,7 +57,6 @@ export class ProjectService extends RequestScopeService {
     return projects
   }
 
-  // (re)generate token
   async regenerateToken(projectId: string) {
     const id = randomBytes(12).toString('hex')
     await prisma.project.update({
@@ -80,14 +76,12 @@ export class ProjectService extends RequestScopeService {
   }) {
     const project = await prisma.project.findFirst({
       where: {
-        // FIXED: Reverted to camelCase
-        ownerId,
-        deletedAt: null
-      },
+        owner_id: ownerId,
+        deleted_at: null
+      } as any,
       orderBy: {
-        // FIXED: Reverted to camelCase
-        createdAt: 'asc'
-      },
+        created_at: 'asc'
+      } as any,
       select:  options?.select
     })
 
@@ -105,28 +99,26 @@ export class ProjectService extends RequestScopeService {
     const now = new Date()
     const results = await prisma.comment.findMany({
       orderBy: {
-        // FIXED: Comment model might still need snake_case or camelCase; 
-        // based on the Project error, let's try camelCase here too
-        createdAt: 'desc',
-      },
+        created_at: 'desc',
+      } as any,
       take: options?.take || 20,
       where: {
-        deletedAt: null,
+        deleted_at: null,
         approved: false,
         moderatorId: null,
         Page: {
           projectId,
         },
-        createdAt: {
+        created_at: {
           gte: options?.from ? options?.from : undefined,
         },
-      },
+      } as any,
       select: {
         by_email: true,
         by_nickname: true,
         content: true,
-        createdAt: true,
-      },
+        created_at: true,
+      } as any,
     })
 
     if (options?.markAsRead) {
@@ -135,9 +127,8 @@ export class ProjectService extends RequestScopeService {
           id: projectId
         },
         data: {
-          // FIXED: Reverted to camelCase
-          fetchLatestCommentsAt: now
-        }
+          fetch_latest_comments_at: now
+        } as any
       })
     }
 
@@ -150,8 +141,8 @@ export class ProjectService extends RequestScopeService {
         id: projectId
       },
       data:{
-        deletedAt: new Date()
-      }
+        deleted_at: new Date()
+      } as any
     })
 
     statService.capture('project_delete')
@@ -163,11 +154,11 @@ export class ProjectService extends RequestScopeService {
         id: projectId
       },
       select: {
-        deletedAt: true
-      }
+        deleted_at: true
+      } as any
     })
 
-    if (project && !project.deletedAt) {
+    if (project && !(project as any).deleted_at) {
       return false
     }
 
