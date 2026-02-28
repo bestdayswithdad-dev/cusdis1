@@ -94,7 +94,6 @@ export function MainLayout(props: {
 
   const onClickSaveUserSettings = async () => {
     const data = userSettingsForm.getValues()
-    
     const notificationEmail = String(data.notificationEmail || "")
     const displayName = String(data.displayName || "")
 
@@ -278,7 +277,6 @@ export function MainLayout(props: {
               <Text weight={500} size="sm">Email (for notification)</Text>
               <TextInput placeholder={String(props.userInfo?.email || "")} {...userSettingsForm.register("notificationEmail")} size="sm" />
               <Switch 
-                // FIXED: Using double-not (!!) to force boolean type for linting safety
                 defaultChecked={!!props.userInfo?.enable_notifications} 
                 onChange={e => {
                   updateUserSettingsMutation.mutate({
@@ -307,4 +305,48 @@ export function MainLayout(props: {
                             <List.Item>10 Quick Approve / month</List.Item>
                             <List.Item>100 approved comments / month</List.Item>
                           </List>
-                          {!props.subscription.isActived || props.subscription.status === 'cancelled
+                          {!props.subscription.isActived || props.subscription.status === 'cancelled' ? (
+                            <Button disabled size="xs">Current plan</Button>
+                          ) : (
+                            <Button size="xs" variant={'outline'} loading={downgradePlanMutation.isLoading} onClick={_ => {
+                              if (window.confirm('Are you sure to downgrade?')) {
+                                downgradePlanMutation.mutate()
+                              }
+                            }}>Downgrade</Button>
+                          )}
+                        </Stack>
+                      </Paper>
+                    </Grid.Col>
+                    <Grid.Col span={6}>
+                      <Paper sx={theme => ({ border: '1px solid #eaeaea', padding: theme.spacing.md })}>
+                        <Stack>
+                          <Title order={4}>Pro</Title>
+                          <List size='sm'>
+                            <List.Item>Unlimited sites</List.Item>
+                            <List.Item>Unlimited Quick Approve</List.Item>
+                            <List.Item>Unlimited approved comments</List.Item>
+                          </List>
+                          {props.subscription.isActived ? (
+                            <>
+                              <Button size="xs" component="a" href={props.subscription.updatePaymentMethodUrl}>Manage payment method</Button>
+                              {props.subscription.status === 'cancelled' && (<Text size='xs' align='center'>Expire on {dayjs(props.subscription.endAt).format('YYYY/MM/DD')}</Text>)}
+                            </>
+                          ) : (
+                            <Button size='xs' component="a" href={`${props.config.checkout.url}?checkout[custom][user_id]=${props.session.uid}`}>Upgrade $5/month</Button>
+                          )}
+                        </Stack>
+                      </Paper>
+                    </Grid.Col>
+                  </Grid>
+                </Stack>
+              </>
+            )}
+            <Button loading={updateUserSettingsMutation.isLoading} onClick={onClickSaveUserSettings}>Save</Button>
+            <Button onClick={_ => signOut()} variant={'outline'} color='red'>Logout</Button>
+          </Stack>
+        </Modal>
+        {props.children}
+      </AppShell>
+    </>
+  )
+}
