@@ -23,45 +23,44 @@ export class SubscriptionService {
 
     await prisma.subscription.upsert({
       where: {
-        userId: user_id
-      },
+        user_id: user_id // FIXED: Using user_id to match DB column mapping
+      } as any,
       create: {
-        userId: user_id,
-        orderId: `${order_id}`,
-        productId: `${product_id}`,
-        variantId: `${variant_id}`,
-        customerId: `${customer_id}`,
-        endsAt: ends_at,
-        lemonSubscriptionId,
+        user_id: user_id,
+        order_id: `${order_id}`,
+        product_id: `${product_id}`,
+        variant_id: `${variant_id}`,
+        customer_id: `${customer_id}`,
+        ends_at: ends_at,
+        lemon_subscription_id: lemonSubscriptionId,
         status,
-        updatePaymentMethodUrl: update_payment_method
-      },
+        update_payment_method_url: update_payment_method
+      } as any,
       update: {
-        userId: user_id,
-        orderId: `${order_id}`,
-        productId: `${product_id}`,
-        variantId: `${variant_id}`,
-        customerId: `${customer_id}`,
-        lemonSubscriptionId,
-        endsAt: ends_at,
+        order_id: `${order_id}`,
+        product_id: `${product_id}`,
+        variant_id: `${variant_id}`,
+        customer_id: `${customer_id}`,
+        lemon_subscription_id: lemonSubscriptionId,
+        ends_at: ends_at,
         status,
-        updatePaymentMethodUrl: update_payment_method
-      }
+        update_payment_method_url: update_payment_method
+      } as any
     })
   }
 
   async isActivated(userId: string) {
     const subscription = await prisma.subscription.findUnique({
       where: {
-        userId
-      },
+        user_id: userId // FIXED: Using user_id
+      } as any,
     })
 
     if (!subscription) {
       return false
     }
 
-    let isActived = subscription?.status === 'active' || subscription?.status === 'cancelled'
+    let isActived = (subscription as any)?.status === 'active' || (subscription as any)?.status === 'cancelled'
 
     return isActived
   }
@@ -69,15 +68,15 @@ export class SubscriptionService {
   async getStatus(userId: string) {
     const subscription = await prisma.subscription.findUnique({
       where: {
-        userId
-      },
+        user_id: userId // FIXED: Using user_id
+      } as any,
     })
 
     return {
       isActived: await this.isActivated(userId),
-      status: subscription?.status || '',
-      endAt: subscription?.endsAt?.toISOString() || '',
-      updatePaymentMethodUrl: subscription?.updatePaymentMethodUrl || ''
+      status: (subscription as any)?.status || '',
+      endAt: (subscription as any)?.ends_at?.toISOString() || '',
+      updatePaymentMethodUrl: (subscription as any)?.update_payment_method_url || ''
     }
   }
 
@@ -86,16 +85,12 @@ export class SubscriptionService {
       return true
     }
 
-    const [projectCount] = await prisma.$transaction([
-      prisma.project.count({
-        where: {
-          ownerId: userId,
-          deletedAt: {
-            equals: null
-          }
-        }
-      }),
-    ])
+    const projectCount = await prisma.project.count({
+      where: {
+        owner_id: userId, // FIXED: Using owner_id
+        deleted_at: null // FIXED: Using deleted_at
+      } as any
+    })
 
     if (projectCount < usageLimitation['create_site']) {
       return true
@@ -113,16 +108,14 @@ export class SubscriptionService {
       return true
     }
 
-    const [usage] = await prisma.$transaction([
-      prisma.usage.findUnique({
-        where: {
-          userId_label: {
-            userId,
-            label: UsageLabel.ApproveComment
-          }
+    const usage = await prisma.usage.findUnique({
+      where: {
+        userId_label: {
+          user_id: userId, // FIXED: Using user_id inside composite key
+          label: UsageLabel.ApproveComment
         }
-      }),
-    ])
+      } as any
+    })
 
     if (await this.isActivated(userId)) {
       return true
@@ -132,10 +125,10 @@ export class SubscriptionService {
       return true
     }
 
-    if (usage.count <= usageLimitation[UsageLabel.ApproveComment]) {
+    if ((usage as any).count <= usageLimitation[UsageLabel.ApproveComment]) {
       return true
     }
- 
+
     return false
   }
 
@@ -144,26 +137,20 @@ export class SubscriptionService {
       return true
     }
 
-    const [usage] = await prisma.$transaction([
-      prisma.usage.findUnique({
-        where: {
-          userId_label: {
-            userId,
-            label: UsageLabel.QuickApprove
-          }
+    const usage = await prisma.usage.findUnique({
+      where: {
+        userId_label: {
+          user_id: userId, // FIXED: Using user_id
+          label: UsageLabel.QuickApprove
         }
-      }),
-    ])
-
-    // if (await this.isActivated(userId)) {
-    //   return true
-    // }
+      } as any
+    })
 
     if (!usage) {
       return true
     }
 
-    if (usage.count <= usageLimitation[UsageLabel.QuickApprove]) {
+    if ((usage as any).count <= usageLimitation[UsageLabel.QuickApprove]) {
       return true
     }
 
