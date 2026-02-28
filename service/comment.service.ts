@@ -9,11 +9,15 @@ import { statService } from './stat.service'
 import { EmailService } from './email.service'
 import { TokenService } from './token.service'
 import utc from 'dayjs/plugin/utc'
+import { randomBytes } from 'crypto'
 
 dayjs.extend(utc)
 
 export const markdown = MarkdownIt({ linkify: true })
 markdown.disable(['image', 'link'])
+
+// Simple unique ID generator to satisfy Prisma's ID requirement
+const generateId = () => randomBytes(8).toString('hex')
 
 export class CommentWrapper {
   public commentCount: number = 0;
@@ -135,13 +139,13 @@ export class CommentService extends RequestScopeService {
 
     const created = await prisma.comment.create({
       data: {
+        id: generateId(), // FIXED: Manually providing ID for Prisma
         content: finalBody.content,
         by_email: finalBody.email.toLowerCase(),
         by_nickname: finalBody.nickname, 
         Page: {
           connect: { id: page.id }
         },
-        // FIXED: Use relation connect for Parent comment if it exists
         ...(finalParentId ? {
           Parent: {
             connect: { id: finalParentId }
@@ -160,6 +164,7 @@ export class CommentService extends RequestScopeService {
     const parent = await prisma.comment.findUnique({ where: { id: parentId } })
     return await prisma.comment.create({
       data: {
+        id: generateId(), // FIXED: Manually providing ID for Prisma
         content,
         by_email: session.user.email,
         by_nickname: session.user.name,
@@ -167,7 +172,6 @@ export class CommentService extends RequestScopeService {
         Page: {
           connect: { id: parent!.pageId }
         },
-        // FIXED: Use relation connect for Parent comment
         Parent: {
           connect: { id: parentId }
         },
