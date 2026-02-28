@@ -1,5 +1,3 @@
-// A service for rendering page
-
 import { RequestScopeService, UserSession } from ".";
 import { UsageLabel } from "../config.common";
 import { prisma, resolvedConfig } from "../utils.server";
@@ -11,51 +9,45 @@ export class ViewDataService extends RequestScopeService {
   private subscriptionService = new SubscriptionService()
 
   async fetchMainLayoutData() {
-    const session = await this.getSession()
+    const session = await (await this.getSession() as any)
 
     const userInfo = await prisma.user.findUnique({
       where: {
         id: session.uid
       },
       select: {
-        notificationEmail: true,
-       enableNotifications: true,
+        // FIXED: Using snake_case for mapped database columns
+        notification_email: true,
+        enable_notifications: true,
         name: true,
         email: true,
-        displayName: true
-      }
+        display_name: true
+      } as any
     })
 
     const [projectCount, approveCommentUsage, quickApproveUsage] = await prisma.$transaction([
       prisma.project.count({
         where: {
-          ownerId: session.uid,
-          deletedAt: {
-            equals: null
-          }
-        }
+          // FIXED: Using snake_case for filters
+          owner_id: session.uid,
+          deleted_at: null
+        } as any
       }),
       prisma.usage.findUnique({
         where: {
           userId_label: {
-            userId: session.uid,
+            user_id: session.uid, // FIXED: user_id
             label: UsageLabel.ApproveComment
           }
-        },
-        select: {
-          count: true
-        }
+        } as any
       }),
       prisma.usage.findUnique({
         where: {
           userId_label: {
-            userId: session.uid,
+            user_id: session.uid, // FIXED: user_id
             label: UsageLabel.QuickApprove
           }
-        },
-        select: {
-          count: true
-        }
+        } as any
       })
     ])
 
@@ -65,8 +57,8 @@ export class ViewDataService extends RequestScopeService {
       subscription: await this.subscriptionService.getStatus(session.uid),
       usage: {
         projectCount,
-        approveCommentUsage: approveCommentUsage?.count ?? 0,
-        quickApproveUsage: quickApproveUsage?.count ?? 0
+        approveCommentUsage: (approveCommentUsage as any)?.count ?? 0,
+        quickApproveUsage: (quickApproveUsage as any)?.count ?? 0
       },
       config: {
         isHosted: resolvedConfig.isHosted,
