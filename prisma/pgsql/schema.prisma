@@ -71,7 +71,11 @@ model Project {
   title                    String
   created_at               DateTime  @default(now())
   updated_at               DateTime  @default(now())
+  
+  // This line is the fix: It tells Prisma to treat owner_id as userId
   owner_id                 String    @map("owner_id")
+  userId                   String?   @map("owner_id") 
+  
   token                    String?
   fetch_latest_comments_at DateTime? @map("fetch_latest_comments_at")
   enable_notification      Boolean?  @default(true) @map("enable_notification")
@@ -80,7 +84,6 @@ model Project {
   deleted_at               DateTime? @map("deleted_at")
   
   Page                     Page[]
-  // FIXED: Renamed relation to 'user' to resolve the Argument userId error
   user                     User      @relation(fields: [owner_id], references: [id])
 
   @@map("projects")
