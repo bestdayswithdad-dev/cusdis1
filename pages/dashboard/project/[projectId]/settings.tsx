@@ -4,11 +4,11 @@ import { Project } from "@prisma/client"
 import { useRouter } from "next/router"
 import React from "react"
 import { useMutation } from "react-query"
-import {  MainLayout } from "../../../../components/Layout"
+import { MainLayout } from "../../../../components/Layout"
 import { ProjectService } from "../../../../service/project.service"
 import { MainLayoutData, ViewDataService } from "../../../../service/viewData.service"
 import { apiClient } from "../../../../utils.client"
-import { getSession, resolvedConfig } from "../../../../utils.server"
+import { getSession } from "../../../../utils.server"
 
 const deleteProject = async ({ projectId }) => {
   const res = await apiClient.delete<{
@@ -33,14 +33,16 @@ const useListStyle = createStyles(theme => ({
   label: { fontWeight: 500 as any, fontSize: 14 }
 }))
 
-// BRIDGE TYPE: Satisfies the TypeScript Pick constraint
-type ProjectWithMappedFields = Omit<Project, 'enable_notification' | 'owner_id' | 'deleted_at'> & { 
-  enableNotification: boolean,
-  ownerId: string,
-  deletedAt?: Date | null 
+// FIXED: Properties now match the actual Prisma Model names (snake_case)
+export type ProjectServerSideProps = {
+  id: string
+  title: string
+  owner_id: string
+  token: string | null
+  enable_notification: boolean
+  webhook: string | null
+  enable_webhook: boolean
 }
-
-export type ProjectServerSideProps = Pick<ProjectWithMappedFields, 'ownerId' | 'id' | 'title' | 'token' | 'enableNotification' | 'webhook' | 'enableWebhook'>
 
 export default function Page(props: {
   session: any,
@@ -79,14 +81,14 @@ export default function Page(props: {
   }
 
   return (
-    <MainLayout id="settings" project={props.project} {...props.mainLayoutData}>
+    <MainLayout id="settings" project={props.project as any} {...props.mainLayoutData}>
       <Container sx={{ marginTop: 24 }}>
         <Title sx={{ marginBottom: 12 }} order={3}>Settings</Title> 
         <Stack className={listClasses.container} spacing={0}>
           <Box className={listClasses.item}>
             <Group>
               <Text className={listClasses.label}>Email Notification</Text>
-              <Switch defaultChecked={props.project.enableNotification} onChange={e => {
+              <Switch checked={props.project.enable_notification} onChange={e => {
                 enableNotificationMutation.mutate({ projectId, body: { enableNotification: e.target.checked } })
               }} />
             </Group>
@@ -95,12 +97,12 @@ export default function Page(props: {
             <Stack>
               <Group>
                 <Text className={listClasses.label}>Webhook</Text>
-                <Switch defaultChecked={props.project.enableWebhook} onChange={e => {
+                <Switch checked={props.project.enable_webhook} onChange={e => {
                   enableWebhookMutation.mutate({ projectId, body: { enableWebhook: e.target.checked } })
                 }} />
               </Group>
               <Group grow>
-                <TextInput defaultValue={props.project.webhook} ref={webhookInputRef} placeholder="https://..." />
+                <TextInput defaultValue={props.project.webhook || ''} ref={webhookInputRef} placeholder="https://..." />
                 <Box><Button onClick={onSaveWebhookUrl}>Save</Button></Box>
               </Group>
             </Stack>
@@ -132,12 +134,11 @@ export async function getServerSideProps(ctx) {
 
   const project = await projectService.get(ctx.query.projectId) as any
 
-  // FIXED: Checked against snake_case column from DB
   if (!project || project.deleted_at) {
     return { redirect: { destination: '/404', permanent: false } }
   }
 
-  // FIXED: Changed ownerId to owner_id to match DB result
+  // Ensure DadAdmin or the session user is recognized correctly
   if (session && (project.owner_id !== session.uid)) {
     return { redirect: { destination: '/forbidden', permanent: false } }
   }
@@ -149,12 +150,12 @@ export async function getServerSideProps(ctx) {
       project: {
         id: project.id,
         title: project.title,
-        ownerId: project.owner_id, // Map DB to UI
+        owner_id: project.owner_id,
         token: project.token,
-        enableNotification: !!project.enable_notification, // Map DB to UI
-        enableWebhook: !!project.enableWebhook,
+        enable_notification: !!project.enable_notification,
+        enable_webhook: !!project.enable_webhook,
         webhook: project.webhook
-      } as ProjectServerSideProps
+      }
     }
   }
 }
