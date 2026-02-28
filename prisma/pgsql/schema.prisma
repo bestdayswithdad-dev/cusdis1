@@ -43,26 +43,27 @@ model Session {
   @@schema("public")
 }
 
-model User {
-  id                              String          @id @default(uuid())
-  name                            String?
-  email                           String?         @unique
-  emailVerified                   DateTime?       @map("email_verified")
-  image                           String?
-  createdAt                       DateTime        @default(now()) @map("created_at")
-  updatedAt                       DateTime        @default(now()) @map("updated_at")
+model Project {
+  id                       String    @id(map: "projects_pkey")
+  title                    String
+  created_at               DateTime  @default(now())
+  updated_at               DateTime  @default(now())
   
-  enable_notifications            Boolean?        @default(true) @map("enable_notifications")
-  notification_email              String?         @map("notification_email")
-  display_name                    String?         @map("display_name")
+  // FIXED: Rename the field to userId but keep it mapped to owner_id in the DB
+  userId                   String    @map("owner_id")
   
-  enable_new_comment_notification Boolean?        @default(true)
-  Comment                         Comment[]
-  Project                         Project[]
-  subscription                    Subscription?
-  usage                           Usage[]
+  token                    String?
+  fetch_latest_comments_at DateTime? @map("fetch_latest_comments_at")
+  enable_notification      Boolean?  @default(true) @map("enable_notification")
+  webhook                  String?
+  enable_webhook           Boolean?  @map("enable_webhook")
+  deleted_at               DateTime? @map("deleted_at")
+  
+  Page                     Page[]
+  // Update the relation to use the new field name
+  user                     User      @relation(fields: [userId], references: [id])
 
-  @@map("users") 
+  @@map("projects")
   @@schema("public")
 }
 
