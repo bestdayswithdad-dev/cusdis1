@@ -27,7 +27,7 @@ export class NotificationService extends RequestScopeService {
       select: {
         enable_notification: true,
         // FIXED: Using 'users' (lowercase plural) as requested by the compiler
-        users: {
+        user: {
           select: {
             id: true,
             email: true,
