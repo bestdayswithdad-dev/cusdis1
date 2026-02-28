@@ -33,11 +33,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       where: {
         id: projectId,
       },
-      data: {
-        enableNotification: body.enableNotification,
-        enableWebhook: body.enableWebhook,
-        webhook: body.webhookUrl
-      },
+    data: {
+  enable_notification: body.enableNotification, // Changed to snake_case
+  enableWebhook: body.enableWebhook,           
+  webhook: body.webhookUrl
+},
     })
 
     res.json({
