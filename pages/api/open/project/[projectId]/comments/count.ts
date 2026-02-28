@@ -28,7 +28,7 @@ export default apiHandler()
             where: {
               deletedAt: null,
               approved: true,
-              page: {
+              Page: {
                 slug: id,
                 projectId,
               },
