@@ -139,15 +139,16 @@ export class CommentService extends RequestScopeService {
 
     const created = await prisma.comment.create({
       data: {
-        id: generateId(), // FIXED: Manually providing ID for Prisma
+        id: generateId(),
         content: finalBody.content,
         by_email: finalBody.email.toLowerCase(),
         by_nickname: finalBody.nickname, 
         Page: {
           connect: { id: page.id }
         },
+        // FIXED: parent (lowercase) matches the relation name in your schema
         ...(finalParentId ? {
-          Parent: {
+          parent: {
             connect: { id: finalParentId }
           }
         } : {}),
@@ -164,7 +165,7 @@ export class CommentService extends RequestScopeService {
     const parent = await prisma.comment.findUnique({ where: { id: parentId } })
     return await prisma.comment.create({
       data: {
-        id: generateId(), // FIXED: Manually providing ID for Prisma
+        id: generateId(),
         content,
         by_email: session.user.email,
         by_nickname: session.user.name,
@@ -172,7 +173,8 @@ export class CommentService extends RequestScopeService {
         Page: {
           connect: { id: parent!.pageId }
         },
-        Parent: {
+        // FIXED: parent (lowercase) matches the relation name in your schema
+        parent: {
           connect: { id: parentId }
         },
         approved: true,
