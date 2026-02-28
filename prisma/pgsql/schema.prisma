@@ -1,3 +1,6 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
 generator client {
   provider        = "prisma-client-js"
   previewFeatures = ["multiSchema"]
@@ -8,6 +11,39 @@ datasource db {
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
   schemas   = ["auth", "public"]
+}
+
+model Account {
+  id                 Int       @id @default(autoincrement())
+  compoundId         String    @unique @map("compound_id")
+  userId             String    @map("user_id")
+  providerType       String    @map("provider_type")
+  providerId         String    @map("provider_id")
+  providerAccountId  String    @map("provider_account_id")
+  refreshToken       String?   @map("refresh_token")
+  accessToken        String?   @map("access_token")
+  accessTokenExpires DateTime? @map("access_token_expires")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @default(now()) @map("updated_at")
+
+  @@index([providerAccountId], map: "providerAccountId")
+  @@index([providerId], map: "providerId")
+  @@index([userId], map: "userId")
+  @@map("accounts")
+  @@schema("public")
+}
+
+model Session {
+  id           Int      @id @default(autoincrement())
+  userId       String   @map("user_id")
+  expires      DateTime
+  sessionToken String   @unique @map("session_token")
+  accessToken  String   @unique @map("access_token")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @map("updated_at")
+
+  @@map("sessions")
+  @@schema("public")
 }
 
 model User {
@@ -37,7 +73,7 @@ model Project {
   created_at               DateTime  @default(now())
   updated_at               DateTime  @default(now())
   
-  // This maps the code's query argument to the DB column
+  // Maps the code's query argument (ownerId) to the DB column (owner_id)
   ownerId                  String    @map("owner_id")
   
   token                    String?
@@ -135,5 +171,17 @@ model comment_likes {
   @@id([comment_id, id])
   @@unique([comment_id, user_ip])
   @@map("comment_likes")
+  @@schema("public")
+}
+
+model VerificationRequest {
+  id         Int      @id @default(autoincrement())
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @default(now()) @map("updated_at")
+
+  @@map("verification_requests")
   @@schema("public")
 }
