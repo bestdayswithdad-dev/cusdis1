@@ -258,7 +258,7 @@ function ProjectPage(props: {
   )
 }
 
-type ProjectServerSideProps = Pick<Project, 'ownerId' | 'id' | 'title' | 'token' | 'enableNotification' | 'webhook' | 'enableWebhook'>
+type ProjectServerSideProps = Pick<Project, 'ownerId' | 'id' | 'title' | 'token' | 'enable_notification' | 'webhook' | 'enableWebhook'>
 
 export async function getServerSideProps(ctx) {
   const projectService = new ProjectService(ctx.req)
