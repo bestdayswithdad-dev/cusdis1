@@ -1,16 +1,20 @@
 import { Prisma, Project, User } from '@prisma/client'
-import { nanoid } from 'nanoid'
+import { randomBytes } from 'crypto'
 import { RequestScopeService } from '.'
 import { prisma } from '../utils.server'
 import { statService } from './stat.service'
 
+const generateId = () => randomBytes(8).toString('hex')
+
 export class ProjectService extends RequestScopeService {
   async create(title: string) {
-    const session = await this.getSession()
+    const session = await (await this.getSession() as any)
     const created = await prisma.project.create({
       data: {
+        id: generateId(),
         title,
-        owner: {
+        // FIXED: Using 'users' relation as requested by Prisma Client
+        users: {
           connect: {
             id: session.uid,
           },
@@ -19,7 +23,6 @@ export class ProjectService extends RequestScopeService {
     })
 
     statService.capture('project_create')
-
     return created
   }
 
@@ -41,11 +44,12 @@ export class ProjectService extends RequestScopeService {
 
   // list all projects
   async list() {
-    const session = await this.getSession()
+    const session = await (await this.getSession() as any)
     const projects = await prisma.project.findMany({
       where: {
-        deletedAt: null,
-        ownerId: session.uid,
+        // FIXED: Using snake_case to match DB
+        deleted_at: null,
+        owner_id: session.uid,
       },
       select: {
         id: true,
@@ -58,7 +62,7 @@ export class ProjectService extends RequestScopeService {
 
   // (re)generate token
   async regenerateToken(projectId: string) {
-    const id = nanoid(24)
+    const id = randomBytes(12).toString('hex')
     await prisma.project.update({
       where: {
         id: projectId,
@@ -76,11 +80,13 @@ export class ProjectService extends RequestScopeService {
   }) {
     const project = await prisma.project.findFirst({
       where: {
-        ownerId,
-        deletedAt: null
+        // FIXED: Using snake_case
+        owner_id: ownerId,
+        deleted_at: null
       },
       orderBy: {
-        createdAt: 'asc'
+        // FIXED: Using snake_case
+        created_at: 'asc'
       },
       select:  options?.select
     })
@@ -99,21 +105,24 @@ export class ProjectService extends RequestScopeService {
     const now = new Date()
     const results = await prisma.comment.findMany({
       orderBy: {
-        createdAt: 'desc',
+        // FIXED: Using snake_case
+        created_at: 'desc',
       },
       take: options?.take || 20,
       where: {
-        deletedAt: {
+        // FIXED: Using snake_case
+        deleted_at: {
           equals: null
         },
         approved: false,
         moderatorId: {
           equals: null
         },
-        page: {
+        // FIXED: Capitalized relation name
+        Page: {
           projectId,
         },
-        createdAt: {
+        created_at: {
           gte: options?.from ? options?.from : undefined,
         },
       },
@@ -121,7 +130,8 @@ export class ProjectService extends RequestScopeService {
         by_email: true,
         by_nickname: true,
         content: true,
-        createdAt: true,
+        // FIXED: Mapping back to snake_case result
+        created_at: true,
       },
     })
 
@@ -131,7 +141,8 @@ export class ProjectService extends RequestScopeService {
           id: projectId
         },
         data: {
-          fetchLatestCommentsAt: now
+          // FIXED: Mapping back to snake_case
+          fetch_latest_comments_at: now
         }
       })
     }
@@ -145,7 +156,8 @@ export class ProjectService extends RequestScopeService {
         id: projectId
       },
       data:{
-        deletedAt: new Date()
+        // FIXED: Using snake_case
+        deleted_at: new Date()
       }
     })
 
@@ -158,11 +170,12 @@ export class ProjectService extends RequestScopeService {
         id: projectId
       },
       select: {
-        deletedAt: true
+        // FIXED: Using snake_case
+        deleted_at: true
       }
     })
 
-    if (project && !project.deletedAt) {
+    if (project && !(project as any).deleted_at) {
       return false
     }
 
