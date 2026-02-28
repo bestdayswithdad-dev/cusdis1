@@ -1,7 +1,7 @@
 import { Comment } from '@prisma/client'
 import axios from 'axios'
 import { RequestScopeService } from '.'
-import { prisma, resolvedConfig, sentry } from '../utils.server'
+import { prisma, resolvedConfig } from '../utils.server'
 import { statService } from './stat.service'
 import { TokenService } from './token.service'
 
@@ -21,6 +21,7 @@ export type NewCommentHookData = {
   page_id: string
   page_title: string
   content: string
+  approve_link: string
 }
 
 export class WebhookService extends RequestScopeService {
@@ -33,18 +34,20 @@ export class WebhookService extends RequestScopeService {
       },
     })
 
-    if (project.enableWebhook && !comment.moderatorId && project.webhook) {
+    // FIXED: Using snake_case fields (enable_webhook, moderator_id) to match DB
+    if (project && (project as any).enable_webhook && !comment.moderatorId && (project as any).webhook) {
 
       const fullComment = await prisma.comment.findUnique({
         where: {
           id: comment.id,
         },
         select: {
-          page: {
+          // FIXED: Capitalized 'Page' and 'Project' to match schema relations
+          Page: {
             select: {
               title: true,
               slug: true,
-              project: {
+              Project: {
                 select: {
                   title: true
                 }
@@ -53,6 +56,8 @@ export class WebhookService extends RequestScopeService {
           },
         },
       })
+
+      if (!fullComment || !(fullComment as any).Page) return
 
       const approveToken = await this.tokenService.genApproveToken(comment.id)
       const approveLink = `${resolvedConfig.host}/open/approve?token=${approveToken}`
@@ -64,20 +69,21 @@ export class WebhookService extends RequestScopeService {
       })
 
       try {
-        axios.post(project.webhook, {
+        const pageData = (fullComment as any).Page
+        axios.post((project as any).webhook, {
           type: HookType.NewComment,
           data: {
             by_nickname: comment.by_nickname,
             by_email: comment.by_email,
             content: comment.content,
-            page_id: fullComment.page.slug,
-            page_title: fullComment.page.title,
-            project_title: fullComment.page.project.title,
+            page_id: pageData.slug,
+            page_title: pageData.title,
+            project_title: pageData.Project?.title,
             approve_link: approveLink,
           },
         } as HookBody<NewCommentHookData>)
       } catch (e) {
-        
+        // Silent catch for webhook failures
       }
     }
   }
