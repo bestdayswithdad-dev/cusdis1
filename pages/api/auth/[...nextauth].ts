@@ -4,51 +4,68 @@ import { prisma, resolvedConfig } from "../../../utils.server";
 import { authProviders } from "../../../config.server";
 import { statService } from "../../../service/stat.service";
 
+// Using Module Augmentation to ensure TypeScript recognizes the custom IDs
+declare module "next-auth" {
+  interface Session {
+    uid: string
+  }
+  interface User {
+    id: string
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    id: string
+  }
+}
+
 export default NextAuth({
   providers: authProviders,
 
   adapter: Adapters.Prisma.Adapter({ prisma: prisma }),
 
-  // Force JWT strategy if you are using local auth or a custom provider
   session: {
-    jwt: true, 
+    // Force JWT strategy to avoid database session lookup issues
+    strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
 
-  // This is the CRITICAL fix for the JWS Verification error.
-  // We use a fallback to process.env to ensure Vercel sees the secret.
   jwt: {
+    // Fallback chain to ensure a secret is ALWAYS found
     secret: resolvedConfig.jwtSecret || process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET,
   },
-  
-  // Use the same secret for the main NextAuth configuration
+
+  // Main secret for high-level NextAuth signing
   secret: resolvedConfig.jwtSecret || process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET,
 
-  // Set debug to true to see the exact reason for any future "Forbidden" errors
-  debug: true, 
+  // Enable debug to see exact JWS/JWT failure reasons in Vercel logs
+  debug: true,
 
   callbacks: {
-    async jwt(token, user) {
-      // If this is the first time logging in, 'user' will exist
+    async jwt({ token, user }) {
+      // Capture the user ID (DadAdmin) on initial sign-in
       if (user) {
         token.id = user.id;
       }
       return token;
     },
-    async session(session, userOrToken: any) {
-      // Robustly extract the ID (which should be 'DadAdmin')
-      const id = (userOrToken?.id || userOrToken?.sub || userOrToken?.uid) as string;
+    
+    async session({ session, token }: any) {
+      // Map the token ID to the session UID used by your dashboard
+      const id = (token?.id || token?.sub || token?.uid) as string;
       
       if (id) {
         session.uid = id;
       }
       
-      // Verification log for Vercel terminal
-      console.log("NEXTAUTH DEBUG: Session ID set to:", session.uid);
+      // Critical log to verify the identity chain in Vercel terminal
+      console.log("NEXTAUTH DEBUG: Session UID for Dashboard:", session.uid);
       
       return session;
     },
-    signIn() {
+
+    async signIn() {
       statService.capture('signIn');
       return true;
     }
@@ -56,44 +73,7 @@ export default NextAuth({
 
   events: {
     async error(message) {
-      console.error("NEXTAUTH EVENT ERROR:", message);
-    },
-  },
-});
-  jwt: {
-    secret: resolvedConfig.jwtSecret,
-  },
-
-callbacks: {
-    async jwt(token, user) {
-      if (user) {
-        token.id = user.id;
-      }
-      return token;
-    },
-    async session(session, userOrToken: any) {
-      // Force 'id' to be treated as a string to satisfy the compiler
-      const id = (userOrToken?.id || userOrToken?.sub || userOrToken?.uid) as string;
-      
-      if (id) {
-        session.uid = id;
-      }
-      
-      // --- EMERGENCY LOGS ---
-      console.log("CRITICAL DEBUG: Final Session UID:", session.uid);
-      // --- END LOGS ---
-      
-      return session;
-    },
-    signIn() {
-      statService.capture('signIn');
-      return true;
-    }
-  },
-
-  events: {
-    async error(message) {
-      console.log(message);
+      console.error("NEXTAUTH ERROR EVENT:", message);
     },
   },
 });
