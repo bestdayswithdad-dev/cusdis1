@@ -357,7 +357,7 @@ const Ve = function t(e) {
   // comment
   email: "Email (optional)",
   nickname: "Nickname",
-  reply_placeholder: "Reply...",
+  reply_placeholder: "Join the Conversation",
   reply_btn: "Reply",
   sending: "sending...",
   // reply
