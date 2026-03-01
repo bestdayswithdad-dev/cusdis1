@@ -33,22 +33,25 @@ export default NextAuth({
     secret: resolvedConfig.jwtSecret,
   },
 
-  callbacks: {
-    async session(session, user) {
-      // --- EMERGENCY LOGS ---
-      // This will appear in your Vercel Logs when you visit the dashboard
-      console.log("CRITICAL DEBUG: User ID from database:", user?.id);
-      console.log("CRITICAL DEBUG: Session UID being set:", session?.uid);
-      // --- END LOGS ---
-      
-      session.uid = user.id;
-      return session;
-    },
-    async jwt(token, user) {
+ callbacks: {
+    async jwt({ token, user }) {
+      // If we just signed in, the 'user' object exists. Capture its ID.
       if (user) {
         token.id = user.id;
       }
       return token;
+    },
+    async session({ session, token }) {
+      // Use the ID we saved in the JWT token to set the session UID
+      if (token?.id) {
+        session.uid = token.id as string;
+      }
+      
+      // --- EMERGENCY LOGS ---
+      console.log("CRITICAL DEBUG: Final Session UID:", session.uid);
+      // --- END LOGS ---
+      
+      return session;
     },
     signIn() {
       statService.capture('signIn');
