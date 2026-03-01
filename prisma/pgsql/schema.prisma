@@ -43,26 +43,17 @@ model Session {
   @@schema("public")
 }
 
-model User {
-  id                              String          @id @default(uuid())
-  name                            String?
-  email                           String?         @unique
-  emailVerified                   DateTime?       @map("email_verified")
-  image                           String?
-  createdAt                       DateTime        @default(now()) @map("created_at")
-  updatedAt                       DateTime        @default(now()) @map("updated_at")
-  
-  enable_notifications            Boolean?        @default(true) @map("enable_notifications")
-  notification_email              String?         @map("notification_email")
-  display_name                    String?         @map("display_name")
-  
-  enable_new_comment_notification Boolean?        @default(true)
-  Comment                         Comment[]
-  Project                         Project[]
-  subscription                    Subscription?
-  usage                           Usage[]
+model Usage {
+  id        String   @id @default(uuid())
+  // This @map must match your physical Supabase column 'userId'
+  userId    String   @map("userId") 
+  label     String
+  count     Int      @default(0)
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id])
 
-  @@map("users") 
+  @@unique([userId, label])
+  @@map("usages")
   @@schema("public")
 }
 
