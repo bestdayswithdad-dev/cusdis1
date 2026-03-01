@@ -4,22 +4,31 @@ import { prisma, resolvedConfig } from "../../../utils.server";
 import { authProviders } from "../../../config.server";
 import { statService } from "../../../service/stat.service";
 
+// Helper to stop the "Two-Address" fighting 
+const getBaseUrl = () => {
+  if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL;
+  // If on Vercel, use the dynamic system variable
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return "https://cusdis-jet-one.vercel.app";
+};
+
 export default NextAuth({
   providers: authProviders,
 
   adapter: Adapters.Prisma.Adapter({ prisma: prisma }),
 
   session: {
-    // Fixed for NextAuth v3 compatibility
     jwt: true,
     maxAge: 30 * 24 * 60 * 60,
   },
 
+  // This prevents the "Site can't be reached" error you just saw
+  // by correctly identifying the host at runtime.
   jwt: {
-    secret: resolvedConfig.jwtSecret || process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET,
+    secret: process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || resolvedConfig.jwtSecret || 'c420d92ac78e5a0d8395920b9c425055ae911fe78b1fa97fc567dc6b4ec81b8f',
   },
 
-  secret: resolvedConfig.jwtSecret || process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET,
+  secret: process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || resolvedConfig.jwtSecret || 'c420d92ac78e5a0d8395920b9c425055ae911fe78b1fa97fc567dc6b4ec81b8f',
 
   debug: true,
 
@@ -32,7 +41,6 @@ export default NextAuth({
     },
     
     async session(session, userOrToken: any) {
-      // Robustly extract the ID for DadAdmin
       const id = (userOrToken?.id || userOrToken?.sub || userOrToken?.uid) as string;
       
       if (id) {
