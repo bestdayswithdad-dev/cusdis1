@@ -58,4 +58,13 @@ export default NextAuth({
       console.log(message)
     },
   },
+  callbacks: {
+    session(session, user) {
+      // --- EMERGENCY LOG ---
+      console.log("CRITICAL DEBUG: User ID from database:", user.id);
+      console.log("CRITICAL DEBUG: Session UID being set:", session.uid);
+      // --- END LOG ---
+      session.uid = user.id
+      return session
+    },
 })
