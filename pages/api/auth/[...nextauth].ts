@@ -33,18 +33,21 @@ export default NextAuth({
     secret: resolvedConfig.jwtSecret,
   },
 
- callbacks: {
-    async jwt({ token, user }) {
-      // If we just signed in, the 'user' object exists. Capture its ID.
+callbacks: {
+    async jwt(token, user) {
+      // Positional arguments: token is first, user is second
       if (user) {
         token.id = user.id;
       }
       return token;
     },
-    async session({ session, token }) {
-      // Use the ID we saved in the JWT token to set the session UID
-      if (token?.id) {
-        session.uid = token.id as string;
+    async session(session, userOrToken) {
+      // In v3, the second argument is the user (for DB sessions) or token (for JWT)
+      // We check both to ensure the UID is set
+      const id = userOrToken?.id || userOrToken?.sub;
+      
+      if (id) {
+        session.uid = id;
       }
       
       // --- EMERGENCY LOGS ---
