@@ -27,25 +27,18 @@ export default async function handler(
       projectId: string
     }
 
-    // FIXED: Standardized to 'userId' and used 'as any' to satisfy the compiler
-    const project = (await projectService.get(projectId, {
+  // SELECTING the actual column name from your Supabase table
+    const project = await projectService.get(projectId, {
       select: {
-        userId: true, 
+        owner_id: true, // This matches your physical Supabase column
       },
-    })) as any
+    })
 
-    if (!(await authService.projectOwnerGuard(project))) {
+    // Ensuring the guard sees 'owner_id' as the authorized user
+    if (!(await authService.projectOwnerGuard(project as any))) {
+      // This is where you are getting redirected to forbidden.json
       return
     }
-
-    form.parse(req, async (err, fields, files) => {
-      if (err) {
-        res.status(503)
-        res.json({
-          message: err.message,
-        })
-        return
-      }
 
       // @ts-ignore - handling formidable v1 vs v2 file path property
       const filePath = files.file.path || files.file.filepath
