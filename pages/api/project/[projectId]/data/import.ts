@@ -4,7 +4,6 @@ import { DataService } from '../../../../../service/data.service'
 import * as fs from 'fs'
 import { AuthService } from '../../../../../service/auth.service'
 import { ProjectService } from '../../../../../service/project.service'
-import { Project } from '@prisma/client'
 
 export const config = {
   api: {
@@ -27,33 +26,55 @@ export default async function handler(
       projectId: string
     }
 
-  // SELECTING the actual column name from your Supabase table
+    // 1. Fetch project using 'userId' (Prisma's internal mapping for owner_id)
     const project = await projectService.get(projectId, {
       select: {
-        owner_id: true, // This matches your physical Supabase column
+        userId: true, 
       },
     })
 
-    // Ensuring the guard sees 'owner_id' as the authorized user
+    // 2. Validate ownership (This fixes the 'Forbidden' redirect)
     if (!(await authService.projectOwnerGuard(project as any))) {
-      // This is where you are getting redirected to forbidden.json
       return
     }
 
-      // @ts-ignore - handling formidable v1 vs v2 file path property
-      const filePath = files.file.path || files.file.filepath
-      
-      const imported = await dataService.importFromDisqus(
-        projectId,
-        fs.readFileSync(filePath, { encoding: 'utf-8' }),
-      )
+    // 3. Process the file import
+    form.parse(req, async (err, fields, files) => {
+      if (err) {
+        res.status(503).json({
+          message: err.message,
+        })
+        return
+      }
 
-      res.json({
-        data: {
-          pageCount: imported.threads.length,
-          commentCount: imported.posts.length,
-        },
-      })
+      // Handle formidable v1 vs v2 file path properties safely
+      // @ts-ignore
+      const file = files.file || files.files
+      // @ts-ignore
+      const filePath = file.path || file.filepath
+      
+      if (!filePath) {
+        res.status(400).json({ message: "No file uploaded" })
+        return
+      }
+
+      try {
+        const imported = await dataService.importFromDisqus(
+          projectId,
+          fs.readFileSync(filePath, { encoding: 'utf-8' }),
+        )
+
+        res.json({
+          data: {
+            pageCount: imported.threads.length,
+            commentCount: imported.posts.length,
+          },
+        })
+      } catch (importErr: any) {
+        res.status(500).json({ message: importErr.message })
+      }
     })
+  } else {
+    res.status(405).json({ message: "Method not allowed" })
   }
 }
