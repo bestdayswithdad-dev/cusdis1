@@ -11,17 +11,17 @@ datasource db {
 }
 
 model Account {
-  id                 Int       @id @default(autoincrement())
-  compoundId         String    @unique @map("compound_id")
-  userId             String    @map("user_id")
-  providerType       String    @map("provider_type")
-  providerId         String    @map("provider_id")
+  id                Int       @id @default(autoincrement())
+  compoundId          String    @unique @map("compound_id")
+  userId              String    @map("user_id")
+  providerType        String    @map("provider_type")
+  providerId          String    @map("provider_id")
   providerAccountId  String    @map("provider_account_id")
-  refreshToken       String?   @map("refresh_token")
-  accessToken        String?   @map("access_token")
+  refreshToken        String?   @map("refresh_token")
+  accessToken         String?   @map("access_token")
   accessTokenExpires DateTime? @map("access_token_expires")
-  createdAt          DateTime  @default(now()) @map("created_at")
-  updatedAt          DateTime  @default(now()) @map("updated_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @default(now()) @map("updated_at")
 
   @@index([providerAccountId], map: "providerAccountId")
   @@index([providerId], map: "providerId")
@@ -43,28 +43,37 @@ model Session {
   @@schema("public")
 }
 
-model Usage {
-  id        String   @id @default(uuid())
-  // This @map must match your physical Supabase column 'userId'
-  userId    String   @map("userId") 
-  label     String
-  count     Int      @default(0)
-  updatedAt DateTime @updatedAt @map("updated_at")
-  user      User     @relation(fields: [userId], references: [id])
+model User {
+  id                              String          @id @default(uuid())
+  name                            String?
+  email                           String?         @unique
+  emailVerified                   DateTime?       @map("email_verified")
+  image                           String?
+  createdAt                       DateTime        @default(now()) @map("created_at")
+  updatedAt                       DateTime        @default(now()) @map("updated_at")
+  
+  enable_notifications            Boolean?        @default(true) @map("enable_notifications")
+  notification_email              String?         @map("notification_email")
+  display_name                    String?         @map("display_name")
+  
+  enable_new_comment_notification Boolean?        @default(true)
+  Comment                         Comment[]
+  Project                         Project[]
+  subscription                    Subscription?
+  usage                           Usage[]
 
-  @@unique([userId, label])
-  @@map("usages")
+  @@map("users") 
   @@schema("public")
 }
 
 model Project {
   id                       String    @id(map: "projects_pkey")
   title                    String
-  created_at               DateTime  @default(now())
-  updated_at               DateTime  @default(now())
+  created_at                DateTime  @default(now())
+  updated_at                DateTime  @default(now())
   
-  // FIXED: owner_id is the DB column, userId is what Prisma uses
-  userId                   String    @map("owner_id")
+  // owner_id is the DB column, userId is what Prisma uses
+  userId                    String    @map("owner_id")
   
   token                    String?
   fetch_latest_comments_at DateTime? @map("fetch_latest_comments_at")
@@ -73,8 +82,8 @@ model Project {
   enable_webhook           Boolean?  @map("enable_webhook")
   deleted_at               DateTime? @map("deleted_at")
   
-  Page                     Page[]
-  user                     User      @relation(fields: [userId], references: [id])
+  Page                      Page[]
+  user                      User      @relation(fields: [userId], references: [id])
 
   @@map("projects")
   @@schema("public")
@@ -126,7 +135,7 @@ model Subscription {
   orderId                String?   @map("order_id")
   productId              String?   @map("product_id")
   variantId              String?   @map("variant_id")
-  customerId             String?   @map("customer_id")
+  customerId              String?   @map("customer_id")
   status                 String?
   endsAt                 DateTime? @map("ends_at")
   updatePaymentMethodUrl String?   @map("update_payment_method_url")
@@ -139,7 +148,7 @@ model Subscription {
 
 model Usage {
   id        String   @id @default(uuid())
-  userId    String   @map("user_id")
+  userId    String   @map("userId") 
   label     String
   count     Int      @default(0)
   updatedAt DateTime @updatedAt @map("updated_at")
