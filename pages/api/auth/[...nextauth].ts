@@ -35,16 +35,14 @@ export default NextAuth({
 
 callbacks: {
     async jwt(token, user) {
-      // Positional arguments: token is first, user is second
       if (user) {
         token.id = user.id;
       }
       return token;
     },
-    async session(session, userOrToken) {
-      // In v3, the second argument is the user (for DB sessions) or token (for JWT)
-      // We check both to ensure the UID is set
-      const id = userOrToken?.id || userOrToken?.sub;
+    async session(session, userOrToken: any) {
+      // Force 'id' to be treated as a string to satisfy the compiler
+      const id = (userOrToken?.id || userOrToken?.sub || userOrToken?.uid) as string;
       
       if (id) {
         session.uid = id;
