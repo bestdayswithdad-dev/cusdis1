@@ -28,10 +28,10 @@ export default NextAuth({
    * as a direct fallback so the server never has to "make one up."
    */
   jwt: {
-    secret: process.env.NEXTAUTH_SECRET || 'c420d92ac78e5a0d8395920b9c425055ae911fe78b1fa97fc567dc6b4ec81b8f',
+    secret: process.env.NEXTAUTH_SECRET || 'bhb7yb75fyb74y5bf4b5kauhfhu54yb5fyblfhb4ybfly4bfy5bgl4yibbgy54bgylb5gyb4y5gbi4ugu45gunugb6ub5ibgih54yby54bybg4yiu46o6ingpui4bbgpi4ybg6hbh57h807whg974h7h647w8gh46g7h487h7o57ht475hogon4gbo4ybg7b57584bgwouinvufmwu4gn84b9ng74b5ngub47b5g',
   },
 
-  secret: process.env.NEXTAUTH_SECRET || 'c420d92ac78e5a0d8395920b9c425055ae911fe78b1fa97fc567dc6b4ec81b8f',
+  secret: process.env.NEXTAUTH_SECRET || 'bhb7yb75fyb74y5bf4b5kauhfhu54yb5fyblfhb4ybfly4bfy5bgl4yibbgy54bgylb5gyb4y5gbi4ugu45gunugb6ub5ibgih54yby54bybg4yiu46o6ingpui4bbgpi4ybg6hbh57h807whg974h7h647w8gh46g7h487h7o57ht475hogon4gbo4ybg7b57584bgwouinvufmwu4gn84b9ng74b5ngub47b5g',
 
   debug: true,
 
