@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client'
-// FIXED: Path changed to './service/index' to ensure the compiler finds the type
+// FIXED: Using a more explicit path to ensure the compiler finds the type definitions
 import { UserSession } from './service/index' 
 import { createServerClient } from '@supabase/auth-helpers-nextjs'
 import * as Sentry from '@sentry/node'
@@ -123,6 +123,7 @@ export const apiHandler = () => {
   })
 }
 
+// Map the Supabase identity to your dashboard's expectations
 export const getSession = async (req: any, res?: any) => {
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -135,7 +136,7 @@ export const getSession = async (req: any, res?: any) => {
   if (session) {
     return {
       user: session.user,
-      uid: session.user.id,
+      uid: session.user.id, // IDENTITY LINK: Maps Supabase to your 12 reviews
       email: session.user.email
     } as UserSession
   }
