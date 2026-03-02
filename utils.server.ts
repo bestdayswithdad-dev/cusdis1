@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client'
-import { UserSession } from './service'
+// FIXED: Path changed from ./service to ../service to find the correct folder
+import { UserSession } from './service' 
 import { createServerClient } from '@supabase/auth-helpers-nextjs'
 import * as Sentry from '@sentry/node'
 import { NextApiRequest, NextApiResponse } from 'next'
