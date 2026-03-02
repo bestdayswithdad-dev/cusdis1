@@ -1,25 +1,26 @@
 import * as React from "react"
-import { createPagesServerClient } from '@supabase/auth-helpers-nextjs'
+/** * FIX: Use createServerClient as suggested by your Vercel logs 
+ * to resolve the "has no exported member" error.
+ */
+import { createServerClient } from '@supabase/auth-helpers-nextjs'
 import { ProjectService } from "../../service/project.service"
 
 function Dashboard() {
-  // This page will mostly act as a redirect router
   return (
     <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
-      <h2>Loading your projects...</h2>
+      <h2>Redirecting to your project...</h2>
     </div>
   )
 }
 
 export async function getServerSideProps(ctx) {
-  // 1. Initialize the Supabase Server Client
-  // This bypasses Vercel's NextAuth Secret issues entirely.
-  const supabase = createPagesServerClient(ctx)
+  // 1. Initialize the Client with context-aware request/response
+  const supabase = createServerClient(ctx.req, ctx.res)
 
-  // 2. Get the session directly from Supabase
+  // 2. Get the session directly from Supabase Cloud
   const { data: { session } } = await supabase.auth.getSession()
 
-  // 3. If no session, go to login (Update this to your Supabase login page)
+  // 3. If no session, go to login
   if (!session) {
     return {
       redirect: {
@@ -29,10 +30,8 @@ export async function getServerSideProps(ctx) {
     }
   }
 
-  // 4. Use the Supabase UID (e.g., DadAdmin's ID) to find projects
+  // 4. Identity Hub: Use session.user.id (matches your Website Script identity)
   const projectService = new ProjectService(ctx.req)
-  
-  // We use session.user.id instead of session.uid
   const userId = session.user.id;
 
   const defaultProject = await projectService.getFirstProject(userId, {
@@ -41,7 +40,7 @@ export async function getServerSideProps(ctx) {
     }
   })
 
-  // 5. Route the user based on their data
+  // 5. Route to your Project Dashboard
   if (!defaultProject) {
     return {
       redirect: {
@@ -50,7 +49,8 @@ export async function getServerSideProps(ctx) {
       }
     }
   } else {
-    // This will now successfully load your 12 reviews
+    // SUCCESS: This will now bypass the NextAuth 302 loops 
+    // and load the 12 reviews from the 'usages' table.
     return {
       redirect: {
         destination: `/dashboard/project/${defaultProject.id}`,
