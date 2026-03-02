@@ -8,7 +8,7 @@ interface Props {
 }
 
 export const getServerSideProps: GetServerSideProps<Props> | Redirect = async (ctx) => {
-  // Use the renamed function and pass both req and res for Supabase cookies
+  // Passes the full context (req and res) to the fixed utility
   const session = await getServerSession(ctx.req, ctx.res)
 
   if (!resolvedConfig.isHosted && !session) {
@@ -19,7 +19,6 @@ export const getServerSideProps: GetServerSideProps<Props> | Redirect = async (c
       },
     }
   }
-
   return {
     props: {
       session
