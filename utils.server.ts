@@ -122,15 +122,11 @@ export const apiHandler = () => {
   })
 }
 
-// FIXED: Using any to bypass the IncomingMessage vs NextApiRequest error
-export const getSession = async (req: any, res?: NextApiResponse) => {
+export const getSession = async (req: any, res?: any) => {
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { 
-      req, 
-      res: res || ({} as NextApiResponse) 
-    }
+    { req, res: res || ({} as any) }
   )
 
   const { data: { session } } = await supabase.auth.getSession()
@@ -138,7 +134,7 @@ export const getSession = async (req: any, res?: NextApiResponse) => {
   if (session) {
     return {
       user: session.user,
-      uid: session.user.id, // Links identity to your 12 reviews
+      uid: session.user.id,
       email: session.user.email
     } as UserSession
   }
