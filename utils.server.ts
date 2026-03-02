@@ -1,17 +1,15 @@
 import { PrismaClient } from '@prisma/client'
-// REMOVED: The import that was causing the 'Cannot find module' error
-import { createServerClient } from '@supabase/auth-helpers-nextjs'
-import * as Sentry from '@sentry/node'
-import { NextApiRequest, NextApiResponse } from 'next'
-import nc from 'next-connect'
-import Boom from '@hapi/boom'
-
-// MANUALLY DEFINED: Bypasses the file path issues to let the build pass
+// FIXED: Removed the import of ./service and defined the type here to bypass the build error
 export interface UserSession {
   user: any;
   uid: string;
   email?: string;
 }
+import { createServerClient } from '@supabase/auth-helpers-nextjs'
+import * as Sentry from '@sentry/node'
+import { NextApiRequest, NextApiResponse } from 'next'
+import nc from 'next-connect'
+import Boom from '@hapi/boom'
 
 type EnvVariable = string | undefined
 
@@ -141,7 +139,7 @@ export const getSession = async (req: any, res?: any) => {
   if (session) {
     return {
       user: session.user,
-      uid: session.user.id, // Identity Link: Maps session to your 12 reviews
+      uid: session.user.id, // IDENTITY: Maps session to your 12 reviews
       email: session.user.email
     } as UserSession
   }
