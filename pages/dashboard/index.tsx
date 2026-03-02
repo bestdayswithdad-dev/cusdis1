@@ -11,11 +11,11 @@ function Dashboard() {
 }
 
 export async function getServerSideProps(ctx) {
-  // FIX: Version 0.15.0 requires URL and KEY as the first two arguments
+  // FIX: For version 0.15.0, pass the raw ctx as the 3rd argument
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { req: ctx.req, res: ctx.res }
+    ctx
   )
 
   const { data: { session } } = await supabase.auth.getSession()
