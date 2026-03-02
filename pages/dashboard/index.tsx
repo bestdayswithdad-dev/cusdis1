@@ -1,56 +1,51 @@
 import * as React from "react"
-import { createServerClient } from '@supabase/auth-helpers-nextjs'
+import { createServerClient, serializeCookie (or similar) } from '@supabase/auth-helpers-nextjs'
 import { ProjectService } from "../../service/project.service"
 
-function Dashboard() {
-  return (
-    <div style={{ padding: '20px' }}>
-      <h2>Redirecting to your project...</h2>
-    </div>
-  )
-}
-
 export async function getServerSideProps(ctx) {
-  // FIX: For version 0.15.0, pass the raw ctx as the 3rd argument
+  const { req, res } = ctx
+
+  // FIX: Provide the cookies object with getAll and setAll as required by the logs
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    ctx
+    {
+      cookies: {
+        getAll() {
+          return Object.keys(req.cookies).map((name) => ({ name, value: req.cookies[name] || '' }))
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => res.appendHeader('Set-Cookie', `${name}=${value}`))
+        },
+      },
+    }
   )
 
   const { data: { session } } = await supabase.auth.getSession()
 
   if (!session) {
-    return {
-      redirect: {
-        destination: '/login',
-        permanent: false,
-      }
-    }
+    return { redirect: { destination: '/login', permanent: false } }
   }
 
-  const projectService = new ProjectService(ctx.req)
-  const userId = session.user.id;
-
-  const defaultProject = await projectService.getFirstProject(userId, {
+  const projectService = new ProjectService(req)
+  const defaultProject = await projectService.getFirstProject(session.user.id, {
     select: { id: true }
   })
 
   if (!defaultProject) {
-    return {
-      redirect: {
-        destination: `/getting-start`,
-        permanent: false
-      }
-    }
-  } else {
-    return {
-      redirect: {
-        destination: `/dashboard/project/${defaultProject.id}`,
-        permanent: false
-      }
+    return { redirect: { destination: `/getting-start`, permanent: false } }
+  }
+
+  return {
+    redirect: {
+      destination: `/dashboard/project/${defaultProject.id}`,
+      permanent: false
     }
   }
+}
+
+function Dashboard() {
+  return <div style={{ padding: '20px' }}><h2>Redirecting...</h2></div>
 }
 
 export default Dashboard
