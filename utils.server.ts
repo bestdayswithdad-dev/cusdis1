@@ -1,6 +1,5 @@
 import { PrismaClient } from '@prisma/client'
 import { UserSession } from './service'
-// REMOVED: next-auth/client import to stop the 307 loops
 import { createServerClient } from '@supabase/auth-helpers-nextjs'
 import * as Sentry from '@sentry/node'
 import { NextApiRequest, NextApiResponse } from 'next'
@@ -123,8 +122,8 @@ export const apiHandler = () => {
   })
 }
 
-// FIXED: Using Supabase session to unlock your 12 reviews
-export const getSession = async (req: NextApiRequest, res?: NextApiResponse) => {
+// FIXED: Using any to bypass the IncomingMessage vs NextApiRequest error
+export const getSession = async (req: any, res?: NextApiResponse) => {
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -139,7 +138,7 @@ export const getSession = async (req: NextApiRequest, res?: NextApiResponse) => 
   if (session) {
     return {
       user: session.user,
-      uid: session.user.id, // Maps Supabase ID to your project ownership
+      uid: session.user.id, // Links identity to your 12 reviews
       email: session.user.email
     } as UserSession
   }
