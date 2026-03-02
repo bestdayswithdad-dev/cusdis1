@@ -26,12 +26,20 @@ export const getServerSideProps: GetServerSideProps<Props> | Redirect = async (c
   }
 }
 
+// KEEP the fixed getServerSideProps we wrote!
+// But REPLACE the default function Home(props) with your original dashboard code:
+
 export default function Home(props: Props) {
+  // If session is missing but build passed, we show a simple state
+  if (!props.session) {
+    return <div>Loading session...</div>
+  }
+
   return (
-    <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
-      <h1>Dashboard</h1>
-      <p>Welcome back! Your identity has been verified via Supabase.</p>
-      <pre>{JSON.stringify(props.session, null, 2)}</pre>
-    </div>
+    <>
+      {/* Restore your original Dashboard components here */}
+      <Dashboard session={props.session} /> 
+      {/* Ensure your components use props.session.uid to fetch the 12 reviews */}
+    </>
   )
 }
