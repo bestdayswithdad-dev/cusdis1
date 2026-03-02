@@ -1,14 +1,15 @@
 import * as React from "react"
 import { GetServerSideProps, Redirect } from 'next'
-// FIXED: We now import UserSession directly from our utility to avoid the path error
-import { getSession as getServerSession, resolvedConfig, sentry, UserSession } from '../utils.server'
+import { getSession as getServerSession, resolvedConfig, UserSession } from '../utils.server'
+import { ProjectList } from '../components/ProjectList' // This is your actual dashboard UI
+import { Head } from '../components/Head'
+import { Footer } from '../components/Footer'
 
 interface Props {
   session: UserSession | null
 }
 
 export const getServerSideProps: GetServerSideProps<Props> | Redirect = async (ctx) => {
-  // Passes the full context (req and res) to the fixed utility
   const session = await getServerSession(ctx.req, ctx.res)
 
   if (!resolvedConfig.isHosted && !session) {
@@ -26,20 +27,24 @@ export const getServerSideProps: GetServerSideProps<Props> | Redirect = async (c
   }
 }
 
-// KEEP the fixed getServerSideProps we wrote!
-// But REPLACE the default function Home(props) with your original dashboard code:
-
 export default function Home(props: Props) {
-  // If session is missing but build passed, we show a simple state
-  if (!props.session) {
-    return <div>Loading session...</div>
-  }
+  if (!props.session) return null
 
   return (
-    <>
-      {/* Restore your original Dashboard components here */}
-      <Dashboard session={props.session} /> 
-      {/* Ensure your components use props.session.uid to fetch the 12 reviews */}
-    </>
+    <div>
+      <Head title="Dashboard" />
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">My Projects</h1>
+          <p className="mt-2 text-sm text-gray-700">
+            Manage your websites and moderate comments.
+          </p>
+        </div>
+
+        {/* This component uses your session.uid to fetch those 12 reviews */}
+        <ProjectList />
+      </main>
+      <Footer />
+    </div>
   )
 }
