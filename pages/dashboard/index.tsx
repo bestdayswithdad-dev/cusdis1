@@ -1,25 +1,25 @@
 import * as React from "react"
-// CHANGED: Use 'createServerClient' to match your installed version (0.15.0)
+// This matches the version 0.15.0 you installed earlier
 import { createServerClient } from '@supabase/auth-helpers-nextjs'
 import { ProjectService } from "../../service/project.service"
 
 function Dashboard() {
   return (
-    <div style={{ padding: '20px', textAlign: 'center' }}>
+    <div style={{ padding: '20px' }}>
       <h2>Loading your dashboard...</h2>
     </div>
   )
 }
 
 export async function getServerSideProps(ctx) {
-  // Use (ctx.req, ctx.res) for this specific version of the helper
+  // Pass both req and res to createServerClient
   const supabase = createServerClient(ctx.req, ctx.res)
   const { data: { session } } = await supabase.auth.getSession()
 
   if (!session) {
     return {
       redirect: {
-        destination: '/login', 
+        destination: '/login',
         permanent: false,
       }
     }
@@ -40,7 +40,7 @@ export async function getServerSideProps(ctx) {
       }
     }
   } else {
-    // This successfully routes you to your 12 reviews
+    // This routes you to the project where your 12 reviews live
     return {
       redirect: {
         destination: `/dashboard/project/${defaultProject.id}`,
