@@ -288,17 +288,25 @@ function IndexPage({ session }: Props) {
 }
 
 export const getServerSideProps: GetServerSideProps<Props> | Redirect = async (ctx) => {
-  const session = await getSession(ctx.req)
+  // FIXED: Pass ctx.res along with ctx.req to support the new Supabase session check
+  const session = await getSession(ctx.req, ctx.res)
 
   if (!resolvedConfig.isHosted && !session) {
     return {
       redirect: {
-        destination: '/dashboard',
+        destination: '/login',
         permanent: false,
-      }
+      },
     }
   }
 
+  // ... (keep the rest of your original logic for returning props)
+  return {
+    props: {
+      session
+    }
+  }
+}
   let contributers = [] as Contributer[]
 
   return {
