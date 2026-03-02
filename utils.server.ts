@@ -127,11 +127,13 @@ export const apiHandler = () => {
   })
 }
 
+// FIXED: Using any for req/res to bypass ServerResponse/NextApiResponse mismatch
 export const getSession = async (req: any, res?: any) => {
+  // We pass a context object that contains req and res as the third argument
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { req, res: res || ({} as any) }
+    { req, res }
   )
 
   const { data: { session } } = await supabase.auth.getSession()
@@ -139,7 +141,7 @@ export const getSession = async (req: any, res?: any) => {
   if (session) {
     return {
       user: session.user,
-      uid: session.user.id, // IDENTITY: Maps session to your 12 reviews
+      uid: session.user.id, // Identity Link: Maps session to your 12 reviews
       email: session.user.email
     } as UserSession
   }
