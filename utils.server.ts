@@ -1,12 +1,14 @@
 import { PrismaClient } from '@prisma/client'
 import { UserSession } from './service'
-import { getSession as nextAuthGetSession } from 'next-auth/client'
+// REMOVED: next-auth/client import to stop the 307 loops
+import { createServerClient } from '@supabase/auth-helpers-nextjs'
 import * as Sentry from '@sentry/node'
 import { NextApiRequest, NextApiResponse } from 'next'
 import nc from 'next-connect'
 import Boom from '@hapi/boom'
 
 type EnvVariable = string | undefined
+
 export const resolvedConfig = {
   useLocalAuth: process.env.USERNAME && process.env.PASSWORD,
   useGithub: process.env.GITHUB_ID && process.env.GITHUB_SECRET,
@@ -100,6 +102,7 @@ export function initMiddleware(middleware) {
 }
 
 export const HTTPException = Boom
+
 export const apiHandler = () => {
   return nc<NextApiRequest, NextApiResponse>({
     onError(e, req, res, next) {
@@ -115,12 +118,31 @@ export const apiHandler = () => {
           message: 'Unexpected error',
         })
         console.error(e)
-        // unexcepted error
       }
     },
   })
 }
 
-export const getSession = async (req) => {
-  return (await nextAuthGetSession({ req })) as UserSession
+// FIXED: Using Supabase session to unlock your 12 reviews
+export const getSession = async (req: NextApiRequest, res?: NextApiResponse) => {
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { 
+      req, 
+      res: res || ({} as NextApiResponse) 
+    }
+  )
+
+  const { data: { session } } = await supabase.auth.getSession()
+
+  if (session) {
+    return {
+      user: session.user,
+      uid: session.user.id, // Maps Supabase ID to your project ownership
+      email: session.user.email
+    } as UserSession
+  }
+
+  return null
 }
