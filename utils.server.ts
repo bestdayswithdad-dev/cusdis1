@@ -1,11 +1,17 @@
 import { PrismaClient } from '@prisma/client'
-// FIXED: Using a more explicit path to ensure the compiler finds the type definitions
-import { UserSession } from './service/index' 
+// REMOVED: The import that was causing the 'Cannot find module' error
 import { createServerClient } from '@supabase/auth-helpers-nextjs'
 import * as Sentry from '@sentry/node'
 import { NextApiRequest, NextApiResponse } from 'next'
 import nc from 'next-connect'
 import Boom from '@hapi/boom'
+
+// MANUALLY DEFINED: Bypasses the file path issues to let the build pass
+export interface UserSession {
+  user: any;
+  uid: string;
+  email?: string;
+}
 
 type EnvVariable = string | undefined
 
@@ -123,7 +129,6 @@ export const apiHandler = () => {
   })
 }
 
-// Map the Supabase identity to your dashboard's expectations
 export const getSession = async (req: any, res?: any) => {
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -136,7 +141,7 @@ export const getSession = async (req: any, res?: any) => {
   if (session) {
     return {
       user: session.user,
-      uid: session.user.id, // IDENTITY LINK: Maps Supabase to your 12 reviews
+      uid: session.user.id, // Identity Link: Maps session to your 12 reviews
       email: session.user.email
     } as UserSession
   }
