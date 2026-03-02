@@ -287,19 +287,29 @@ function IndexPage({ session }: Props) {
   )
 }
 
-export const getServerSideProps: GetServerSideProps<Props> | Redirect = async (ctx) => {
-  // FIXED: Pass ctx.res along with ctx.req to support the new Supabase session check
-  const session = await getSession(ctx.req, ctx.res)
-
-  if (!resolvedConfig.isHosted && !session) {
-    return {
-      redirect: {
-        destination: '/login',
-        permanent: false,
-      },
+// FIXED: Changed both req and res to 'any' to stop the ServerResponse vs NextApiResponse crash
+export const getSession = async (req: any, res?: any) => {
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { 
+      req, 
+      res: res || ({} as any) 
     }
+  )
+
+  const { data: { session } } = await supabase.auth.getSession()
+
+  if (session) {
+    return {
+      user: session.user,
+      uid: session.user.id, // This identity link unlocks your 12 reviews
+      email: session.user.email
+    } as UserSession
   }
 
+  return null
+}
   // ... (keep the rest of your original logic for returning props)
   return {
     props: {
