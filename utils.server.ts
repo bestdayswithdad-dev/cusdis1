@@ -127,13 +127,26 @@ export const apiHandler = () => {
   })
 }
 
-// FIXED: Using any for req/res to bypass ServerResponse/NextApiResponse mismatch
+// FIXED: Using the 'cookies' wrapper to satisfy the Type Overload requirement
 export const getSession = async (req: any, res?: any) => {
-  // We pass a context object that contains req and res as the third argument
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { req, res }
+    {
+      cookies: {
+        get(name: string) {
+          return req.cookies[name]
+        },
+        set(name: string, value: string, options: any) {
+          if (!res) return
+          res.setHeader('Set-Cookie', `${name}=${value}`)
+        },
+        remove(name: string, options: any) {
+          if (!res) return
+          res.setHeader('Set-Cookie', `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`)
+        },
+      },
+    }
   )
 
   const { data: { session } } = await supabase.auth.getSession()
@@ -141,7 +154,7 @@ export const getSession = async (req: any, res?: any) => {
   if (session) {
     return {
       user: session.user,
-      uid: session.user.id, // Identity Link: Maps session to your 12 reviews
+      uid: session.user.id, // THE LINK: This unlocks your 12 reviews
       email: session.user.email
     } as UserSession
   }
