@@ -2,8 +2,8 @@ import * as React from "react"
 import { GetServerSideProps, Redirect } from 'next'
 import { getSession as getServerSession, resolvedConfig, UserSession } from '../utils.server'
 
-// FIXED: Using a specific file path to bypass folder-level confusion
-import ProjectList from '../components/Dashboard/ProjectList' 
+// FIXED: Using the relative path that matches the Cusdis directory structure
+import { ProjectList } from '../components/Dashboard' 
 import { Head } from '../components/Head'
 import { Footer } from '../components/Footer'
 
