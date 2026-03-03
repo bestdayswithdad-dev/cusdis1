@@ -2,11 +2,10 @@ import * as React from "react"
 import { GetServerSideProps, Redirect } from 'next'
 import { getSession as getServerSession, resolvedConfig, UserSession } from '../utils.server'
 
-// FIXED: Correct path to the Dashboard components
-import { ProjectList } from '../components/Dashboard/ProjectList' 
+// FIXED: Using a more likely path for the dashboard component
+import { ProjectList } from '../components/Dashboard' 
 import { Head } from '../components/Head'
 import { Footer } from '../components/Footer'
-
 interface Props {
   session: UserSession | null
 }
