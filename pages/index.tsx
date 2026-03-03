@@ -1,50 +1,61 @@
 import * as React from "react"
-import { GetServerSideProps, Redirect } from 'next'
-import { getSession as getServerSession, resolvedConfig, UserSession } from '../utils.server'
-
-// We will use a dynamic import for the Dashboard to bypass any pathing issues
-import dynamic from 'next/dynamic'
-const ProjectList = dynamic(() => import('../components/Dashboard/ProjectList'), { 
-  ssr: false,
-  loading: () => <p>Loading your 12 reviews...</p> 
-})
+import { GetServerSideProps } from 'next'
+import { getSession as getServerSession, UserSession } from '../utils.server'
 
 interface Props {
   session: UserSession | null
 }
 
-export const getServerSideProps: GetServerSideProps<Props> | Redirect = async (ctx) => {
+export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   const session = await getServerSession(ctx.req, ctx.res)
-
-  // If no session, we stay on the page but show a simple login button 
-  // instead of redirecting to a 404 '/login' page
   return { props: { session } }
 }
 
 export default function Home({ session }: Props) {
-  if (!session) {
-    return (
-      <div style={{ padding: '50px', textAlign: 'center', fontFamily: 'sans-serif' }}>
-        <h1>Cusdis Dashboard</h1>
-        <p>Please sign in to view your comments.</p>
-        <a href="/auth" style={{ padding: '10px 20px', background: '#000', color: '#fff', textDecoration: 'none', borderRadius: '5px' }}>
-          Go to Login
-        </a>
-      </div>
-    )
-  }
+  const [projects, setProjects] = React.useState<any[]>([])
+  const [loading, setLoading] = React.useState(true)
+
+  React.useEffect(() => {
+    if (session) {
+      // This calls ProjectService.list() under the hood
+      fetch('/api/projects') 
+        .then(res => res.json())
+        .then(data => {
+          setProjects(data)
+          setLoading(false)
+        })
+        .catch(() => setLoading(false))
+    }
+  }, [session])
+
+  if (!session) return <div style={{padding: '50px'}}>Please sign in.</div>
 
   return (
-    <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'sans-serif' }}>
-      <header style={{ marginBottom: '40px', borderBottom: '1px solid #eee', paddingBottom: '20px' }}>
-        <h1>My Projects</h1>
-        <p>Logged in as: <strong>{session.email}</strong></p>
+    <div style={{ padding: '40px', fontFamily: 'sans-serif' }}>
+      <header style={{ marginBottom: '30px' }}>
+        <h1 style={{ fontSize: '24px', fontWeight: 'bold' }}>My Dashboard</h1>
+        <p>Logged in as: {session.email}</p>
       </header>
-      
-      <main>
-        {/* This component will now finally render your 12 reviews using the Supabase UID */}
-        <ProjectList />
-      </main>
+
+      <section>
+        <h2 style={{ fontSize: '18px', marginBottom: '15px' }}>Your Projects</h2>
+        {loading ? (
+          <p>Fetching your 12 reviews...</p>
+        ) : projects.length > 0 ? (
+          <ul style={{ listStyle: 'none', padding: 0 }}>
+            {projects.map(p => (
+              <li key={p.id} style={{ padding: '15px', border: '1px solid #ddd', borderRadius: '8px', marginBottom: '10px' }}>
+                <strong>{p.title}</strong> (ID: {p.id})
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div style={{ padding: '20px', background: '#f9f9f9', borderRadius: '8px' }}>
+            <p>No projects found. If you have 12 reviews, they might be under a different User ID.</p>
+            <p style={{ fontSize: '12px', color: '#666' }}>Your current UID: {session.uid}</p>
+          </div>
+        )}
+      </section>
     </div>
   )
 }
