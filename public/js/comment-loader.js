@@ -20,7 +20,6 @@
     .then(comments => {
       let html = `
         <div style="margin-top: 50px;">
-          <h3 style="text-align:center; text-transform:uppercase; letter-spacing:2px; font-weight:800;">Reader Reviews</h3>
           <div style="margin-bottom: 40px; text-align: center;">
             <input type="text" id="nickname" placeholder="Your Nickname" />
             <textarea id="comment-body" placeholder="Share your experience..."></textarea>
