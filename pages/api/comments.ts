@@ -27,19 +27,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json({ comments: data })
     }
 
-    if (req.method === 'PATCH') {
-      // APPROVE: Set approved to true
+ if (req.method === 'PATCH') {
+      // APPROVE: Fixed naming to satisfy the type-checker
       const updated = await prisma.comment.update({
-        where: { id: BigInt(id as string) },
+        where: { id: id as string }, 
         data: { approved: true }
       })
       return res.status(200).json(updated)
     }
 
     if (req.method === 'DELETE') {
-      // DELETE: Remove from database
+      // DELETE: Fixed naming to satisfy the type-checker
       await prisma.comment.delete({
-        where: { id: BigInt(id as string) }
+        where: { id: id as string }
       })
       return res.status(204).end()
     }
