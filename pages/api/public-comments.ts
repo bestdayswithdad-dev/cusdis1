@@ -3,6 +3,15 @@ import { NextApiRequest, NextApiResponse } from 'next'
 
 const prisma = new PrismaClient()
 
+// HELPER: Converts BigInt to String to prevent JSON.stringify crashes
+const serialize = (data: any) => {
+  return JSON.parse(
+    JSON.stringify(data, (key, value) =>
+      typeof value === 'bigint' ? value.toString() : value
+    )
+  );
+};
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   res.setHeader('Access-Control-Allow-Origin', 'https://www.bestdayswithdad.com');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -12,18 +21,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'GET') {
     const { pageId } = req.query;
-    const comments = await prisma.comment.findMany({
-      where: { 
-        approved: true,
-        Page: { slug: pageId as string }
-      },
-      orderBy: { created_at: 'asc' } 
-    })
-    return res.status(200).json(comments)
+    try {
+      const comments = await prisma.comment.findMany({
+        where: { 
+          approved: true,
+          Page: { slug: pageId as string } 
+        },
+        orderBy: { created_at: 'asc' } 
+      });
+      // Wrap result in serialize()
+      return res.status(200).json(serialize(comments));
+    } catch (err) {
+      return res.status(500).json({ error: "Fetch failed" });
+    }
   }
 
   if (req.method === 'POST') {
-    const { content, nickname, parentId, pageId } = req.body
+    const { content, nickname, parentId, pageId } = req.body;
 
     try {
       let page = await prisma.page.findFirst({
@@ -31,10 +45,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
 
       if (!page) {
-        // Create Page with manual ID
         page = await prisma.page.create({
           data: { 
-            id: `pg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            id: `pg-${Date.now()}`,
             slug: pageId,
             title: "Blogger Post",
             Project: { connect: { id: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1' } } 
@@ -42,23 +55,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
       }
 
-      // 3. Create the comment with a manual ID
       const newComment = await prisma.comment.create({
         data: {
-          id: `cm-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, // Added manual ID
+          id: `cm-${Date.now()}`,
           content,
           by_nickname: nickname || 'Guest',
           parentId: parentId || null,
           Page: { connect: { id: page.id } }
         }
-      })
+      });
 
-      return res.status(201).json(newComment)
+      // Wrap result in serialize()
+      return res.status(201).json(serialize(newComment));
     } catch (error) {
-      console.error("Database Error:", error);
-      return res.status(500).json({ error: "Failed to create comment" });
-    } finally {
-      await prisma.$disconnect();
+      console.error(error);
+      return res.status(500).json({ error: "Post failed" });
     }
   }
 }
