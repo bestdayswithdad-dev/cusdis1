@@ -14,9 +14,8 @@ const queryClient = new QueryClient({
 })
 
 export default function App({ Component, pageProps }) {
-  // We REMOVED the <Provider> from next-auth/client.
-  // This stops the 404/405 errors in your console.
   return (
+    /* @ts-ignore - Required for React 18 compatibility with React Query v3 */
     <QueryClientProvider client={queryClient}>
       <MantineProvider theme={{
         primaryColor: 'gray'
