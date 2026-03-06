@@ -13,11 +13,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(401).json({ error: 'Unauthorized' })
   }
 
+ // pages/api/comments.ts
   try {
     const data = await prisma.comment.findMany({
       orderBy: { created_at: 'desc' },
       include: { 
-        pages: true // Pluralized to match your Supabase tables
+        // Changed from 'pages' to 'Page' per compiler error
+        Page: true 
       }
     })
     return res.status(200).json({ comments: data })
