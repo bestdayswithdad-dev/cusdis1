@@ -9,7 +9,7 @@
         } catch (e) { return null; }
     }
 
-    // THE MASTER TEMPLATE: Used for both main comments and replies
+    // THE MASTER TEMPLATE: Forced vertical stacking for all levels
     const createCommentHtml = (comment, isReply = false) => {
         const isLiked = userLikes.has(String(comment.id));
         const voteCount = comment.votes_count || 0;
@@ -35,7 +35,7 @@
             </div>`;
     };
 
-    // RECURSIVE BRAIN: Handles infinite nesting up to Level 4
+    // RECURSIVE BRAIN: Checks nested depth up to 4 levels
     const renderTree = (allComments, parentId, depth = 1) => {
         const children = allComments.filter(c => String(c.parentId) === String(parentId) || String(c.parent_id) === String(parentId));
         if (children.length === 0) return '';
@@ -69,11 +69,9 @@
 
         currentUser = getBadgeFromLocker();
         
-        // Fetch comments from Vercel API
         const res = await fetch('https://cusdis-jet-one.vercel.app/api/public-comments');
         const comments = await res.json();
 
-        // Fetch likes from Supabase if logged in
         if (currentUser?.id && window.supabaseClient) {
             const { data } = await window.supabaseClient.from('comment_likes').select('comment_id').eq('id', currentUser.id);
             if (data) userLikes = new Set(data.map(l => String(l.comment_id)));
@@ -84,7 +82,7 @@
         let html = `
             <div style="margin-top: 30px;">
                 <div id="comment-form" style="margin-bottom: 40px; text-align: center;">
-                    <div id="reply-indicator" onclick="window.cancelReply()">Replying to someone (Click to cancel X)</div>
+                    <div id="reply-indicator" style="display:none; background:#e0f2fe; color:#0369a1; padding:10px; border-radius:6px; font-size:11px; font-weight:700; margin-bottom:10px; border:1px solid #bae6fd; text-align:left; cursor:pointer;" onclick="window.cancelReply()">Replying to someone (Click to cancel X)</div>
                     <input type="text" id="nickname" placeholder="Your Nickname" value="${currentUser ? 'Adam' : ''}" />
                     <textarea id="comment-body" placeholder="Share your experience..."></textarea>
                     <input type="hidden" id="parent-id" value="" />
@@ -95,7 +93,7 @@
                     ${rootComments.map(c => `
                         <div class="comment-card">
                             <div class="comment-content-wrapper">
-                                <div style="display:flex; gap:15px; width:100%;">
+                                <div style="display:flex; width:100%;">
                                     ${createCommentHtml(c, false)}
                                 </div>
                                 ${renderTree(comments, c.id, 1)}
@@ -106,10 +104,10 @@
             </div>`;
         
         container.innerHTML = html;
-        container.classList.add('loaded'); // Triggers the CSS fade-in
+        container.classList.add('loaded');
     };
 
-    // --- GLOBAL ACTIONS ---
+    // --- SHARED ACTIONS ---
     window.toggleNest = (id) => {
         document.getElementById(id).style.display = 'block';
         document.getElementById(`btn-${id}`).style.display = 'none';
