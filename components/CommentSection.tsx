@@ -1,61 +1,75 @@
 import { useState, useEffect } from 'react'
-import { Stack, Textarea, TextInput, Button, Paper, Text, Divider, Badge } from '@mantine/core'
+import { Stack, Textarea, TextInput, Button, Paper, Text, Divider, Badge, Center } from '@mantine/core'
 
 export default function CommentSection() {
   const [comments, setComments] = useState([])
   const [formData, setFormData] = useState({ nickname: '', content: '' })
-  const [submitted, setSubmitted] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [msg, setMsg] = useState('')
 
   const loadComments = () => {
-    fetch('/api/public-comments').then(res => res.json()).then(setComments)
+    fetch('/api/public-comments')
+      .then(res => res.json())
+      .then(data => setComments(Array.isArray(data) ? data : []))
   }
 
   useEffect(() => { loadComments() }, [])
 
   const handleSubmit = async () => {
+    if (!formData.content) return
+    setLoading(true)
     const res = await fetch('/api/public-comments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(formData)
     })
+    
     if (res.ok) {
-      setSubmitted(true)
+      setMsg('Review submitted! It will appear once approved.')
       setFormData({ nickname: '', content: '' })
       loadComments()
     }
+    setLoading(false)
   }
 
   return (
-    <Stack spacing="xl" mt="xl">
-      <Divider label="Reader Reviews" labelPosition="center" />
+    <Stack spacing="xl" py="xl">
+      <Divider label="Community Reviews" labelPosition="center" />
       
-      {/* THE FORM */}
-      <Paper withBorder p="md" shadow="sm">
-        <Text size="sm" weight={700} mb="xs">Leave a Review</Text>
-        <Stack spacing="xs">
+      <Paper withBorder p="md" shadow="xs" bg="gray.0">
+        <Text size="sm" weight={700} mb="xs">Write a Review</Text>
+        <Stack spacing="sm">
           <TextInput 
-            placeholder="Your Nickname" 
+            placeholder="Nickname (Optional)" 
             value={formData.nickname}
             onChange={(e) => setFormData({...formData, nickname: e.target.value})}
           />
           <Textarea 
-            placeholder="What did you think?" 
+            placeholder="What's on your mind?" 
+            minRows={3}
             value={formData.content}
             onChange={(e) => setFormData({...formData, content: e.target.value})}
           />
-          <Button onClick={handleSubmit} color="blue">Post Comment</Button>
-          {submitted && <Text color="green" size="xs">Thanks! Your post is live or awaiting moderation.</Text>}
+          <Button onClick={handleSubmit} loading={loading} variant="filled" color="blue">
+            Submit Review
+          </Button>
+          {msg && <Text color="green" size="xs" align="center">{msg}</Text>}
         </Stack>
       </Paper>
 
-      {/* THE LIST */}
       <Stack spacing="md">
         {comments.map((c: any) => (
-          <Paper key={c.id} withBorder p="sm" bg="gray.0">
-            <Text weight={600} size="sm">{c.by_nickname} <Badge size="xs" variant="outline">Verified Buyer</Badge></Text>
-            <Text size="sm" mt="xs">{c.content}</Text>
+          <Paper key={c.id} withBorder p="md" shadow="xs">
+            <Group position="apart" mb="xs">
+              <Text weight={600} size="sm">{c.by_nickname || 'Guest'}</Text>
+              <Badge size="xs" color="gray">Verified Reader</Badge>
+            </Group>
+            <Text size="sm">{c.content}</Text>
           </Paper>
         ))}
+        {comments.length === 0 && (
+          <Center p="xl"><Text color="dimmed" size="sm">No approved reviews yet. Be the first!</Text></Center>
+        )}
       </Stack>
     </Stack>
   )
