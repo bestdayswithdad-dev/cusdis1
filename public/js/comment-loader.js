@@ -11,34 +11,58 @@
 
     const style = document.createElement('style');
     style.innerHTML = `
-        #custom-comment-section { max-width: 800px; margin: 40px auto; font-family: 'Montserrat', sans-serif !important; }
+        /* THE CONTAINER: Widened for maximum writing space */
+        #custom-comment-section { 
+            max-width: 1100px; 
+            width: calc(100% - 20px); /* Ensures 10px gap on each side */
+            margin: 40px auto; 
+            font-family: 'Montserrat', sans-serif !important; 
+        }
         
-        /* Main Bubble Style */
-        .comment-card { background: #f8fafc !important; border: 1px solid #e2e8f0 !important; border-radius: 20px !important; padding: 20px !important; margin-bottom: 20px !important; box-shadow: 0 4px 12px rgba(0,0,0,0.03) !important; display: flex; gap: 15px; }
+        /* THE MAIN BUBBLE: Everything stays inside this widened border */
+        .comment-card { 
+            background: #f8fafc !important; 
+            border: 1px solid #e2e8f0 !important; 
+            border-radius: 20px !important; 
+            padding: 25px !important; /* Slightly more padding for the wider look */
+            margin-bottom: 25px !important; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03) !important; 
+            display: flex; 
+            gap: 15px; 
+        }
         
-        /* Shared Internal Styles */
         .comment-emoji { font-size: 24px; padding-top: 5px; flex-shrink: 0; }
         .comment-body-wrap { flex: 1; }
         .comment-author-name { color: #334155 !important; font-weight: 800 !important; font-size: 16px !important; }
         .verified-reader-badge { background-color: #007bff !important; color: #ffffff !important; font-size: 9px !important; font-weight: 800 !important; padding: 2px 10px !important; border-radius: 4px !important; margin-left: 10px; text-transform: uppercase; }
-        .comment-actions { display: flex; align-items: center; gap: 15px; margin-top: 10px; }
+        .comment-actions { display: flex; align-items: center; gap: 15px; margin-top: 12px; }
         .executive-btn { background: transparent; border: none; font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 800; text-transform: uppercase; cursor: pointer; color: #64748b; transition: 0.2s; padding: 0; }
         .executive-btn:hover { color: #334155; text-decoration: underline; }
         .executive-btn.is-active { color: #ef4444 !important; }
 
-        /* REPLY NESTING - No bubble, just indentation and rail */
-        .reply-thread { margin-left: 20px; margin-top: 15px; border-left: 2px solid #e2e8f0; padding-left: 20px; }
-        .reply-item { margin-bottom: 20px; display: flex; gap: 12px; background: transparent !important; border: none !important; box-shadow: none !important; }
-        
-        /* Form Styles */
-        .submit-review-btn { background: #334155 !important; color: #ffffff !important; border-radius: 8px !important; padding: 12px 32px !important; font-weight: 700; text-transform: uppercase; cursor: pointer; border: none; margin-top: 10px; transition: 0.3s; }
-        #custom-comment-section input, #custom-comment-section textarea { width: 100%; padding: 14px; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 12px; font-family: inherit; box-sizing: border-box; }
+        /* INTERNAL REPLY STYLE: Widened and Indented */
+        .reply-thread-internal { 
+            margin-top: 20px; 
+            border-top: 1px solid #e2e8f0; 
+            padding-top: 20px; 
+        }
+        .reply-item-internal { 
+            margin-bottom: 20px; 
+            display: flex; 
+            gap: 12px; 
+            margin-left: 40px; /* Stronger indentation for the wider card */
+        }
+        .reply-item-internal .comment-emoji { font-size: 18px !important; }
+        .reply-item-internal .comment-author-name { font-size: 14px !important; }
+
+        /* Form Styles: Also widened */
+        .submit-review-btn { background: #334155 !important; color: #ffffff !important; border-radius: 8px !important; padding: 14px 45px !important; font-weight: 700; text-transform: uppercase; cursor: pointer; border: none; margin-top: 10px; transition: 0.3s; }
+        #custom-comment-section input, #custom-comment-section textarea { width: 100%; padding: 16px; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 12px; font-family: inherit; box-sizing: border-box; font-size: 15px; }
         #reply-indicator { display: none; background: #e0f2fe; color: #0369a1; padding: 10px; border-radius: 6px; font-size: 11px; font-weight: 700; margin-bottom: 10px; border: 1px solid #bae6fd; text-align: left; }
     `;
     document.head.appendChild(style);
 
-    // Helper to generate the inside of a comment (reusable for parent/child)
-    const createCommentHtml = (comment) => {
+    const createCommentHtml = (comment, isReply = false) => {
         const isLiked = userLikes.has(String(comment.id));
         const voteCount = comment.votes_count || 0;
         return `
@@ -89,24 +113,37 @@
                         const replies = getReplies(c.id);
                         return `
                         <div class="comment-card">
-                            ${createCommentHtml(c)}
-                        </div>
-                        ${replies.length > 0 ? `
-                            <div class="reply-thread">
-                                ${replies.map(r => `
-                                    <div class="reply-item">
-                                        ${createCommentHtml(r)}
+                            <div class="comment-emoji">👤</div>
+                            <div class="comment-body-wrap">
+                                <div style="display:flex; align-items:center; margin-bottom:5px;">
+                                    <span class="comment-author-name">${c.by_nickname}</span>
+                                    <span class="verified-reader-badge">Verified Reader</span>
+                                </div>
+                                <p style="font-size: 15px; color: #475569; line-height:1.6; margin:0;">${c.content}</p>
+                                <div class="comment-actions">
+                                    <button class="executive-btn" onclick="window.setReply('${c.id}', '${c.by_nickname}')">Reply</button>
+                                    <button class="executive-btn ${userLikes.has(String(c.id)) ? 'is-active' : ''}" onclick="window.handleLikeAction('${c.id}', ${userLikes.has(String(c.id))})">
+                                        ${userLikes.has(String(c.id)) ? '❤️ HELPFUL' : '🤍 MARK AS HELPFUL'} ${(c.votes_count || 0) > 0 ? `(${c.votes_count})` : ''}
+                                    </button>
+                                </div>
+
+                                ${replies.length > 0 ? `
+                                    <div class="reply-thread-internal">
+                                        ${replies.map(r => `
+                                            <div class="reply-item-internal">
+                                                ${createCommentHtml(r, true)}
+                                            </div>
+                                        `).join('')}
                                     </div>
-                                `).join('')}
+                                ` : ''}
                             </div>
-                        ` : ''}`;
+                        </div>`;
                     }).join('')}
                 </div>
             </div>`;
         container.innerHTML = html;
     };
 
-    // --- ACTIONS ---
     window.setReply = (id, name) => {
         document.getElementById('parent-id').value = id;
         const indicator = document.getElementById('reply-indicator');
