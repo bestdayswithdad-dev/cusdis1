@@ -22,14 +22,13 @@
         .executive-btn:hover { color: #334155; text-decoration: underline; }
         .executive-btn.is-active { color: #ef4444 !important; }
         
-        /* Threading Style  */
-        .reply-thread { margin-left: 45px; margin-top: 15px; border-left: 2px solid #e2e8f0; padding-left: 20px; }
-        .reply-card { background: rgba(255,255,255,0.6) !important; border-radius: 12px !important; padding: 12px !important; margin-bottom: 10px !important; display: flex; gap: 10px; border: 1px solid #e2e8f0; }
+        /* THREADING RAIL */
+        .reply-thread { margin-left: 20px; margin-top: 15px; border-left: 2px solid #e2e8f0; padding-left: 20px; }
+        .reply-card { background: rgba(255,255,255,0.7) !important; border-radius: 12px !important; padding: 12px !important; margin-bottom: 10px !important; display: flex; gap: 10px; border: 1px solid #e2e8f0; }
         
-        .submit-review-btn { background: #334155 !important; color: #ffffff !important; border-radius: 8px !important; padding: 12px 32px !important; font-weight: 700; text-transform: uppercase; cursor: pointer; border: none; margin-top: 10px; transition: 0.3s; }
-        .submit-review-btn:hover { background: #1e293b; transform: translateY(-2px); }
+        .submit-review-btn { background: #334155 !important; color: #ffffff !important; border-radius: 8px !important; padding: 12px 32px !important; font-weight: 700; text-transform: uppercase; cursor: pointer; border: none; margin-top: 10px; }
         #custom-comment-section input, #custom-comment-section textarea { width: 100%; padding: 14px; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 12px; font-family: inherit; box-sizing: border-box; }
-        #reply-indicator { display: none; background: #e0f2fe; color: #0369a1; padding: 8px; border-radius: 6px; font-size: 11px; font-weight: 700; margin-bottom: 10px; cursor: pointer; text-align: left; }
+        #reply-indicator { display: none; background: #e0f2fe; color: #0369a1; padding: 10px; border-radius: 6px; font-size: 11px; font-weight: 700; margin-bottom: 10px; border: 1px solid #bae6fd; text-align: left; }
     `;
     document.head.appendChild(style);
 
@@ -46,8 +45,9 @@
             if (data) userLikes = new Set(data.map(l => String(l.comment_id)));
         }
 
-        const rootComments = comments.filter(c => !c.parent_id);
-        const getReplies = (parentId) => comments.filter(c => c.parent_id === parentId);
+        // CRITICAL FIX: Catch both parentId and parent_id
+        const rootComments = comments.filter(c => !c.parentId && !c.parent_id);
+        const getReplies = (parentId) => comments.filter(c => String(c.parentId) === String(parentId) || String(c.parent_id) === String(parentId));
 
         let html = `
             <div style="margin-top: 30px;">
@@ -78,6 +78,7 @@
                                         ${isLiked ? '❤️ HELPFUL' : '🤍 MARK AS HELPFUL'}
                                     </button>
                                 </div>
+
                                 ${replies.length > 0 ? `
                                     <div class="reply-thread">
                                         ${replies.map(r => `
@@ -99,24 +100,19 @@
         container.innerHTML = html;
     };
 
+    // --- SHARED ACTIONS ---
     window.setReply = (id, name) => {
         document.getElementById('parent-id').value = id;
         const indicator = document.getElementById('reply-indicator');
         indicator.innerText = `Replying to ${name} (Click to cancel X)`;
         indicator.style.display = 'block';
         document.getElementById('comment-body').focus();
+        window.scrollTo({ top: document.getElementById('comment-form').offsetTop - 100, behavior: 'smooth' });
     };
 
     window.cancelReply = () => {
         document.getElementById('parent-id').value = '';
         document.getElementById('reply-indicator').style.display = 'none';
-    };
-
-    window.handleLikeAction = async (commentId, alreadyLiked) => {
-        if (!currentUser) { alert("Join the community to mark this as helpful!"); return; }
-        const rpcName = alreadyLiked ? 'handle_remove_like' : 'handle_new_like';
-        const { error } = await window.supabaseClient.rpc(rpcName, { c_id: String(commentId), u_id: currentUser.id });
-        if (!error) render();
     };
 
     window.submitReview = async function() {
@@ -137,6 +133,13 @@
             window.cancelReply();
             setTimeout(render, 2500);
         }
+    };
+
+    window.handleLikeAction = async (commentId, alreadyLiked) => {
+        if (!currentUser) { alert("Join the community to mark this as helpful!"); return; }
+        const rpcName = alreadyLiked ? 'handle_remove_like' : 'handle_new_like';
+        const { error } = await window.supabaseClient.rpc(rpcName, { c_id: String(commentId), u_id: currentUser.id });
+        if (!error) render();
     };
 
     if (document.readyState === 'complete') render();
