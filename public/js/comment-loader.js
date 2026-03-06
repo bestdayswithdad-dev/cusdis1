@@ -9,7 +9,7 @@
         } catch (e) { return null; }
     }
 
-    // THE MASTER TEMPLATE: Forced vertical stacking for all levels
+    // THE MASTER TEMPLATE: Organizes content into vertical stacks
     const createCommentHtml = (comment, isReply = false) => {
         const isLiked = userLikes.has(String(comment.id));
         const voteCount = comment.votes_count || 0;
@@ -35,7 +35,7 @@
             </div>`;
     };
 
-    // RECURSIVE BRAIN: Checks nested depth up to 4 levels
+    // RECURSIVE BRAIN
     const renderTree = (allComments, parentId, depth = 1) => {
         const children = allComments.filter(c => String(c.parentId) === String(parentId) || String(c.parent_id) === String(parentId));
         if (children.length === 0) return '';
@@ -68,7 +68,6 @@
         if (!container) return;
 
         currentUser = getBadgeFromLocker();
-        
         const res = await fetch('https://cusdis-jet-one.vercel.app/api/public-comments');
         const comments = await res.json();
 
@@ -107,7 +106,6 @@
         container.classList.add('loaded');
     };
 
-    // --- SHARED ACTIONS ---
     window.toggleNest = (id) => {
         document.getElementById(id).style.display = 'block';
         document.getElementById(`btn-${id}`).style.display = 'none';
@@ -135,7 +133,7 @@
     };
 
     window.adminDelete = async (id) => {
-        if (!confirm("Delete this comment and its replies?")) return;
+        if (!confirm("Delete this comment?")) return;
         const res = await fetch('https://cusdis-jet-one.vercel.app/api/admin-delete', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
