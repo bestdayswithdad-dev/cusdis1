@@ -1,4 +1,3 @@
-import { Provider } from 'next-auth/client'
 import { QueryClient, QueryClientProvider } from 'react-query'
 import { MantineProvider } from '@mantine/core'
 import { Notifications } from '@mantine/notifications';
@@ -15,20 +14,18 @@ const queryClient = new QueryClient({
 })
 
 export default function App({ Component, pageProps }) {
+  // We REMOVED the <Provider> from next-auth/client.
+  // This stops the 404/405 errors in your console.
   return (
-
-    <Provider session={pageProps.session}>
-      {/* @ts-ignore */}
-      <QueryClientProvider client={queryClient}>
-        <MantineProvider theme={{
-          primaryColor: 'gray'
-        }} withGlobalStyles withNormalizeCSS>
-          <ModalsProvider>
-            <Notifications position='top-center' />
-            <Component {...pageProps} />
-          </ModalsProvider>
-        </MantineProvider>
-      </QueryClientProvider>
-    </Provider>
+    <QueryClientProvider client={queryClient}>
+      <MantineProvider theme={{
+        primaryColor: 'gray'
+      }} withGlobalStyles withNormalizeCSS>
+        <ModalsProvider>
+          <Notifications position='top-center' />
+          <Component {...pageProps} />
+        </ModalsProvider>
+      </MantineProvider>
+    </QueryClientProvider>
   )
 }
