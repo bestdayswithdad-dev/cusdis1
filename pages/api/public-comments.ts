@@ -1,56 +1,52 @@
 import { PrismaClient } from '@prisma/client'
 import { NextApiRequest, NextApiResponse } from 'next'
-import { createPagesServerClient } from '@supabase/auth-helpers-nextjs'
 
 const prisma = new PrismaClient()
 
-if (!(BigInt.prototype as any).toJSON) {
-  (BigInt.prototype as any).toJSON = function () { return this.toString() }
-}
-
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // CORS Setup
   res.setHeader('Access-Control-Allow-Origin', 'https://www.bestdayswithdad.com');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const supabase = createPagesServerClient({ req, res })
-  const { data: { session } } = await supabase.auth.getSession()
+  if (req.method === 'GET') {
+    const { pageId } = req.query; // Get URL from query
 
-  try {
-    if (req.method === 'GET') {
-      const comments = await prisma.comment.findMany({
-        where: { approved: true },
-        orderBy: { created_at: 'asc' } 
-      })
-      return res.status(200).json(comments)
-    }
-
-    if (req.method === 'POST') {
-      const { content, nickname, parentId } = req.body
-      const defaultPage = await prisma.page.findFirst()
-      
-      if (!defaultPage) return res.status(400).json({ error: 'No page found' })
-
-      const newComment = await prisma.comment.create({
-        data: {
-          id: Date.now().toString(), 
-          content,
-          by_nickname: nickname || 'Guest',
-          by_email: session?.user?.email || 'guest@example.com',
-          approved: !!session?.user?.email_confirmed_at,
-          // FIX: Changed from parent_id to parentId
-          parentId: parentId || null, 
-          Page: { connect: { id: defaultPage.id } }
+    const comments = await prisma.comment.findMany({
+      where: { 
+        approved: true,
+        Page: {
+          slug: pageId as string // Only fetch comments for this URL
         }
-      })
-      return res.status(201).json(newComment)
-    }
-  } catch (error) {
-    console.error(error)
-    return res.status(500).json({ error: 'Database process failed' })
-  } finally {
-    await prisma.$disconnect()
+      },
+      orderBy: { created_at: 'asc' } 
+    })
+    return res.status(200).json(comments)
+  }
+
+  if (req.method === 'POST') {
+    const { content, nickname, parentId, pageId } = req.body
+    
+    // Ensure the page exists in our DB, or create it
+    const page = await prisma.page.upsert({
+      where: { slug: pageId },
+      update: {},
+      create: { 
+        slug: pageId,
+        title: "Blogger Post" 
+      }
+    })
+
+    const newComment = await prisma.comment.create({
+      data: {
+        content,
+        by_nickname: nickname || 'Guest',
+        parentId: parentId || null,
+        Page: { connect: { id: page.id } }
+      }
+    })
+    return res.status(201).json(newComment)
   }
 }
