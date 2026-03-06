@@ -4,12 +4,23 @@ import { createPagesServerClient } from '@supabase/auth-helpers-nextjs'
 
 const prisma = new PrismaClient()
 
-// BIGINT PATCH: Ensures JSON can handle BigInt data
 if (!(BigInt.prototype as any).toJSON) {
   (BigInt.prototype as any).toJSON = function () { return this.toString() }
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // --- CORS HEADERS START ---
+  // Allow your Blogger site to access this API
+  res.setHeader('Access-Control-Allow-Origin', 'https://www.bestdayswithdad.com');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  // Handle the "pre-flight" request browsers send before a POST
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  // --- CORS HEADERS END ---
+
   const supabase = createPagesServerClient({ req, res })
   const { data: { session } } = await supabase.auth.getSession()
 
@@ -32,7 +43,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const newComment = await prisma.comment.create({
         data: {
-          // FIX: Convert the BigInt to a string to match the Type definition
           id: Date.now().toString(), 
           content,
           by_nickname: nickname || 'Guest',
