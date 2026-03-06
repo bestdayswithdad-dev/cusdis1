@@ -7,18 +7,17 @@ import { Footer } from '../components/Footer'
 import dynamic from 'next/dynamic'
 
 /**
- * FIXED: Bypassing the "Module not found" error by using a broader import 
- * that resolves the Dashboard directory correctly on Vercel's Linux builder.
+ * FIXED: Explicitly pointing to the index file to resolve the pathing error.
  */
-const ProjectList = dynamic(() => import('../components/Dashboard').then(mod => mod.ProjectList), { 
+const ProjectList = dynamic(() => import('../components/Dashboard/index').then(mod => mod.ProjectList), { 
   ssr: false,
   loading: () => (
     <div className="py-10 text-center text-gray-500">
-      Loading your 12 reviews from the database...
+      Loading your reviews from the database...
     </div>
   )
 })
-
+// ... rest of the file stays exactly the same
 interface Props {
   session: UserSession | null
 }
