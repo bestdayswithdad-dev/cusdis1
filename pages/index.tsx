@@ -14,8 +14,6 @@ export default function CustomDashboard() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [comments, setComments] = useState<any[]>([])
-  
-  // State for the Email Section
   const [emailData, setEmailData] = useState({ to: '', subject: '', body: '' })
 
   const fetchComments = async () => {
@@ -24,7 +22,7 @@ export default function CustomDashboard() {
       const data = await res.json()
       setComments(data.comments || [])
     } catch (err) {
-      console.error("Fetch error:", err)
+      console.error("Failed to load reviews")
     }
   }
 
@@ -36,39 +34,42 @@ export default function CustomDashboard() {
       setLoading(false)
     }
     init()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null)
+      if (_event === 'SIGNED_IN' && session?.user?.email === ADMIN_EMAIL) fetchComments()
+    })
+    return () => subscription.unsubscribe()
   }, [supabase])
 
-  // BUTTON LOGIC: Approve a comment
   const handleApprove = async (id: string) => {
     const res = await fetch(`/api/comments?id=${id}`, { method: 'PATCH' })
     if (res.ok) fetchComments()
   }
 
-  // BUTTON LOGIC: Delete a comment
   const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this review?")) {
+    if (confirm("Delete this review forever?")) {
       const res = await fetch(`/api/comments?id=${id}`, { method: 'DELETE' })
       if (res.ok) fetchComments()
     }
   }
 
-  // PRE-FILL EMAIL: Helper to quickly message a reviewer
   const prepareEmail = (email: string) => {
     setEmailData({
-      to: email,
+      to: email || '',
       subject: 'Your Signup Bonus is Ready!',
-      body: 'Hi! Thank you for your review. Your bonus code is: '
+      body: 'Hi! Thank you for your review. Your signup bonus is now active.'
     })
   }
 
-  if (loading) return <Center h="100vh"><Text>Loading Dashboard...</Text></Center>
+  if (loading) return <Center h="100vh"><Text>Loading Command Center...</Text></Center>
 
   if (!user || user.email !== ADMIN_EMAIL) {
     return (
       <Container size="sm" py="xl">
         <Paper p="xl" withBorder shadow="md">
-          <Title order={2}>Admin Access Required</Title>
-          <Button mt="lg" onClick={() => window.location.href = '/login'}>Login</Button>
+          <Title order={2}>Admin Portal Locked</Title>
+          <Button mt="lg" onClick={() => window.location.href = '/login'}>Go to Login</Button>
         </Paper>
       </Container>
     )
@@ -78,15 +79,14 @@ export default function CustomDashboard() {
     <Container size="lg" py="xl">
       <Stack spacing="xl">
         <Title order={1}>Moderation Dashboard</Title>
-        
-        {/* REVIEWS TABLE */}
+        <Text color="dimmed">Managing {comments.length} total reviews.</Text>
+
         <Paper withBorder shadow="xs" p="md">
-          <Text weight={700} mb="md">Recent Reviews ({comments.length})</Text>
-          <Table verticalSpacing="sm">
+          <Table verticalSpacing="sm" highlightOnHover>
             <thead>
               <tr>
-                <th>Author</th>
-                <th>Comment</th>
+                <th>Reviewer</th>
+                <th>Content</th>
                 <th>Status</th>
                 <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
@@ -95,22 +95,24 @@ export default function CustomDashboard() {
               {comments.map((c) => (
                 <tr key={c.id}>
                   <td>
-                    <Text size="sm" weight={600}>{c.by_nickname}</Text>
+                    <Text size="sm" weight={600}>{c.by_nickname || 'Guest'}</Text>
                     <Text size="xs" color="dimmed">{c.by_email}</Text>
                   </td>
-                  <td><Text size="xs">{c.content}</Text></td>
-                  <td>{c.approved ? <Badge color="green">Public</Badge> : <Badge color="yellow">Pending</Badge>}</td>
+                  <td><Text size="xs" italic>"{c.content}"</Text></td>
+                  <td>
+                    {c.approved ? <Badge color="green">Live</Badge> : <Badge color="yellow">Pending</Badge>}
+                  </td>
                   <td>
                     <Group spacing={4} position="right">
                       {!c.approved && (
-                        <ActionIcon color="green" variant="light" onClick={() => handleApprove(c.id)}>
-                          <AiOutlineCheck size="1rem" />
-                        </ActionIcon>
+                        <Button variant="light" color="green" size="compact-xs" onClick={() => handleApprove(c.id)}>
+                          Approve
+                        </Button>
                       )}
-                      <ActionIcon color="blue" variant="light" onClick={() => prepareEmail(c.by_email)}>
+                      <ActionIcon color="blue" variant="outline" onClick={() => prepareEmail(c.by_email)}>
                         <AiOutlineMail size="1rem" />
                       </ActionIcon>
-                      <ActionIcon color="red" variant="light" onClick={() => handleDelete(c.id)}>
+                      <ActionIcon color="red" variant="outline" onClick={() => handleDelete(c.id)}>
                         <AiOutlineDelete size="1rem" />
                       </ActionIcon>
                     </Group>
@@ -121,35 +123,17 @@ export default function CustomDashboard() {
           </Table>
         </Paper>
 
-        <Divider />
+        <Divider label="Email System" labelPosition="center" />
 
-        {/* EMAIL SECTION */}
         <Paper withBorder p="xl" shadow="sm">
-          <Title order={3} mb="sm">Email Reviewer</Title>
+          <Title order={3} mb="sm">Send Bonus Notification</Title>
           <Stack>
-            <TextInput 
-              label="To" 
-              value={emailData.to} 
-              onChange={(e) => setEmailData({...emailData, to: e.target.value})} 
-            />
-            <TextInput 
-              label="Subject" 
-              value={emailData.subject}
-              onChange={(e) => setEmailData({...emailData, subject: e.target.value})}
-            />
-            <Textarea 
-              label="Message" 
-              minRows={4} 
-              value={emailData.body}
-              onChange={(e) => setEmailData({...emailData, body: e.target.value})}
-            />
-            <Button color="blue" leftIcon={<AiOutlineMail />}>Send Notification</Button>
+            <TextInput label="To" value={emailData.to} onChange={(e) => setEmailData({...emailData, to: e.target.value})} />
+            <TextInput label="Subject" value={emailData.subject} onChange={(e) => setEmailData({...emailData, subject: e.target.value})} />
+            <Textarea label="Message" minRows={4} value={emailData.body} onChange={(e) => setEmailData({...emailData, body: e.target.value})} />
+            <Button color="blue" onClick={() => alert("Email logic coming next!")}>Send Notification</Button>
           </Stack>
         </Paper>
-
-        <Button color="gray" variant="outline" onClick={() => supabase.auth.signOut().then(() => window.location.reload())}>
-          Logout
-        </Button>
       </Stack>
     </Container>
   )
