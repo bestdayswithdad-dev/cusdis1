@@ -9,33 +9,35 @@
         } catch (e) { return null; }
     }
 
-    // THE MASTER TEMPLATE: Organizes content into vertical stacks
+    // UPDATED TEMPLATE: Wraps emoji and content in a row
     const createCommentHtml = (comment, isReply = false) => {
         const isLiked = userLikes.has(String(comment.id));
         const voteCount = comment.votes_count || 0;
         const isAdmin = currentUser?.email === 'bestdayswithdad@gmail.com';
 
         return `
-            <div class="comment-emoji">👤</div>
-            <div class="comment-content-wrapper">
-                <div class="comment-header-row">
-                    <span class="comment-author-name">${comment.by_nickname}</span>
-                    <span class="verified-reader-badge">Verified Reader</span>
-                </div>
-                <div class="comment-text-row">
-                    <p>${comment.content}</p>
-                </div>
-                <div class="comment-actions">
-                    <button class="executive-btn" onclick="window.setReply('${comment.id}', '${comment.by_nickname}')">Reply</button>
-                    <button class="executive-btn ${isLiked ? 'is-active' : ''}" onclick="window.handleLikeAction('${comment.id}', ${isLiked})">
-                        ${isLiked ? '❤️ HELPFUL' : '🤍 MARK AS HELPFUL'} ${voteCount > 0 ? `(${voteCount})` : ''}
-                    </button>
-                    ${isAdmin ? `<button class="executive-btn" style="color:#ef4444;" onclick="window.adminDelete('${comment.id}')">🗑️ DELETE</button>` : ''}
+            <div class="comment-row-layout">
+                <div class="comment-emoji">👤</div>
+                <div class="comment-content-wrapper">
+                    <div class="comment-header-row">
+                        <span class="comment-author-name">${comment.by_nickname}</span>
+                        <span class="verified-reader-badge">Verified Reader</span>
+                    </div>
+                    <div class="comment-text-row">
+                        <p>${comment.content}</p>
+                    </div>
+                    <div class="comment-actions">
+                        <button class="executive-btn" onclick="window.setReply('${comment.id}', '${comment.by_nickname}')">Reply</button>
+                        <button class="executive-btn ${isLiked ? 'is-active' : ''}" onclick="window.handleLikeAction('${comment.id}', ${isLiked})">
+                            ${isLiked ? '❤️ HELPFUL' : '🤍 MARK AS HELPFUL'} ${voteCount > 0 ? `(${voteCount})` : ''}
+                        </button>
+                        ${isAdmin ? `<button class="executive-btn" style="color:#ef4444;" onclick="window.adminDelete('${comment.id}')">🗑️ DELETE</button>` : ''}
+                    </div>
                 </div>
             </div>`;
     };
 
-    // RECURSIVE BRAIN
+    // RECURSIVE TREE: Physically nests children inside parent containers
     const renderTree = (allComments, parentId, depth = 1) => {
         const children = allComments.filter(c => String(c.parentId) === String(parentId) || String(c.parent_id) === String(parentId));
         if (children.length === 0) return '';
@@ -52,12 +54,8 @@
 
         if (isHidden) {
             return `
-                <button class="view-more-replies" id="btn-${wrapperId}" onclick="window.toggleNest('${wrapperId}')">
-                    + View ${children.length} more replies
-                </button>
-                <div class="reply-thread-internal" id="${wrapperId}" style="display:none;">
-                    ${branchHtml}
-                </div>`;
+                <button class="view-more-replies" id="btn-${wrapperId}" onclick="window.toggleNest('${wrapperId}')">+ View ${children.length} replies</button>
+                <div class="reply-thread-internal" id="${wrapperId}" style="display:none;">${branchHtml}</div>`;
         }
 
         return `<div class="reply-thread-internal">${branchHtml}</div>`;
@@ -91,12 +89,8 @@
                 <div id="comment-list">
                     ${rootComments.map(c => `
                         <div class="comment-card">
-                            <div class="comment-content-wrapper">
-                                <div style="display:flex; width:100%;">
-                                    ${createCommentHtml(c, false)}
-                                </div>
-                                ${renderTree(comments, c.id, 1)}
-                            </div>
+                            ${createCommentHtml(c, false)}
+                            ${renderTree(comments, c.id, 1)}
                         </div>
                     `).join('')}
                 </div>
@@ -106,60 +100,58 @@
         container.classList.add('loaded');
     };
 
-    window.toggleNest = (id) => {
-        document.getElementById(id).style.display = 'block';
-        document.getElementById(`btn-${id}`).style.display = 'none';
+    window.toggleNest = (id) => { document.getElementById(id).style.display = 'block'; document.getElementById(`btn-${id}`).style.display = 'none'; };
+    
+    window.setReply = (id, name) => { 
+        document.getElementById('parent-id').value = id; 
+        const ind = document.getElementById('reply-indicator'); 
+        ind.innerText = `Replying to ${name} (Click to cancel X)`; 
+        ind.style.display = 'block'; 
+        document.getElementById('comment-body').focus(); 
+        window.scrollTo({ top: document.getElementById('comment-form').offsetTop - 150, behavior: 'smooth' }); 
     };
 
-    window.setReply = (id, name) => {
-        document.getElementById('parent-id').value = id;
-        const indicator = document.getElementById('reply-indicator');
-        indicator.innerText = `Replying to ${name} (Click to cancel X)`;
-        indicator.style.display = 'block';
-        document.getElementById('comment-body').focus();
-        window.scrollTo({ top: document.getElementById('comment-form').offsetTop - 150, behavior: 'smooth' });
+    window.cancelReply = () => { 
+        document.getElementById('parent-id').value = ''; 
+        document.getElementById('reply-indicator').style.display = 'none'; 
     };
 
-    window.cancelReply = () => {
-        document.getElementById('parent-id').value = '';
-        document.getElementById('reply-indicator').style.display = 'none';
+    window.handleLikeAction = async (commentId, alreadyLiked) => { 
+        if (!currentUser) { alert("Join the community to mark this as helpful!"); return; } 
+        const rpc = alreadyLiked ? 'handle_remove_like' : 'handle_new_like'; 
+        const { error } = await window.supabaseClient.rpc(rpc, { c_id: String(commentId), u_id: currentUser.id }); 
+        if (!error) render(); 
     };
 
-    window.handleLikeAction = async (commentId, alreadyLiked) => {
-        if (!currentUser) { alert("Join the community to mark this as helpful!"); return; }
-        const rpcName = alreadyLiked ? 'handle_remove_like' : 'handle_new_like';
-        const { error } = await window.supabaseClient.rpc(rpcName, { c_id: String(commentId), u_id: currentUser.id });
-        if (!error) render();
+    window.adminDelete = async (id) => { 
+        if (!confirm("Delete this comment and its replies?")) return; 
+        const res = await fetch('https://cusdis-jet-one.vercel.app/api/admin-delete', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ commentId: id }) 
+        }); 
+        if (res.ok) render(); 
     };
 
-    window.adminDelete = async (id) => {
-        if (!confirm("Delete this comment?")) return;
-        const res = await fetch('https://cusdis-jet-one.vercel.app/api/admin-delete', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ commentId: id })
-        });
-        if (res.ok) render();
-    };
+    window.submitReview = async function() { 
+        const content = document.getElementById('comment-body').value; 
+        const nickname = document.getElementById('nickname').value; 
+        const parentId = document.getElementById('parent-id').value; 
+        if (!content) return; 
 
-    window.submitReview = async function() {
-        const content = document.getElementById('comment-body').value;
-        const nickname = document.getElementById('nickname').value;
-        const parentId = document.getElementById('parent-id').value;
-        if (!content) return;
+        const res = await fetch('https://cusdis-jet-one.vercel.app/api/public-comments', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ content, nickname, parentId: parentId || null }) 
+        }); 
 
-        const res = await fetch('https://cusdis-jet-one.vercel.app/api/public-comments', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ content, nickname, parentId: parentId || null })
-        });
-        if (res.ok) {
-            document.getElementById('submit-msg').innerText = "Thanks! Your review is awaiting moderation.";
-            document.getElementById('submit-msg').style.display = "block";
-            document.getElementById('comment-body').value = "";
-            window.cancelReply();
-            setTimeout(render, 2500);
-        }
+        if (res.ok) { 
+            document.getElementById('submit-msg').innerText = "Thanks! Your review is awaiting moderation."; 
+            document.getElementById('submit-msg').style.display = "block"; 
+            document.getElementById('comment-body').value = ""; 
+            window.cancelReply(); 
+            setTimeout(render, 2500); 
+        } 
     };
 
     if (document.readyState === 'complete') render();
