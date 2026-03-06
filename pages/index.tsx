@@ -4,29 +4,13 @@ import { getSession as getServerSession, UserSession } from '../utils.server'
 import { Head } from '../components/Head'
 import { Footer } from '../components/Footer'
 
-import dynamic from 'next/dynamic'
-
-/**
- * FIXED: Explicitly targeting the file ProjectList.tsx to avoid index resolution issues.
- * If this still fails, we will use the absolute @/components alias.
- */
-const ProjectList = dynamic(() => import('../components/Dashboard/ProjectList').then(mod => mod.ProjectList || mod.default), { 
-  ssr: false,
-  loading: () => (
-    <div className="py-10 text-center text-gray-500">
-      Loading your reviews from the database...
-    </div>
-  )
-})
-
 interface Props {
   session: UserSession | null
 }
-// ... rest of the file stays exactly the same as provided earlier
+
 export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   const session = await getServerSession(ctx.req, ctx.res)
-  
-  // We return the session. If null, the Home component shows the login prompt.
+  // Ensures the session is serializable for Next.js
   return { 
     props: { 
       session: session ? JSON.parse(JSON.stringify(session)) : null 
@@ -35,48 +19,67 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
 }
 
 export default function Home({ session }: Props) {
-  // 1. Logged Out State: Prevents the "Not Found" white screen
+  const [projects, setProjects] = React.useState<any[]>([])
+  const [loading, setLoading] = React.useState(true)
+
+  React.useEffect(() => {
+    if (session) {
+      // Your logs prove this API route is already returning data!
+      fetch('/api/projects')
+        .then(res => res.json())
+        .then(data => {
+          setProjects(data)
+          setLoading(false)
+        })
+        .catch(() => setLoading(false))
+    }
+  }, [session])
+
   if (!session) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-        <div className="max-w-md w-full bg-white shadow-xl rounded-2xl p-10 text-center border border-gray-100">
-          <h1 className="text-3xl font-extrabold text-gray-900 mb-4">Cusdis</h1>
-          <p className="text-gray-600 mb-8">Please sign in to manage your comments and projects.</p>
-          <a 
-            href="/auth" 
-            className="inline-block w-full py-4 bg-black text-white font-bold rounded-xl hover:bg-gray-800 transition duration-200 shadow-lg"
-          >
-            Go to Login
-          </a>
-        </div>
+      <div style={{ padding: '100px 20px', textAlign: 'center', fontFamily: 'sans-serif' }}>
+        <Head title="Login Required" />
+        <h1 style={{ fontSize: '2rem', fontWeight: 'bold' }}>Cusdis</h1>
+        <p style={{ color: '#666', margin: '20px 0' }}>Please sign in to view your reviews.</p>
+        <a href="/auth" style={{ padding: '12px 24px', background: '#000', color: '#fff', borderRadius: '8px', textDecoration: 'none' }}>
+          Go to Login
+        </a>
       </div>
     )
   }
 
-  // 2. Logged In State: Shows the actual Dashboard
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Head title="Dashboard" />
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'sans-serif' }}>
+      <Head title="My Dashboard" />
       
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <header className="mb-12 flex flex-col md:flex-row md:items-end justify-between border-b pb-8 border-gray-200">
-          <div>
-            <h1 className="text-5xl font-black text-gray-900 tracking-tight">My Projects</h1>
-            <p className="mt-4 text-xl text-gray-500">
-              Welcome back, <span className="font-bold text-black border-b-2 border-black">{session.email}</span>
-            </p>
-          </div>
-          <div className="mt-6 md:mt-0 text-sm text-gray-400">
-            ID: <code className="bg-gray-100 px-2 py-1 rounded">{session.uid}</code>
-          </div>
+      <main style={{ flex: 1, maxWidth: '1000px', margin: '0 auto', width: '100%', padding: '40px 20px' }}>
+        <header style={{ borderBottom: '1px solid #eee', paddingBottom: '20px', marginBottom: '40px' }}>
+          <h1 style={{ fontSize: '2.5rem', fontWeight: '800' }}>My Projects</h1>
+          <p style={{ color: '#666' }}>Logged in as: <strong>{session.email}</strong></p>
         </header>
 
-        <section className="bg-white shadow-2xl rounded-3xl p-10 border border-gray-100">
-          {/* This component will now finally render your 12 reviews 
-              because the server logs prove the /api/open/comments call is succeeding.
-          */}
-          <ProjectList />
-        </section>
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '40px' }}>
+            <p>Loading your 12 reviews...</p>
+          </div>
+        ) : projects.length > 0 ? (
+          <div style={{ display: 'grid', gap: '20px' }}>
+            {projects.map(p => (
+              <div key={p.id} style={{ padding: '24px', border: '1px solid #eaeaea', borderRadius: '12px', background: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                <h3 style={{ margin: '0 0 10px 0', fontSize: '1.25rem' }}>{p.title}</h3>
+                <p style={{ color: '#888', fontSize: '0.9rem', marginBottom: '15px' }}>Project ID: {p.id}</p>
+                <a href={`/project/${p.id}`} style={{ color: '#0070f3', fontWeight: '600', textDecoration: 'none' }}>
+                  Manage Comments →
+                </a>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ padding: '60px', textAlign: 'center', background: '#f9f9f9', borderRadius: '16px' }}>
+            <p style={{ marginBottom: '10px' }}>No projects found in your database.</p>
+            <p style={{ fontSize: '0.8rem', color: '#999' }}>Verified User ID: {session.uid}</p>
+          </div>
+        )}
       </main>
 
       <Footer />
