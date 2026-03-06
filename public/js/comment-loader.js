@@ -74,7 +74,7 @@
                     <input type="text" id="nickname" placeholder="Your Nickname" value="${currentUser ? 'Adam' : ''}" />
                     <textarea id="comment-body" placeholder="Share your experience..."></textarea>
                     <input type="hidden" id="parent-id" value="" />
-                    <button class="submit-review-btn" onclick="window.submitReview()">Post Review</button>
+                    <button class="submit-review-btn" onclick="window.submitReview()">Post Comment</button>
                     <p id="submit-msg" style="display:none; color: green; font-size: 12px; margin-top: 15px; font-weight:bold;"></p>
                 </div>
                 <div id="comment-list">
@@ -95,7 +95,7 @@
     window.cancelReply = () => { document.getElementById('parent-id').value = ''; document.getElementById('reply-indicator').style.display = 'none'; };
     window.handleLikeAction = async (commentId, alreadyLiked) => { if (!currentUser) { alert("Join!"); return; } const rpc = alreadyLiked ? 'handle_remove_like' : 'handle_new_like'; const { error } = await window.supabaseClient.rpc(rpc, { c_id: String(commentId), u_id: currentUser.id }); if (!error) render(); };
     window.adminDelete = async (id) => { if (!confirm("Delete?")) return; const res = await fetch('https://cusdis-jet-one.vercel.app/api/admin-delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ commentId: id }) }); if (res.ok) render(); };
-    window.submitReview = async function() { const content = document.getElementById('comment-body').value; const nickname = document.getElementById('nickname').value; const parentId = document.getElementById('parent-id').value; if (!content) return; const res = await fetch('https://cusdis-jet-one.vercel.app/api/public-comments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content, nickname, parentId: parentId || null }) }); if (res.ok) { document.getElementById('submit-msg').innerText = "Thanks!"; document.getElementById('submit-msg').style.display = "block"; document.getElementById('comment-body').value = ""; window.cancelReply(); setTimeout(render, 2500); } };
+    window.submitReview = async function() { const content = document.getElementById('comment-body').value; const nickname = document.getElementById('nickname').value; const parentId = document.getElementById('parent-id').value; if (!content) return; const res = await fetch('https://cusdis-jet-one.vercel.app/api/public-comments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content, nickname, parentId: parentId || null }) }); if (res.ok) { document.getElementById('submit-msg').innerText = "Thankyou for your comment. The moderators will review it and it will be posted soon. Sign up for free today to post comments without waiting for moderation!"; document.getElementById('submit-msg').style.display = "block"; document.getElementById('comment-body').value = ""; window.cancelReply(); setTimeout(render, 2500); } };
 
     if (document.readyState === 'complete') render();
     else window.addEventListener('load', render);
