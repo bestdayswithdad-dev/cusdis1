@@ -13,13 +13,18 @@
         const isLiked = userLikes.has(String(comment.id));
         const voteCount = comment.votes_count || 0;
         const isAdmin = currentUser?.email === 'bestdayswithdad@gmail.com';
+        
+        // Anti-Guest Badge Check
+        const isGuest = comment.by_email === 'guest@example.com';
 
         return `
             <div class="comment-content-wrapper">
                 <div class="comment-header-row">
                     <div class="comment-emoji">👤</div>
                     <span class="comment-author-name">${comment.by_nickname}</span>
-                    <span class="verified-reader-badge">Verified Reader</span>
+                    ${!isGuest ? '<span class="verified-reader-badge">Verified Reader</span>' : ''}
+                    ${isAdmin && comment.by_email === 'bestdayswithdad@gmail.com' ? 
+                        '<span class="verified-reader-badge" style="background:#f59e0b !important;">Host</span>' : ''}
                 </div>
                 <div class="comment-text-row">
                     <p>${comment.content}</p>
@@ -58,7 +63,10 @@
         const container = document.getElementById('custom-comment-section');
         if (!container) return;
         currentUser = getBadgeFromLocker();
-        const res = await fetch('https://cusdis-jet-one.vercel.app/api/public-comments');
+        
+        // Dynamic page filtering
+        const pageId = encodeURIComponent(window.location.href);
+        const res = await fetch(`https://cusdis-jet-one.vercel.app/api/public-comments?pageId=${pageId}`);
         const comments = await res.json();
 
         if (currentUser?.id && window.supabaseClient) {
@@ -69,13 +77,17 @@
         const rootComments = comments.filter(c => !c.parentId && !c.parent_id);
         let html = `
             <div style="margin-top: 30px;">
+                <div class="comment-disclaimer">
+                    By posting, you agree to our <a href="/p/comment-policy.html">Comment Policy</a>.<br>
+                    Be kind, be helpful, and keep it family-friendly!
+                </div>
                 <div id="comment-form" style="margin-bottom: 40px; text-align: center;">
                     <div id="reply-indicator" style="display:none; background:#e0f2fe; color:#0369a1; padding:10px; border-radius:6px; font-size:11px; font-weight:700; margin-bottom:10px; border:1px solid #bae6fd; text-align:left; cursor:pointer;" onclick="window.cancelReply()">Replying to someone (Click to cancel X)</div>
                     <input type="text" id="nickname" placeholder="Your Nickname" value="${currentUser ? 'Adam' : ''}" />
                     <textarea id="comment-body" placeholder="Share your experience..."></textarea>
                     <input type="hidden" id="parent-id" value="" />
-                    <button class="submit-review-btn" onclick="window.submitReview()">Post Comment</button>
-                    <p id="submit-msg" style="display:none; color: green; font-size: 12px; margin-top: 15px; font-weight:bold;"></p>
+                    <button class="submit-review-btn" onclick="window.submitReview()">Post Review</button>
+                    <div id="submit-msg"></div>
                 </div>
                 <div id="comment-list">
                     ${rootComments.map(c => `
@@ -95,7 +107,33 @@
     window.cancelReply = () => { document.getElementById('parent-id').value = ''; document.getElementById('reply-indicator').style.display = 'none'; };
     window.handleLikeAction = async (commentId, alreadyLiked) => { if (!currentUser) { alert("Join!"); return; } const rpc = alreadyLiked ? 'handle_remove_like' : 'handle_new_like'; const { error } = await window.supabaseClient.rpc(rpc, { c_id: String(commentId), u_id: currentUser.id }); if (!error) render(); };
     window.adminDelete = async (id) => { if (!confirm("Delete?")) return; const res = await fetch('https://cusdis-jet-one.vercel.app/api/admin-delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ commentId: id }) }); if (res.ok) render(); };
-    window.submitReview = async function() { const content = document.getElementById('comment-body').value; const nickname = document.getElementById('nickname').value; const parentId = document.getElementById('parent-id').value; if (!content) return; const res = await fetch('https://cusdis-jet-one.vercel.app/api/public-comments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content, nickname, parentId: parentId || null }) }); if (res.ok) { document.getElementById('submit-msg').innerText = "Thankyou for your comment. The moderators will review it and it will be posted soon. Sign up for free today to post comments without waiting for moderation!"; document.getElementById('submit-msg').style.display = "block"; document.getElementById('comment-body').value = ""; window.cancelReply(); setTimeout(render, 2500); } };
+
+    window.submitReview = async function() { 
+        const content = document.getElementById('comment-body').value; 
+        const nickname = document.getElementById('nickname').value; 
+        const parentId = document.getElementById('parent-id').value; 
+        const pageId = window.location.href; // Send current URL
+        
+        if (!content) return; 
+
+        const res = await fetch('https://cusdis-jet-one.vercel.app/api/public-comments', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ content, nickname, parentId: parentId || null, pageId: pageId }) 
+        }); 
+
+        if (res.ok) { 
+            const signupNudge = !currentUser ? 
+                ' <br><a href="/p/join.html" style="color:#007bff; text-decoration:underline;">Sign up for free today</a> to post comments without waiting for moderation!' : '';
+
+            const msgEl = document.getElementById('submit-msg');
+            msgEl.innerHTML = `Thank you for your comment. The moderators will review it and it will be posted soon.${signupNudge}`; 
+            msgEl.style.display = "block"; 
+            document.getElementById('comment-body').value = ""; 
+            window.cancelReply(); 
+            setTimeout(render, 3500); 
+        } 
+    };
 
     if (document.readyState === 'complete') render();
     else window.addEventListener('load', render);
