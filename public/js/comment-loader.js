@@ -12,25 +12,51 @@
     const style = document.createElement('style');
     style.innerHTML = `
         #custom-comment-section { max-width: 800px; margin: 40px auto; font-family: 'Montserrat', sans-serif !important; }
+        
+        /* Main Bubble Style */
         .comment-card { background: #f8fafc !important; border: 1px solid #e2e8f0 !important; border-radius: 20px !important; padding: 20px !important; margin-bottom: 20px !important; box-shadow: 0 4px 12px rgba(0,0,0,0.03) !important; display: flex; gap: 15px; }
-        .comment-emoji { font-size: 24px; padding-top: 5px; }
+        
+        /* Shared Internal Styles */
+        .comment-emoji { font-size: 24px; padding-top: 5px; flex-shrink: 0; }
         .comment-body-wrap { flex: 1; }
         .comment-author-name { color: #334155 !important; font-weight: 800 !important; font-size: 16px !important; }
         .verified-reader-badge { background-color: #007bff !important; color: #ffffff !important; font-size: 9px !important; font-weight: 800 !important; padding: 2px 10px !important; border-radius: 4px !important; margin-left: 10px; text-transform: uppercase; }
-        .comment-actions { display: flex; align-items: center; gap: 15px; margin-top: 12px; }
+        .comment-actions { display: flex; align-items: center; gap: 15px; margin-top: 10px; }
         .executive-btn { background: transparent; border: none; font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 800; text-transform: uppercase; cursor: pointer; color: #64748b; transition: 0.2s; padding: 0; }
         .executive-btn:hover { color: #334155; text-decoration: underline; }
         .executive-btn.is-active { color: #ef4444 !important; }
-        
-        /* THREADING RAIL */
+
+        /* REPLY NESTING - No bubble, just indentation and rail */
         .reply-thread { margin-left: 20px; margin-top: 15px; border-left: 2px solid #e2e8f0; padding-left: 20px; }
-        .reply-card { background: rgba(255,255,255,0.7) !important; border-radius: 12px !important; padding: 12px !important; margin-bottom: 10px !important; display: flex; gap: 10px; border: 1px solid #e2e8f0; }
+        .reply-item { margin-bottom: 20px; display: flex; gap: 12px; background: transparent !important; border: none !important; box-shadow: none !important; }
         
-        .submit-review-btn { background: #334155 !important; color: #ffffff !important; border-radius: 8px !important; padding: 12px 32px !important; font-weight: 700; text-transform: uppercase; cursor: pointer; border: none; margin-top: 10px; }
+        /* Form Styles */
+        .submit-review-btn { background: #334155 !important; color: #ffffff !important; border-radius: 8px !important; padding: 12px 32px !important; font-weight: 700; text-transform: uppercase; cursor: pointer; border: none; margin-top: 10px; transition: 0.3s; }
         #custom-comment-section input, #custom-comment-section textarea { width: 100%; padding: 14px; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 12px; font-family: inherit; box-sizing: border-box; }
         #reply-indicator { display: none; background: #e0f2fe; color: #0369a1; padding: 10px; border-radius: 6px; font-size: 11px; font-weight: 700; margin-bottom: 10px; border: 1px solid #bae6fd; text-align: left; }
     `;
     document.head.appendChild(style);
+
+    // Helper to generate the inside of a comment (reusable for parent/child)
+    const createCommentHtml = (comment) => {
+        const isLiked = userLikes.has(String(comment.id));
+        const voteCount = comment.votes_count || 0;
+        return `
+            <div class="comment-emoji">👤</div>
+            <div class="comment-body-wrap">
+                <div style="display:flex; align-items:center; margin-bottom:5px;">
+                    <span class="comment-author-name">${comment.by_nickname}</span>
+                    <span class="verified-reader-badge">Verified Reader</span>
+                </div>
+                <p style="font-size: 14px; color: #475569; line-height:1.6; margin:0;">${comment.content}</p>
+                <div class="comment-actions">
+                    <button class="executive-btn" onclick="window.setReply('${comment.id}', '${comment.by_nickname}')">Reply</button>
+                    <button class="executive-btn ${isLiked ? 'is-active' : ''}" onclick="window.handleLikeAction('${comment.id}', ${isLiked})">
+                        ${isLiked ? '❤️ HELPFUL' : '🤍 MARK AS HELPFUL'} ${voteCount > 0 ? `(${voteCount})` : ''}
+                    </button>
+                </div>
+            </div>`;
+    };
 
     const render = async () => {
         const container = document.getElementById('custom-comment-section');
@@ -45,7 +71,6 @@
             if (data) userLikes = new Set(data.map(l => String(l.comment_id)));
         }
 
-        // CRITICAL FIX: Catch both parentId and parent_id
         const rootComments = comments.filter(c => !c.parentId && !c.parent_id);
         const getReplies = (parentId) => comments.filter(c => String(c.parentId) === String(parentId) || String(c.parent_id) === String(parentId));
 
@@ -61,46 +86,27 @@
                 </div>
                 <div id="comment-list">
                     ${rootComments.map(c => {
-                        const isLiked = userLikes.has(String(c.id));
                         const replies = getReplies(c.id);
                         return `
                         <div class="comment-card">
-                            <div class="comment-emoji">👤</div>
-                            <div class="comment-body-wrap">
-                                <div style="display:flex; align-items:center; margin-bottom:5px;">
-                                    <span class="comment-author-name">${c.by_nickname}</span>
-                                    <span class="verified-reader-badge">Verified Reader</span>
-                                </div>
-                                <p style="font-size: 14px; color: #475569; line-height:1.6; margin:0;">${c.content}</p>
-                                <div class="comment-actions">
-                                    <button class="executive-btn" onclick="window.setReply('${c.id}', '${c.by_nickname}')">Reply</button>
-                                    <button class="executive-btn ${isLiked ? 'is-active' : ''}" onclick="window.handleLikeAction('${c.id}', ${isLiked})">
-                                        ${isLiked ? '❤️ HELPFUL' : '🤍 MARK AS HELPFUL'}
-                                    </button>
-                                </div>
-
-                                ${replies.length > 0 ? `
-                                    <div class="reply-thread">
-                                        ${replies.map(r => `
-                                            <div class="reply-card">
-                                                <div class="comment-emoji" style="font-size:18px;">👤</div>
-                                                <div class="comment-body-wrap">
-                                                    <span class="comment-author-name" style="font-size:14px;">${r.by_nickname}</span>
-                                                    <p style="font-size: 13px; color: #475569; line-height:1.5; margin:0;">${r.content}</p>
-                                                </div>
-                                            </div>
-                                        `).join('')}
+                            ${createCommentHtml(c)}
+                        </div>
+                        ${replies.length > 0 ? `
+                            <div class="reply-thread">
+                                ${replies.map(r => `
+                                    <div class="reply-item">
+                                        ${createCommentHtml(r)}
                                     </div>
-                                ` : ''}
+                                `).join('')}
                             </div>
-                        </div>`;
+                        ` : ''}`;
                     }).join('')}
                 </div>
             </div>`;
         container.innerHTML = html;
     };
 
-    // --- SHARED ACTIONS ---
+    // --- ACTIONS ---
     window.setReply = (id, name) => {
         document.getElementById('parent-id').value = id;
         const indicator = document.getElementById('reply-indicator');
@@ -113,6 +119,13 @@
     window.cancelReply = () => {
         document.getElementById('parent-id').value = '';
         document.getElementById('reply-indicator').style.display = 'none';
+    };
+
+    window.handleLikeAction = async (commentId, alreadyLiked) => {
+        if (!currentUser) { alert("Join the community to mark this as helpful!"); return; }
+        const rpcName = alreadyLiked ? 'handle_remove_like' : 'handle_new_like';
+        const { error } = await window.supabaseClient.rpc(rpcName, { c_id: String(commentId), u_id: currentUser.id });
+        if (!error) render();
     };
 
     window.submitReview = async function() {
@@ -133,13 +146,6 @@
             window.cancelReply();
             setTimeout(render, 2500);
         }
-    };
-
-    window.handleLikeAction = async (commentId, alreadyLiked) => {
-        if (!currentUser) { alert("Join the community to mark this as helpful!"); return; }
-        const rpcName = alreadyLiked ? 'handle_remove_like' : 'handle_new_like';
-        const { error } = await window.supabaseClient.rpc(rpcName, { c_id: String(commentId), u_id: currentUser.id });
-        if (!error) render();
     };
 
     if (document.readyState === 'complete') render();
