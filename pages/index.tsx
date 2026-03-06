@@ -35,12 +35,16 @@ export default function CustomDashboard() {
   }, [supabase])
 
   // 3. Fetch the 12 Reviews via API (We will build this API route next)
-  const fetchComments = async () => {
+ const fetchComments = async () => {
+  try {
     const res = await fetch('/api/comments')
     const data = await res.json()
+    // This updates the "Managing 0 total reviews" text to "Managing 12 total reviews"
     setComments(data.comments || [])
+  } catch (err) {
+    console.error("Failed to load reviews:", err)
   }
-
+}
   if (loading) return <Center h="100vh"><Text>Loading Moderation Tools...</Text></Center>
 
   // THE ADMIN GATE
