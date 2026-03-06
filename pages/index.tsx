@@ -7,13 +7,24 @@ export default function CustomDashboard() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
+useEffect(() => {
+    // 1. Check existing session
     const getUser = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       setUser(session?.user || null)
       setLoading(false)
     }
     getUser()
+
+    // 2. LISTEN for the Magic Link login event
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null)
+      if (_event === 'SIGNED_IN') {
+        console.log("Login caught! Bonus logic can trigger here.")
+      }
+    })
+
+    return () => subscription.unsubscribe()
   }, [supabase])
 
   if (loading) return <Center h="100vh"><Text>Loading Dashboard...</Text></Center>
