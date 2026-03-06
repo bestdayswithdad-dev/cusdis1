@@ -9,17 +9,11 @@ if (!(BigInt.prototype as any).toJSON) {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // --- CORS HEADERS START ---
-  // Allow your Blogger site to access this API
   res.setHeader('Access-Control-Allow-Origin', 'https://www.bestdayswithdad.com');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  // Handle the "pre-flight" request browsers send before a POST
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-  // --- CORS HEADERS END ---
+  if (req.method === 'OPTIONS') return res.status(200).end();
 
   const supabase = createPagesServerClient({ req, res })
   const { data: { session } } = await supabase.auth.getSession()
@@ -28,18 +22,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (req.method === 'GET') {
       const comments = await prisma.comment.findMany({
         where: { approved: true },
-        orderBy: { created_at: 'desc' }
+        orderBy: { created_at: 'asc' } // Changed to ASC so threads read naturally
       })
       return res.status(200).json(comments)
     }
 
     if (req.method === 'POST') {
-      const { content, nickname } = req.body
+      const { content, nickname, parentId } = req.body
       const defaultPage = await prisma.page.findFirst()
       
-      if (!defaultPage) {
-        return res.status(400).json({ error: 'No page found' })
-      }
+      if (!defaultPage) return res.status(400).json({ error: 'No page found' })
 
       const newComment = await prisma.comment.create({
         data: {
@@ -48,16 +40,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           by_nickname: nickname || 'Guest',
           by_email: session?.user?.email || 'guest@example.com',
           approved: !!session?.user?.email_confirmed_at,
-          Page: {
-            connect: { id: defaultPage.id }
-          }
+          parent_id: parentId || null, // Saves the connection to the parent bubble
+          Page: { connect: { id: defaultPage.id } }
         }
       })
       return res.status(201).json(newComment)
     }
   } catch (error) {
     console.error(error)
-    return res.status(500).json({ error: 'Process failed' })
+    return res.status(500).json({ error: 'Database process failed' })
   } finally {
     await prisma.$disconnect()
   }
