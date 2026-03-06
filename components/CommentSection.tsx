@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Stack, Textarea, TextInput, Button, Paper, Text, Divider, Badge, Center } from '@mantine/core'
+// Added Group to the import list below
+import { Stack, Textarea, TextInput, Button, Paper, Text, Divider, Badge, Center, Group } from '@mantine/core'
 
 export default function CommentSection() {
   const [comments, setComments] = useState([])
@@ -60,6 +61,7 @@ export default function CommentSection() {
       <Stack spacing="md">
         {comments.map((c: any) => (
           <Paper key={c.id} withBorder p="md" shadow="xs">
+            {/* Group is now correctly imported */}
             <Group position="apart" mb="xs">
               <Text weight={600} size="sm">{c.by_nickname || 'Guest'}</Text>
               <Badge size="xs" color="gray">Verified Reader</Badge>
