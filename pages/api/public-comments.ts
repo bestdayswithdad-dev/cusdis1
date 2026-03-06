@@ -22,7 +22,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (req.method === 'GET') {
       const comments = await prisma.comment.findMany({
         where: { approved: true },
-        orderBy: { created_at: 'asc' } // Changed to ASC so threads read naturally
+        orderBy: { created_at: 'asc' } 
       })
       return res.status(200).json(comments)
     }
@@ -40,7 +40,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           by_nickname: nickname || 'Guest',
           by_email: session?.user?.email || 'guest@example.com',
           approved: !!session?.user?.email_confirmed_at,
-          parent_id: parentId || null, // Saves the connection to the parent bubble
+          // FIX: Changed from parent_id to parentId
+          parentId: parentId || null, 
           Page: { connect: { id: defaultPage.id } }
         }
       })
