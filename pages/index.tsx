@@ -3,27 +3,25 @@ import { useEffect, useState } from 'react'
 import { 
   Title, Text, Button, Stack, Container, Paper, 
   Center, Table, Badge, Group, ActionIcon, 
-  TextInput, Textarea, Divider 
+  TextInput, Textarea, Divider, Select
 } from '@mantine/core'
-import { AiOutlineCheck, AiOutlineDelete, AiOutlineMail } from 'react-icons/ai'
+import { AiOutlineCheck, AiOutlineDelete, AiOutlineMail, AiOutlineAlert, AiOutlineMessage } from 'react-icons/ai'
 
 const ADMIN_EMAIL = 'bestdayswithdad@gmail.com'
 
-export default function CustomDashboard() {
+export default function ModerationCenter() {
   const supabase = createClientComponentClient()
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [comments, setComments] = useState<any[]>([])
+  
+  // Mod-specific email state
   const [emailData, setEmailData] = useState({ to: '', subject: '', body: '' })
 
   const fetchComments = async () => {
-    try {
-      const res = await fetch('/api/comments')
-      const data = await res.json()
-      setComments(data.comments || [])
-    } catch (err) {
-      console.error("Failed to load reviews")
-    }
+    const res = await fetch('/api/comments')
+    const data = await res.json()
+    setComments(data.comments || [])
   }
 
   useEffect(() => {
@@ -34,12 +32,6 @@ export default function CustomDashboard() {
       setLoading(false)
     }
     init()
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null)
-      if (_event === 'SIGNED_IN' && session?.user?.email === ADMIN_EMAIL) fetchComments()
-    })
-    return () => subscription.unsubscribe()
   }, [supabase])
 
   const handleApprove = async (id: string) => {
@@ -48,47 +40,46 @@ export default function CustomDashboard() {
   }
 
   const handleDelete = async (id: string) => {
-    if (confirm("Delete this review forever?")) {
-      const res = await fetch(`/api/comments?id=${id}`, { method: 'DELETE' })
-      if (res.ok) fetchComments()
+    if (confirm("Permanently delete this comment?")) {
+      await fetch(`/api/comments?id=${id}`, { method: 'DELETE' })
+      fetchComments()
     }
   }
 
-  const prepareEmail = (email: string) => {
+  // MODERATION TEMPLATES
+  const prepareWarning = (email: string, content: string) => {
     setEmailData({
       to: email || '',
-      subject: 'Your Signup Bonus is Ready!',
-      body: 'Hi! Thank you for your review. Your signup bonus is now active.'
+      subject: 'Policy Violation Warning - Best Days With Dad',
+      body: `Hi,\n\nYour recent comment ("${content}") has been flagged for violating our community guidelines. Please ensure future posts remain respectful.\n\nBest,\nMod Team`
     })
   }
 
-  if (loading) return <Center h="100vh"><Text>Loading Command Center...</Text></Center>
-
-  if (!user || user.email !== ADMIN_EMAIL) {
-    return (
-      <Container size="sm" py="xl">
-        <Paper p="xl" withBorder shadow="md">
-          <Title order={2}>Admin Portal Locked</Title>
-          <Button mt="lg" onClick={() => window.location.href = '/login'}>Go to Login</Button>
-        </Paper>
-      </Container>
-    )
+  const prepareReply = (email: string, content: string) => {
+    setEmailData({
+      to: email || '',
+      subject: 'Moderator Response to your Review',
+      body: `\n\n--- In response to your comment ---\n"${content}"\n\nHi! Thanks for reaching out. My answer to your question is...`
+    })
   }
+
+  if (loading) return <Center h="100vh"><Text>Loading Moderation Tools...</Text></Center>
+
+  if (!user || user.email !== ADMIN_EMAIL) return <Center h="100vh"><Paper p="xl" withBorder>Access Denied</Paper></Center>
 
   return (
     <Container size="lg" py="xl">
       <Stack spacing="xl">
-        <Title order={1}>Moderation Dashboard</Title>
-        <Text color="dimmed">Managing {comments.length} total reviews.</Text>
-
+        <Title order={1}>Moderation & Policy Center</Title>
+        
         <Paper withBorder shadow="xs" p="md">
-          <Table verticalSpacing="sm" highlightOnHover>
+          <Table verticalSpacing="sm">
             <thead>
               <tr>
-                <th>Reviewer</th>
-                <th>Content</th>
+                <th>User</th>
+                <th>Comment</th>
                 <th>Status</th>
-                <th style={{ textAlign: 'right' }}>Actions</th>
+                <th style={{ textAlign: 'right' }}>Mod Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -98,21 +89,22 @@ export default function CustomDashboard() {
                     <Text size="sm" weight={600}>{c.by_nickname || 'Guest'}</Text>
                     <Text size="xs" color="dimmed">{c.by_email}</Text>
                   </td>
-                  <td><Text size="xs" italic>"{c.content}"</Text></td>
-                  <td>
-                    {c.approved ? <Badge color="green">Live</Badge> : <Badge color="yellow">Pending</Badge>}
-                  </td>
+                  <td><Text size="xs">"{c.content}"</Text></td>
+                  <td>{c.approved ? <Badge color="green">Public</Badge> : <Badge color="yellow">Moderation Required</Badge>}</td>
                   <td>
                     <Group spacing={4} position="right">
                       {!c.approved && (
-                        <Button variant="light" color="green" size="compact-xs" onClick={() => handleApprove(c.id)}>
-                          Approve
-                        </Button>
+                        <ActionIcon color="green" variant="filled" onClick={() => handleApprove(c.id)} title="Approve">
+                          <AiOutlineCheck size="1rem" />
+                        </ActionIcon>
                       )}
-                      <ActionIcon color="blue" variant="outline" onClick={() => prepareEmail(c.by_email)}>
-                        <AiOutlineMail size="1rem" />
+                      <ActionIcon color="orange" variant="light" onClick={() => prepareWarning(c.by_email, c.content)} title="Warning">
+                        <AiOutlineAlert size="1rem" />
                       </ActionIcon>
-                      <ActionIcon color="red" variant="outline" onClick={() => handleDelete(c.id)}>
+                      <ActionIcon color="blue" variant="light" onClick={() => prepareReply(c.by_email, c.content)} title="Reply">
+                        <AiOutlineMessage size="1rem" />
+                      </ActionIcon>
+                      <ActionIcon color="red" variant="subtle" onClick={() => handleDelete(c.id)} title="Delete">
                         <AiOutlineDelete size="1rem" />
                       </ActionIcon>
                     </Group>
@@ -123,15 +115,16 @@ export default function CustomDashboard() {
           </Table>
         </Paper>
 
-        <Divider label="Email System" labelPosition="center" />
+        <Divider label="Policy Enforcement Email" labelPosition="center" />
 
-        <Paper withBorder p="xl" shadow="sm">
-          <Title order={3} mb="sm">Send Bonus Notification</Title>
+        <Paper withBorder p="xl" bg="gray.0">
           <Stack>
-            <TextInput label="To" value={emailData.to} onChange={(e) => setEmailData({...emailData, to: e.target.value})} />
+            <TextInput label="Recipient" value={emailData.to} readOnly />
             <TextInput label="Subject" value={emailData.subject} onChange={(e) => setEmailData({...emailData, subject: e.target.value})} />
-            <Textarea label="Message" minRows={4} value={emailData.body} onChange={(e) => setEmailData({...emailData, body: e.target.value})} />
-            <Button color="blue" onClick={() => alert("Email logic coming next!")}>Send Notification</Button>
+            <Textarea label="Message" minRows={6} value={emailData.body} onChange={(e) => setEmailData({...emailData, body: e.target.value})} />
+            <Button color="dark" fullWidth onClick={() => alert("Email logic connection required")}>
+              Send Official Mod Email
+            </Button>
           </Stack>
         </Paper>
       </Stack>
