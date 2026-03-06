@@ -2,14 +2,10 @@ import { PrismaClient } from '@prisma/client'
 import { NextApiRequest, NextApiResponse } from 'next'
 import { createPagesServerClient } from '@supabase/auth-helpers-nextjs'
 
-// This version is standard for Next.js API routes
 const prisma = new PrismaClient()
 
-// BIGINT PATCH: Allows JSON to handle large database numbers
 if (!(BigInt.prototype as any).toJSON) {
-  (BigInt.prototype as any).toJSON = function () {
-    return this.toString()
-  }
+  (BigInt.prototype as any).toJSON = function () { return this.toString() }
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -20,20 +16,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(401).json({ error: 'Unauthorized' })
   }
 
-  try {
-    const data = await prisma.comment.findMany({
-      orderBy: { created_at: 'desc' },
-      include: { 
-        Page: true // Using 'Page' based on previous compiler feedback
-      }
-    })
+  const { id } = req.query // For targeting specific comments
 
-    return res.status(200).json({ comments: data })
+  try {
+    if (req.method === 'GET') {
+      const data = await prisma.comment.findMany({
+        orderBy: { created_at: 'desc' },
+        include: { Page: true }
+      })
+      return res.status(200).json({ comments: data })
+    }
+
+    if (req.method === 'PATCH') {
+      // APPROVE: Set approved to true
+      const updated = await prisma.comment.update({
+        where: { id: BigInt(id as string) },
+        data: { approved: true }
+      })
+      return res.status(200).json(updated)
+    }
+
+    if (req.method === 'DELETE') {
+      // DELETE: Remove from database
+      await prisma.comment.delete({
+        where: { id: BigInt(id as string) }
+      })
+      return res.status(204).end()
+    }
   } catch (error) {
-    console.error(error)
-    return res.status(500).json({ error: 'Database connection failed' })
+    return res.status(500).json({ error: 'Action failed' })
   } finally {
-    // Optional: In serverless, we don't always disconnect, but it's safe for now
     await prisma.$disconnect()
   }
 }
