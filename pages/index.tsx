@@ -7,9 +7,10 @@ import { Footer } from '../components/Footer'
 import dynamic from 'next/dynamic'
 
 /**
- * FIXED: Explicitly pointing to the index file to resolve the pathing error.
+ * FIXED: Explicitly targeting the file ProjectList.tsx to avoid index resolution issues.
+ * If this still fails, we will use the absolute @/components alias.
  */
-const ProjectList = dynamic(() => import('../components/Dashboard/index').then(mod => mod.ProjectList), { 
+const ProjectList = dynamic(() => import('../components/Dashboard/ProjectList').then(mod => mod.ProjectList || mod.default), { 
   ssr: false,
   loading: () => (
     <div className="py-10 text-center text-gray-500">
@@ -17,11 +18,11 @@ const ProjectList = dynamic(() => import('../components/Dashboard/index').then(m
     </div>
   )
 })
-// ... rest of the file stays exactly the same
+
 interface Props {
   session: UserSession | null
 }
-
+// ... rest of the file stays exactly the same as provided earlier
 export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   const session = await getServerSession(ctx.req, ctx.res)
   
