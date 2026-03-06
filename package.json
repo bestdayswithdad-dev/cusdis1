@@ -4,11 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "prisma generate --schema ./prisma/pgsql/schema.prisma && next build",
     "start": "next start",
     "lint": "next lint"
   },
-{
   "dependencies": {
     "@mantine/core": "^6.0.0",
     "@mantine/hooks": "^6.0.0",
@@ -22,8 +21,7 @@
     "next": "13.5.11",
     "react": "18.2.0",
     "react-dom": "18.2.0"
-  }
-}
+  },
   "devDependencies": {
     "prisma": "^5.0.0",
     "typescript": "^5.0.0",
