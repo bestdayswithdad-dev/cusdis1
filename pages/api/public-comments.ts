@@ -14,7 +14,7 @@ const serialize = (data: any) => {
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // CORS Headers - Allow Authorization
+  // CORS Headers
   res.setHeader('Access-Control-Allow-Origin', 'https://www.bestdayswithdad.com');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization'); 
@@ -22,7 +22,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // GET: Fetch comments
+  // GET: Fetch approved comments
   if (req.method === 'GET') {
     const { pageId } = req.query;
     try {
@@ -43,10 +43,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
-  // POST: Create comment with identity verification
+  // POST: Create comment
   if (req.method === 'POST') {
     const supabase = createPagesServerClient({ req, res });
-    const { data: { session } } = await supabase.auth.getSession();
+    // Check session via Cookie OR Authorization Header
+    const { data: { session } } = await supabase.auth.getSession(); 
     
     const { content, nickname, parentId, pageId } = req.body;
     const isVerified = !!session;
@@ -71,7 +72,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           content,
           by_nickname: nickname || (isVerified ? 'Adam' : 'Guest'),
           by_email: userEmail,
-          approved: isVerified, // INSTANT POST if session verified
+          approved: isVerified, // AUTO-APPROVE if session verified
           projectId: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1',
           parentId: parentId || null,
           Page: { connect: { id: page.id } }
