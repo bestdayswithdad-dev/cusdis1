@@ -28,9 +28,9 @@
                 <div class="comment-header-row">
                     <div class="comment-emoji">👤</div>
                     <span class="comment-author-name">${comment.by_nickname}</span>
-                    ${!isGuest ? '<span class="verified-reader-badge">Verified Reader</span>' : ''}
+                    ${!isGuest ? '<span class="verified-reader-badge">Guest Explorer</span>' : ''}
                     ${comment.by_email === 'bestdayswithdad@gmail.com' ? 
-                        '<span class="verified-reader-badge" style="background:#f59e0b !important;">Host</span>' : ''}
+                        '<span class="verified-reader-badge" style="background:#f59e0b !important;">MOD</span>' : ''}
                 </div>
                 <div class="comment-text-row">
                     <p>${comment.content}</p>
