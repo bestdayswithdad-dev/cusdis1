@@ -22,18 +22,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // GET: Fetch approved comments for a specific page
+// GET: Temporary "Recovery" Fetch
   if (req.method === 'GET') {
     const { pageId } = req.query;
     try {
       const comments = await prisma.comment.findMany({
         where: { 
           approved: true,
-          projectId: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1',
-          Page: { slug: pageId as string } 
+          // Temporarily removing the Project ID and Page ID lock 
+          // to see if they show up
         },
         orderBy: { created_at: 'asc' } 
       });
+      console.log("Found comments:", comments.length);
       return res.status(200).json(serialize(comments));
     } catch (err) {
       return res.status(500).json({ error: "Fetch failed" });
