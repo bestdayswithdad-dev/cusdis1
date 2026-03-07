@@ -14,15 +14,15 @@ const serialize = (data: any) => {
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // CORS Headers - Must allow credentials for cookies to pass
+  // CORS Headers - Allow Authorization
   res.setHeader('Access-Control-Allow-Origin', 'https://www.bestdayswithdad.com');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization'); 
   res.setHeader('Access-Control-Allow-Credentials', 'true'); 
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // GET: Fetch comments using normalized URL logic
+  // GET: Fetch comments
   if (req.method === 'GET') {
     const { pageId } = req.query;
     try {
@@ -43,42 +43,35 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
-  // POST: Create comment with Session Detection
+  // POST: Create comment with identity verification
   if (req.method === 'POST') {
     const supabase = createPagesServerClient({ req, res });
     const { data: { session } } = await supabase.auth.getSession();
     
     const { content, nickname, parentId, pageId } = req.body;
-    
-    // PERK: If session exists, user is Verified
     const isVerified = !!session;
     const userEmail = session?.user?.email || 'guest@example.com';
 
     try {
-      // 1. Find or create the page using findFirst
-      let page = await prisma.page.findFirst({
-        where: { slug: pageId }
-      });
-
+      let page = await prisma.page.findFirst({ where: { slug: pageId } });
       if (!page) {
         page = await prisma.page.create({
           data: { 
             id: `pg-${Date.now()}`,
             slug: pageId,
             title: pageId.split('/').pop()?.replace('.html', '').split('-').join(' ') || "New Post",
-            Project: { connect: { id: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1' } } 
+            projectId: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1'
           }
         });
       }
 
-      // 2. Create the comment
       const newComment = await prisma.comment.create({
         data: {
           id: `cm-${Date.now()}`,
           content,
           by_nickname: nickname || (isVerified ? 'Adam' : 'Guest'),
-          by_email: userEmail, // Pulls adambrokensha@gmail.com from session
-          approved: isVerified, // AUTO-POST: true if session is detected
+          by_email: userEmail,
+          approved: isVerified, // INSTANT POST if session verified
           projectId: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1',
           parentId: parentId || null,
           Page: { connect: { id: page.id } }
@@ -87,7 +80,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       return res.status(201).json(serialize(newComment));
     } catch (error) {
-      console.error("Post Error:", error);
       return res.status(500).json({ error: "Post failed" });
     }
   }
