@@ -2,14 +2,12 @@
     let userLikes = new Set();
     let currentUser = null;
 
-    // HELPER: Strips ?m=1 and # fragments so Mobile/Desktop match
     const getCleanUrl = () => {
         return window.location.href.split('?')[0].split('#')[0];
     };
 
     const getBadgeFromLocker = () => {
         try {
-            // FIXED: Using your specific token key
             const tokenString = localStorage.getItem('sb-yfcqtkrayecpkkuzivvf-auth-token');
             if (!tokenString) return null;
             const token = JSON.parse(tokenString);
@@ -20,7 +18,6 @@
     const createCommentHtml = (comment, isReply = false) => {
         const isLiked = userLikes.has(String(comment.id));
         const voteCount = comment.votes_count || 0;
-        // RED HEART LOGIC: Active if user liked it OR if votes > 0
         const isRedHeart = isLiked || voteCount > 0;
         const isAdmin = currentUser?.email === 'bestdayswithdad@gmail.com';
         const isGuest = comment.by_email === 'guest@example.com';
@@ -72,7 +69,6 @@
         if (!container) return;
         currentUser = getBadgeFromLocker();
         
-        // Use normalized URL for fetching
         const pageId = encodeURIComponent(getCleanUrl());
         const res = await fetch(`https://cusdis-jet-one.vercel.app/api/public-comments?pageId=${pageId}`);
         const comments = await res.json();
@@ -121,7 +117,7 @@
         const content = document.getElementById('comment-body').value; 
         const nickname = document.getElementById('nickname').value; 
         const parentId = document.getElementById('parent-id').value; 
-        const pageId = getCleanUrl(); // Submit to normalized URL
+        const pageId = getCleanUrl(); 
         
         if (!content) return; 
 
@@ -132,13 +128,21 @@
         }); 
 
         if (res.ok) { 
-            const signupNudge = !currentUser ? ' <br><a href="/p/join.html" style="color:#007bff; text-decoration:underline;">Sign up for free today</a> to post comments without waiting for moderation!' : '';
             const msgEl = document.getElementById('submit-msg');
-            msgEl.innerHTML = `Thank you for your comment. The moderators will review it and it will be posted soon.${signupNudge}`; 
+            
+            // PERK UI: Immediate feedback for Verified Readers
+            if (currentUser) {
+                msgEl.innerHTML = `<span style="color: #059669; font-weight: bold;">✓ Posted! Thanks for being a Verified Reader.</span>`;
+            } else {
+                const signupNudge = ' <br><a href="/p/join.html" style="color:#007bff; text-decoration:underline;">Sign up for free today</a> to post without waiting for moderation!';
+                msgEl.innerHTML = `Thank you! Your review has been sent for moderation.${signupNudge}`; 
+            }
+
             msgEl.style.display = "block"; 
             document.getElementById('comment-body').value = ""; 
             window.cancelReply(); 
-            setTimeout(render, 3500); 
+            // Reload faster for verified users since it's live
+            setTimeout(render, currentUser ? 1000 : 3500); 
         } 
     };
 
