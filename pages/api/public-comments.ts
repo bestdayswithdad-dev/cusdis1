@@ -1,86 +1,51 @@
 import { PrismaClient } from '@prisma/client'
-import { NextApiRequest, NextApiResponse } from 'next'
 import { createPagesServerClient } from '@supabase/auth-helpers-nextjs'
+import { NextApiRequest, NextApiResponse } from 'next'
 
 const prisma = new PrismaClient()
 
-const serialize = (data: any) => {
-  return JSON.parse(
-    JSON.stringify(data, (key, value) =>
-      typeof value === 'bigint' ? value.toString() : value
-    )
-  );
-};
-
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  res.setHeader('Access-Control-Allow-Origin', 'https://www.bestdayswithdad.com');
-  res.setHeader('Access-Har-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.setHeader('Access-Control-Allow-Credentials', 'true'); // Required to accept your token
-
-  if (req.method === 'OPTIONS') return res.status(200).end();
-
-  if (req.method === 'GET') {
-    const { pageId } = req.query;
-    try {
-      const comments = await prisma.comment.findMany({
-        where: { 
-          approved: true,
-          Page: { slug: pageId as string } 
-        },
-        orderBy: { created_at: 'asc' } 
-      });
-      return res.status(200).json(serialize(comments));
-    } catch (err) {
-      return res.status(500).json({ error: "Fetch failed" });
-    }
-  }
+  // 1. Setup Supabase to read the incoming 'credentials'
+  const supabase = createPagesServerClient({ req, res })
+  const { data: { session } } = await supabase.auth.getSession()
 
   if (req.method === 'POST') {
-    const supabase = createPagesServerClient({ req, res });
-    const { data: { session } } = await supabase.auth.getSession();
+    const { content, nickname, parentId, pageId } = req.body
     
-    const { content, nickname, parentId, pageId } = req.body;
-    const isVerified = !!session; 
+    // 2. Piggyback: If session exists, user is Verified
+    const isVerified = !!session;
+    const userEmail = session?.user?.email || 'guest@example.com';
 
     try {
-      let page = await prisma.page.findFirst({
-        where: { slug: pageId }
-      });
-
+      // Find the page using findFirst
+      let page = await prisma.page.findFirst({ where: { slug: pageId } });
+      
       if (!page) {
-        const urlParts = pageId.split('/');
-        const fileName = urlParts[urlParts.length - 1].replace('.html', '');
-        const readableTitle = fileName.split('-')
-          .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
-          .join(' ');
-
         page = await prisma.page.create({
-          data: { 
+          data: {
             id: `pg-${Date.now()}`,
             slug: pageId,
-            title: readableTitle || "New Blog Post",
-            Project: { connect: { id: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1' } } 
+            title: pageId.split('/').pop()?.replace('.html', '').split('-').join(' ') || "New Post",
+            Project: { connect: { id: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1' } }
           }
         });
       }
 
-      const newComment = await prisma.comment.create({
+      const comment = await prisma.comment.create({
         data: {
           id: `cm-${Date.now()}`,
           content,
-          by_nickname: nickname || (isVerified ? 'Adam' : 'Guest'),
-          by_email: session?.user?.email || 'guest@example.com',
-          approved: isVerified, // This skips moderation if you are logged in
+          by_nickname: nickname,
+          by_email: userEmail, // Now pulls your real email if logged in
           projectId: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1',
+          approved: isVerified, // AUTO-APPROVE perk
           parentId: parentId || null,
           Page: { connect: { id: page.id } }
         }
-      });
-
-      return res.status(201).json(serialize(newComment));
+      })
+      return res.status(200).json(comment)
     } catch (error) {
-      return res.status(500).json({ error: "Post failed" });
+      return res.status(500).json({ error: 'Post failed' })
     }
   }
 }
