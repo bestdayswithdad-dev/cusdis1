@@ -4,7 +4,7 @@ import { createPagesServerClient } from '@supabase/auth-helpers-nextjs'
 
 const prisma = new PrismaClient()
 
-// BIGINT PATCH: Essential for Supabase/Prisma BigInt columns
+// BIGINT PATCH: Prevents "Do not know how to serialize a BigInt" error
 if (!(BigInt.prototype as any).toJSON) {
   (BigInt.prototype as any).toJSON = function () {
     return this.toString()
@@ -15,6 +15,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const supabase = createPagesServerClient({ req, res })
   const { data: { session } } = await supabase.auth.getSession()
 
+  // SECURITY: Only you can access
   if (!session || session.user.email !== 'bestdayswithdad@gmail.com') {
     return res.status(401).json({ error: 'Unauthorized' })
   }
@@ -22,6 +23,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { id } = req.query
 
   try {
+    // GET: Fetch all reviews with their associated Page Titles
     if (req.method === 'GET') {
       const data = await prisma.comment.findMany({
         where: {
@@ -29,13 +31,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         },
         orderBy: { created_at: 'desc' },
         include: { 
-          Page: true // MATCHES SCHEMA RELATION NAME
+          Page: true // MUST be Capital 'P' to match your schema.prisma
         }
       })
-      // Using the patch above, we can return data directly safely
       return res.status(200).json({ comments: data })
     }
 
+    // PATCH: Approve a review
     if (req.method === 'PATCH') {
       const updated = await prisma.comment.update({
         where: { id: id as string },
@@ -44,14 +46,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json(updated)
     }
 
+    // DELETE: Permanently remove a review
     if (req.method === 'DELETE') {
       await prisma.comment.delete({
         where: { id: id as string }
       })
       return res.status(204).end()
     }
+
+    return res.status(405).end()
   } catch (error) {
-    console.error(error)
+    console.error("Prisma Error:", error)
     return res.status(500).json({ error: 'Database action failed' })
   } finally {
     await prisma.$disconnect()
