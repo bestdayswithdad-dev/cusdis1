@@ -3,9 +3,9 @@ import { useEffect, useState } from 'react'
 import { 
   Title, Text, Button, Stack, Container, Paper, 
   Center, Table, Badge, Group, ActionIcon, 
-  TextInput, Textarea, Divider, Select
+  TextInput, Textarea, Divider
 } from '@mantine/core'
-import { AiOutlineCheck, AiOutlineDelete, AiOutlineMail, AiOutlineAlert, AiOutlineMessage } from 'react-icons/ai'
+import { AiOutlineCheck, AiOutlineDelete, AiOutlineAlert, AiOutlineMessage } from 'react-icons/ai'
 
 const ADMIN_EMAIL = 'bestdayswithdad@gmail.com'
 
@@ -14,13 +14,12 @@ export default function ModerationCenter() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [comments, setComments] = useState<any[]>([])
-  
-  // Mod-specific email state
   const [emailData, setEmailData] = useState({ to: '', subject: '', body: '' })
 
   const fetchComments = async () => {
     const res = await fetch('/api/comments')
     const data = await res.json()
+    // data.comments now includes the Page relation from our API update
     setComments(data.comments || [])
   }
 
@@ -46,7 +45,6 @@ export default function ModerationCenter() {
     }
   }
 
-  // MODERATION TEMPLATES
   const prepareWarning = (email: string, content: string) => {
     setEmailData({
       to: email || '',
@@ -64,7 +62,6 @@ export default function ModerationCenter() {
   }
 
   if (loading) return <Center h="100vh"><Text>Loading Moderation Tools...</Text></Center>
-
   if (!user || user.email !== ADMIN_EMAIL) return <Center h="100vh"><Paper p="xl" withBorder>Access Denied</Paper></Center>
 
   return (
@@ -78,6 +75,7 @@ export default function ModerationCenter() {
               <tr>
                 <th>User</th>
                 <th>Comment</th>
+                <th>Post Name</th> {/* NEW COLUMN */}
                 <th>Status</th>
                 <th style={{ textAlign: 'right' }}>Mod Actions</th>
               </tr>
@@ -89,8 +87,20 @@ export default function ModerationCenter() {
                     <Text size="sm" weight={600}>{c.by_nickname || 'Guest'}</Text>
                     <Text size="xs" color="dimmed">{c.by_email}</Text>
                   </td>
-                  <td><Text size="xs">"{c.content}"</Text></td>
-                  <td>{c.approved ? <Badge color="green">Public</Badge> : <Badge color="yellow">Moderation Required</Badge>}</td>
+                  <td><Text size="xs" italic>"{c.content}"</Text></td>
+                  
+                  {/* NEW: Display the Readable Title we generated */}
+                  <td>
+                    <Text size="xs" weight={700} color="blue">
+                      {c.Page?.title || 'General / Legacy'}
+                    </Text>
+                    <Text size="10px" color="dimmed" truncate style={{ maxWidth: '150px' }}>
+                      {c.Page?.slug}
+                    </Text>
+                  </td>
+
+                  <td>{c.approved ? <Badge color="green">Public</Badge> : <Badge color="yellow">Pending</Badge>}</td>
+                  
                   <td>
                     <Group spacing={4} position="right">
                       {!c.approved && (
