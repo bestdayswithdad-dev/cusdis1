@@ -19,6 +19,7 @@ export default function ModerationCenter() {
   const fetchComments = async () => {
     const res = await fetch('/api/comments')
     const data = await res.json()
+    // data.comments will contain the nested Page object from the include: { Page: true }
     setComments(data.comments || [])
   }
 
@@ -56,7 +57,7 @@ export default function ModerationCenter() {
     setEmailData({
       to: email || '',
       subject: 'Moderator Response',
-      body: `\n\n--- In response ---\n"${content}"\n\nHi! Thanks for the review...`
+      body: `\n\n--- In response to ---\n"${content}"\n\nHi! Thanks for reaching out...`
     })
   }
 
@@ -67,6 +68,7 @@ export default function ModerationCenter() {
     <Container size="lg" py="xl">
       <Stack spacing="xl">
         <Title order={1}>Moderation & Policy Center</Title>
+        
         <Paper withBorder shadow="xs" p="md">
           <Table verticalSpacing="sm" highlightOnHover>
             <thead>
@@ -86,9 +88,10 @@ export default function ModerationCenter() {
                     <Text size="xs" color="dimmed">{c.by_email}</Text>
                   </td>
                   <td><Text size="xs" italic>"{c.content}"</Text></td>
+                  
+                  {/* NEW LOCATION COLUMN - Using Capital 'P' to match API */}
                   <td>
                     <Stack spacing={0}>
-                      {/* FIX: Use Capital 'P' to match API/Schema */}
                       <Text size="xs" weight={700} color="blue">
                         {c.Page?.title || 'General / Legacy'}
                       </Text>
@@ -105,7 +108,9 @@ export default function ModerationCenter() {
                       )}
                     </Stack>
                   </td>
+
                   <td>{c.approved ? <Badge color="green" variant="light">Public</Badge> : <Badge color="yellow" variant="light">Pending</Badge>}</td>
+                  
                   <td>
                     <Group spacing={4} position="right">
                       {!c.approved && (
@@ -129,7 +134,9 @@ export default function ModerationCenter() {
             </tbody>
           </Table>
         </Paper>
+
         <Divider label="Policy Enforcement Email" labelPosition="center" />
+
         <Paper withBorder p="xl" bg="gray.0">
           <Stack>
             <TextInput label="Recipient" value={emailData.to} readOnly />
