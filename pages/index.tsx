@@ -7,7 +7,8 @@ import {
 } from '@mantine/core'
 import { 
   AiOutlineCheck, AiOutlineDelete, AiOutlineAlert, 
-  AiOutlineMessage, AiOutlineFlag, AiOutlineFileText 
+  AiOutlineMessage, AiOutlineFlag, AiOutlineFileText,
+  AiOutlineClockCircle
 } from 'react-icons/ai'
 
 const ADMIN_EMAIL = 'bestdayswithdad@gmail.com'
@@ -20,7 +21,8 @@ export default function ModerationCenter() {
   const [emailData, setEmailData] = useState({ to: '', subject: '', body: '' })
 
   const fetchComments = async () => {
-    const res = await fetch('/api/comments')
+    // Note: Ensure this matches your API route name (e.g., /api/admin-bridge)
+    const res = await fetch('/api/comments') 
     const data = await res.json()
     setComments(data.comments || [])
   }
@@ -35,9 +37,14 @@ export default function ModerationCenter() {
     init()
   }, [supabase])
 
-  // Logic to separate comments by Page and Flagged status
+  // UPDATED: Logic to separate Pending from Flagged
   const organizedData = useMemo(() => {
-    const flagged = comments.filter(c => c.content.toLowerCase().includes('http') || c.approved === false); 
+    // "Flagged" is now strictly for posts containing links
+    const flagged = comments.filter(c => c.content.toLowerCase().includes('http')); 
+    
+    // "Pending" is for unapproved posts that aren't flagged
+    const pending = comments.filter(c => !c.approved && !c.content.toLowerCase().includes('http'));
+
     const pageGroups = comments.reduce((acc: any, c) => {
       const title = c.Page?.title || 'General / Legacy';
       if (!acc[title]) acc[title] = [];
@@ -45,7 +52,7 @@ export default function ModerationCenter() {
       return acc;
     }, {});
 
-    return { flagged, pageGroups };
+    return { flagged, pending, pageGroups };
   }, [comments]);
 
   const handleApprove = async (id: string) => {
@@ -80,11 +87,11 @@ export default function ModerationCenter() {
     <Table verticalSpacing="md" horizontalSpacing="md" fontSize="md">
       <thead>
         <tr>
-          <th><Text size="md" weight={700}>User</Text></th>
-          <th><Text size="md" weight={700}>Comment</Text></th>
-          <th><Text size="md" weight={700}>Post Name</Text></th>
-          <th><Text size="md" weight={700}>Status</Text></th>
-          <th style={{ textAlign: 'right' }}><Text size="md" weight={700}>Mod Actions</Text></th>
+          <th>User</th>
+          <th>Comment</th>
+          <th>Post Name</th>
+          <th>Status</th>
+          <th style={{ textAlign: 'right' }}>Mod Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -98,10 +105,14 @@ export default function ModerationCenter() {
             <td style={{ minWidth: '200px' }}>
               <Stack spacing={4}>
                 <Text size="sm" weight={700} color="blue">{c.Page?.title || 'General / Legacy'}</Text>
-                <Text size="xs" color="dimmed" truncate style={{ maxWidth: '200px' }}>{c.Page?.slug}</Text>
+                <Text size="xs" color="dimmed" truncate>{c.Page?.slug}</Text>
               </Stack>
             </td>
-            <td>{c.approved ? <Badge size="md" color="green">Public</Badge> : <Badge size="md" color="yellow">Pending</Badge>}</td>
+            <td>
+              {c.approved ? <Badge color="green">Public</Badge> : 
+               c.content.toLowerCase().includes('http') ? <Badge color="red">SPAM/LINK</Badge> :
+               <Badge color="yellow">Pending</Badge>}
+            </td>
             <td>
               <Group spacing="xs" position="right">
                 {!c.approved && (
@@ -132,22 +143,32 @@ export default function ModerationCenter() {
   return (
     <Container size="xl" py="xl">
       <Stack spacing="xl">
-        <Title order={1} size="h1">Moderation & Policy Center</Title>
+        <Title order={1}>Moderation & Policy Center</Title>
 
-        <Tabs defaultValue="all" variant="outline" color="blue">
+        <Tabs defaultValue="pending" variant="outline" color="blue">
           <Tabs.List mb="md">
+            <Tabs.Tab value="pending" icon={<AiOutlineClockCircle size="1.2rem" />} color="yellow">
+              <Text weight={600}>Pending ({organizedData.pending.length})</Text>
+            </Tabs.Tab>
             <Tabs.Tab value="all" icon={<AiOutlineMessage size="1.2rem" />}>
-              <Text size="md">All Comments ({comments.length})</Text>
+              All ({comments.length})
             </Tabs.Tab>
             <Tabs.Tab value="flagged" icon={<AiOutlineFlag size="1.2rem" />} color="red">
-              <Text size="md" color="red" weight={600}>Flagged ({organizedData.flagged.length})</Text>
+              Flagged ({organizedData.flagged.length})
             </Tabs.Tab>
             {Object.keys(organizedData.pageGroups).map(title => (
               <Tabs.Tab key={title} value={title} icon={<AiOutlineFileText size="1.2rem" />}>
-                <Text size="sm">{title}</Text>
+                {title}
               </Tabs.Tab>
             ))}
           </Tabs.List>
+
+          <Tabs.Panel value="pending">
+            <Paper withBorder shadow="md" p="lg">
+              <CommentTable data={organizedData.pending} />
+              {organizedData.pending.length === 0 && <Center p="xl"><Text color="dimmed">No pending reviews.</Text></Center>}
+            </Paper>
+          </Tabs.Panel>
 
           <Tabs.Panel value="all">
             <Paper withBorder shadow="md" p="lg">
@@ -158,7 +179,7 @@ export default function ModerationCenter() {
           <Tabs.Panel value="flagged">
             <Paper withBorder shadow="md" p="lg" sx={{ borderColor: '#fa5252' }}>
               <CommentTable data={organizedData.flagged} />
-              {organizedData.flagged.length === 0 && <Center p="xl"><Text color="dimmed">No flagged content found.</Text></Center>}
+              {organizedData.flagged.length === 0 && <Center p="xl"><Text color="dimmed">Clear of spam links!</Text></Center>}
             </Paper>
           </Tabs.Panel>
 
@@ -171,13 +192,12 @@ export default function ModerationCenter() {
           ))}
         </Tabs>
 
-        <Divider label={<Text size="lg">Policy Enforcement Email</Text>} labelPosition="center" />
-
+        <Divider label="Policy Enforcement Email" labelPosition="center" />
         <Paper withBorder p="xl" bg="gray.0" shadow="sm">
           <Stack spacing="md">
-            <TextInput label={<Text size="md">Recipient</Text>} size="md" value={emailData.to} readOnly />
-            <TextInput label={<Text size="md">Subject</Text>} size="md" value={emailData.subject} onChange={(e) => setEmailData({...emailData, subject: e.target.value})} />
-            <Textarea label={<Text size="md">Message</Text>} size="md" minRows={8} value={emailData.body} onChange={(e) => setEmailData({...emailData, body: e.target.value})} />
+            <TextInput label="Recipient" value={emailData.to} readOnly />
+            <TextInput label="Subject" value={emailData.subject} onChange={(e) => setEmailData({...emailData, subject: e.target.value})} />
+            <Textarea label="Message" minRows={6} value={emailData.body} onChange={(e) => setEmailData({...emailData, body: e.target.value})} />
             <Button size="lg" color="dark" fullWidth onClick={() => alert("Email logic connection required")}>
               Send Official Mod Email
             </Button>
