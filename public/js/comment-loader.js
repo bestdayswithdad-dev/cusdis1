@@ -3,12 +3,12 @@
     let currentUser = null;
 
     const getCleanUrl = () => {
-        return window.location.href.split('?')[0].split('#')[0];
+        return window.location.href.split('?')[0].split('#')[0]; //
     };
 
     const getBadgeFromLocker = () => {
         try {
-            const tokenString = localStorage.getItem('sb-yfcqtkrayecpkkuzivvf-auth-token');
+            const tokenString = localStorage.getItem('sb-yfcqtkrayecpkkuzivvf-auth-token'); //
             if (!tokenString) return null;
             const token = JSON.parse(tokenString);
             return token?.user || null;
@@ -18,8 +18,8 @@
     const createCommentHtml = (comment, isReply = false) => {
         const isLiked = userLikes.has(String(comment.id));
         const voteCount = comment.votes_count || 0;
-        const isRedHeart = isLiked || voteCount > 0;
-        const isAdmin = currentUser?.email === 'bestdayswithdad@gmail.com';
+        const isRedHeart = isLiked || voteCount > 0; //
+        const isAdmin = currentUser?.email === 'bestdayswithdad@gmail.com'; //
         const isGuest = comment.by_email === 'guest@example.com';
 
         return `
@@ -124,24 +124,22 @@
         const res = await fetch('https://cusdis-jet-one.vercel.app/api/public-comments', { 
             method: 'POST', 
             headers: { 'Content-Type': 'application/json' }, 
+            // FIXED: Send session cookies to the backend
+            credentials: 'include', 
             body: JSON.stringify({ content, nickname, parentId: parentId || null, pageId: pageId }) 
         }); 
 
         if (res.ok) { 
             const msgEl = document.getElementById('submit-msg');
-            
-            // PERK UI: Immediate feedback for Verified Readers
             if (currentUser) {
-                msgEl.innerHTML = `<span style="color: #059669; font-weight: bold;">✓ Posted! Thanks for being a Verified Reader.</span>`;
+                msgEl.innerHTML = `✓ Posted! Thanks for being a Verified Reader.`; //
             } else {
                 const signupNudge = ' <br><a href="/p/join.html" style="color:#007bff; text-decoration:underline;">Sign up for free today</a> to post without waiting for moderation!';
                 msgEl.innerHTML = `Thank you! Your review has been sent for moderation.${signupNudge}`; 
             }
-
             msgEl.style.display = "block"; 
             document.getElementById('comment-body').value = ""; 
             window.cancelReply(); 
-            // Reload faster for verified users since it's live
             setTimeout(render, currentUser ? 1000 : 3500); 
         } 
     };
