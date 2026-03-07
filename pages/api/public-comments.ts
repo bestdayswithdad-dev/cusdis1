@@ -22,30 +22,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-// GET: Fetch approved comments ONLY for the current page
+  // GET: Fetch approved comments ONLY for the current page
   if (req.method === 'GET') {
     const { pageId } = req.query;
-    
-    if (!pageId) {
-      return res.status(400).json({ error: "Missing pageId" });
-    }
-
     try {
       const comments = await prisma.comment.findMany({
         where: { 
           approved: true,
-          // Lock to your specific project
           projectId: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1',
-          // Use the slug directly to ensure Mobile/Desktop sync
-          // We assume your schema has a pageId or slug field on the Comment table
-          pageId: String(pageId) 
+          // FIXED: Use page_id to match your Supabase column
+          page_id: String(pageId) 
         },
         orderBy: { created_at: 'asc' } 
       });
-
       return res.status(200).json(serialize(comments));
     } catch (err) {
-      console.error("Fetch error:", err);
       return res.status(500).json({ error: "Fetch failed" });
     }
   }
@@ -59,7 +50,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const isVerified = !!session;
 
     try {
-      // 1. Find or create the page using findFirst
+      // 1. Find or create the page
       let page = await prisma.page.findFirst({
         where: { slug: pageId }
       });
@@ -73,7 +64,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         page = await prisma.page.create({
           data: { 
-            // FIX: Manually providing the required 'id' to fix build error
             id: `pg-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
             slug: pageId,
             title: readableTitle || "New Blog Post",
@@ -89,9 +79,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           content,
           by_nickname: nickname || (isVerified ? 'Verified Reader' : 'Guest'),
           by_email: session?.user?.email || 'guest@example.com',
-          approved: isVerified, 
+          approved: isVerified, // PERK: Instant post for logged-in users
           projectId: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1',
           parentId: parentId || null,
+          // FIXED: Match your database column name
+          page_id: pageId, 
           Page: { connect: { id: page.id } }
         }
       });
