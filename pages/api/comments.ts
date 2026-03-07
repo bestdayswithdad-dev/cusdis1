@@ -11,6 +11,15 @@ if (!(BigInt.prototype as any).toJSON) {
   }
 }
 
+// HELPER: Prevents JSON crashes with BigInt database values (Double Layer Safety)
+const serialize = (data: any) => {
+  return JSON.parse(
+    JSON.stringify(data, (key, value) =>
+      typeof value === 'bigint' ? value.toString() : value
+    )
+  );
+};
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const supabase = createPagesServerClient({ req, res })
   const { data: { session } } = await supabase.auth.getSession()
@@ -23,22 +32,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { id } = req.query
 
   try {
-    // ACTION: Fetch all reviews
+    // ACTION: Fetch all reviews WITH Page Titles
     if (req.method === 'GET') {
       const data = await prisma.comment.findMany({
+        where: {
+          projectId: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1'
+        },
         orderBy: { created_at: 'desc' },
-        include: { Page: true } // Singular 'Page' per compiler feedback
+        include: { 
+          Page: true // Relational join to the pages table
+        }
       })
-      return res.status(200).json({ comments: data })
+      return res.status(200).json({ comments: serialize(data) })
     }
 
     // ACTION: Approve a specific review
     if (req.method === 'PATCH') {
       const updated = await prisma.comment.update({
-        where: { id: id as string }, // Passed as string to fix Type Error
+        where: { id: id as string },
         data: { approved: true }
       })
-      return res.status(200).json(updated)
+      return res.status(200).json(serialize(updated))
     }
 
     // ACTION: Permanently delete a review
