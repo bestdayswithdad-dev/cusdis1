@@ -26,7 +26,7 @@ export default function CommentSection() {
     })
     
     if (res.ok) {
-      setMsg('Review submitted! It will appear once approved.')
+      setMsg('Thank you for commenting! Your comment will appear once approved.')
       setFormData({ nickname: '', content: '' })
       loadComments()
     }
@@ -64,7 +64,7 @@ export default function CommentSection() {
             {/* Group is now correctly imported */}
             <Group position="apart" mb="xs">
               <Text weight={600} size="sm">{c.by_nickname || 'Guest'}</Text>
-              <Badge size="xs" color="gray">Verified Reader</Badge>
+              <Badge size="xs" color="gray">Casual Adventurer</Badge>
             </Group>
             <Text size="sm">{c.content}</Text>
           </Paper>
