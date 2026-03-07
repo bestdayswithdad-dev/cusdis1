@@ -16,8 +16,8 @@
     const initSupabase = () => {
         if (!window.supabase) return null;
         return window.supabase.createClient(
-            'YOUR_SUPABASE_URL',
-            'YOUR_SUPABASE_ANON_KEY'
+            'https://yfcqtkrayecpkkuzivvf.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlmY3F0a3JheWVjcGtrdXppdnZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0ODYyMzUsImV4cCI6MjA4NzA2MjIzNX0.v6ED2QiPExy8A13HKYioHhPjW7UjNN6tJTul44cPtWg'
         );
     };
 
@@ -34,7 +34,7 @@
                 <div class="comment-header-row">
                     <div class="comment-emoji">👤</div>
                     <span class="comment-author-name">${comment.by_nickname}</span>
-                    ${isVerified && !isMod ? '<span class="verified-reader-badge">Verified Reader</span>' : ''}
+                    ${isVerified && !isMod ? '<span class="verified-reader-badge">Guest Explorer</span>' : ''}
                     ${isMod ? '<span class="verified-reader-badge" style="background:#f59e0b !important;">MOD</span>' : ''}
                 </div>
                 <div class="comment-text-row">
