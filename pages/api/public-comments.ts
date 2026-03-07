@@ -4,7 +4,6 @@ import { createPagesServerClient } from '@supabase/auth-helpers-nextjs'
 
 const prisma = new PrismaClient()
 
-// HELPER: Prevents JSON crashes with BigInt database values
 const serialize = (data: any) => {
   return JSON.parse(
     JSON.stringify(data, (key, value) =>
@@ -15,13 +14,12 @@ const serialize = (data: any) => {
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   res.setHeader('Access-Control-Allow-Origin', 'https://www.bestdayswithdad.com');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Har-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.setHeader('Access-Control-Allow-Credentials', 'true'); // Required for cookies
+  res.setHeader('Access-Control-Allow-Credentials', 'true'); // Required to accept your token
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // GET: Fetch approved comments for a specific page
   if (req.method === 'GET') {
     const { pageId } = req.query;
     try {
@@ -38,16 +36,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
-  // POST: Create comment and auto-generate readable Page Title
   if (req.method === 'POST') {
-    const supabase = createPagesServerClient({ req, res }); // Detect session
+    const supabase = createPagesServerClient({ req, res });
     const { data: { session } } = await supabase.auth.getSession();
     
     const { content, nickname, parentId, pageId } = req.body;
-    const isVerified = !!session; //
+    const isVerified = !!session; 
 
     try {
-      let page = await prisma.page.findFirst({ // Use findFirst as per project rules
+      let page = await prisma.page.findFirst({
         where: { slug: pageId }
       });
 
@@ -72,10 +69,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         data: {
           id: `cm-${Date.now()}`,
           content,
-          by_nickname: nickname || (isVerified ? 'Verified Reader' : 'Guest'),
+          by_nickname: nickname || (isVerified ? 'Adam' : 'Guest'),
           by_email: session?.user?.email || 'guest@example.com',
-          approved: isVerified, // Auto-approve if user is signed in
-          projectId: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1', //
+          approved: isVerified, // This skips moderation if you are logged in
+          projectId: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1',
           parentId: parentId || null,
           Page: { connect: { id: page.id } }
         }
@@ -83,7 +80,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       return res.status(201).json(serialize(newComment));
     } catch (error) {
-      console.error(error);
       return res.status(500).json({ error: "Post failed" });
     }
   }
