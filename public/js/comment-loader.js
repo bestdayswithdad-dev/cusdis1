@@ -15,10 +15,8 @@
     }
 
     const createCommentHtml = (comment, isReply = false) => {
-        const userHasLiked = userLikes.has(String(comment.id));
+        const isLiked = userLikes.has(String(comment.id));
         const voteCount = comment.votes_count || 0;
-        // RED HEART LOGIC: Active if user liked it OR if votes > 0
-        const isRedHeart = userHasLiked || voteCount > 0;
         const isAdmin = currentUser?.email === 'bestdayswithdad@gmail.com';
         const isGuest = comment.by_email === 'guest@example.com';
 
@@ -36,8 +34,8 @@
                 </div>
                 <div class="comment-actions">
                     <button class="executive-btn" onclick="window.setReply('${comment.id}', '${comment.by_nickname}')">Reply</button>
-                    <button class="executive-btn ${isRedHeart ? 'is-active' : ''}" onclick="window.handleLikeAction('${comment.id}', ${userHasLiked})" style="${isRedHeart ? 'color: #ef4444;' : ''}">
-                        ${isRedHeart ? '❤️ HELPFUL' : '🤍 MARK AS HELPFUL'} ${voteCount > 0 ? `(${voteCount})` : ''}
+                    <button class="executive-btn ${isLiked ? 'is-active' : ''}" onclick="window.handleLikeAction('${comment.id}', ${isLiked})">
+                        ${isLiked ? '❤️ HELPFUL' : '🤍 MARK AS HELPFUL'} ${voteCount > 0 ? `(${voteCount})` : ''}
                     </button>
                     ${isAdmin ? `<button class="executive-btn" style="color:#ef4444;" onclick="window.adminDelete('${comment.id}')">🗑️ DELETE</button>` : ''}
                 </div>
