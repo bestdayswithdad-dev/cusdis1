@@ -2,6 +2,11 @@
     let userLikes = new Set();
     let currentUser = null;
 
+    // HELPER: Strips ?m=1 and # fragments so Mobile/Desktop match
+    const getCleanUrl = () => {
+        return window.location.href.split('?')[0].split('#')[0];
+    };
+
     const getBadgeFromLocker = () => {
         try {
             const token = JSON.parse(localStorage.getItem('best-days-auth-auth-token'));
@@ -13,8 +18,6 @@
         const isLiked = userLikes.has(String(comment.id));
         const voteCount = comment.votes_count || 0;
         const isAdmin = currentUser?.email === 'bestdayswithdad@gmail.com';
-        
-        // Anti-Guest Badge Check
         const isGuest = comment.by_email === 'guest@example.com';
 
         return `
@@ -64,8 +67,8 @@
         if (!container) return;
         currentUser = getBadgeFromLocker();
         
-        // Dynamic page filtering
-        const pageId = encodeURIComponent(window.location.href);
+        // Use normalized URL for fetching
+        const pageId = encodeURIComponent(getCleanUrl());
         const res = await fetch(`https://cusdis-jet-one.vercel.app/api/public-comments?pageId=${pageId}`);
         const comments = await res.json();
 
@@ -75,13 +78,14 @@
         }
 
         const rootComments = comments.filter(c => !c.parentId && !c.parent_id);
+        
         let html = `
-            <div style="margin-top: 30px;">
+            <div style="margin-top: 0;">
                 <div class="comment-disclaimer">
                     By posting, you agree to our <a href="/p/comment-policy.html">Comment Policy</a>.<br>
                     Be kind, be helpful, and keep it family-friendly!
                 </div>
-                <div id="comment-form" style="margin-bottom: 40px; text-align: center;">
+                <div id="comment-form" style="margin-bottom: 30px; text-align: center;">
                     <div id="reply-indicator" style="display:none; background:#e0f2fe; color:#0369a1; padding:10px; border-radius:6px; font-size:11px; font-weight:700; margin-bottom:10px; border:1px solid #bae6fd; text-align:left; cursor:pointer;" onclick="window.cancelReply()">Replying to someone (Click to cancel X)</div>
                     <input type="text" id="nickname" placeholder="Your Nickname" value="${currentUser ? 'Adam' : ''}" />
                     <textarea id="comment-body" placeholder="Share your experience..."></textarea>
@@ -112,7 +116,7 @@
         const content = document.getElementById('comment-body').value; 
         const nickname = document.getElementById('nickname').value; 
         const parentId = document.getElementById('parent-id').value; 
-        const pageId = window.location.href; // Send current URL
+        const pageId = getCleanUrl(); // Submit to normalized URL
         
         if (!content) return; 
 
@@ -123,9 +127,7 @@
         }); 
 
         if (res.ok) { 
-            const signupNudge = !currentUser ? 
-                ' <br><a href="/p/join.html" style="color:#007bff; text-decoration:underline;">Sign up for free today</a> to post comments without waiting for moderation!' : '';
-
+            const signupNudge = !currentUser ? ' <br><a href="/p/join.html" style="color:#007bff; text-decoration:underline;">Sign up for free today</a> to post comments without waiting for moderation!' : '';
             const msgEl = document.getElementById('submit-msg');
             msgEl.innerHTML = `Thank you for your comment. The moderators will review it and it will be posted soon.${signupNudge}`; 
             msgEl.style.display = "block"; 
