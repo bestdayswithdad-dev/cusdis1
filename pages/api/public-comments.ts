@@ -2,78 +2,96 @@ import { PrismaClient } from '@prisma/client'
 import { NextApiRequest, NextApiResponse } from 'next'
 import { createPagesServerClient } from '@supabase/auth-helpers-nextjs'
 
-const prisma = new PrismaClient()
+// Singleton — prevents connection pool exhaustion on Vercel serverless
+const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }
+const prisma = globalForPrisma.prisma ?? new PrismaClient()
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 
-// HELPER: Prevents JSON crashes with BigInt values
-const serialize = (data: any) => {
-  return JSON.parse(
-    JSON.stringify(data, (key, value) =>
-      typeof value === 'bigint' ? value.toString() : value
-    )
-  );
-};
+const PROJECT_ID = 'cbcd61ec-f2ef-425c-a952-30034c2de4e1'
+
+// Safely serializes BigInt without mutating global prototypes
+const serialize = (data: unknown) =>
+  JSON.parse(JSON.stringify(data, (_, value) =>
+    typeof value === 'bigint' ? value.toString() : value
+  ))
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // CORS Headers allowing Authorization
-  res.setHeader('Access-Control-Allow-Origin', 'https://www.bestdayswithdad.com');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization'); 
-  res.setHeader('Access-Control-Allow-Credentials', 'true'); 
+  res.setHeader('Access-Control-Allow-Origin', 'https://www.bestdayswithdad.com')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+  res.setHeader('Access-Control-Allow-Credentials', 'true')
+  if (req.method === 'OPTIONS') return res.status(200).end()
 
-  if (req.method === 'OPTIONS') return res.status(200).end();
-
-  // GET: Fetch comments for the specific page
   if (req.method === 'GET') {
-    const { pageId } = req.query;
+    const { pageId } = req.query
+    if (!pageId) return res.status(400).json({ error: 'pageId is required' })
     try {
       const comments = await prisma.comment.findMany({
-        where: { 
+        where: {
           approved: true,
-          projectId: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1',
+          projectId: PROJECT_ID,
           OR: [{ pageId: String(pageId) }, { Page: { slug: String(pageId) } }]
         },
-        orderBy: { created_at: 'asc' } 
-      });
-      return res.status(200).json(serialize(comments));
-    } catch (err) { return res.status(500).json({ error: "Fetch failed" }); }
+        orderBy: { created_at: 'asc' }
+      })
+      return res.status(200).json(serialize(comments))
+    } catch (err) {
+      console.error('[GET /comments]', err)
+      return res.status(500).json({ error: 'Fetch failed' })
+    }
   }
 
-  // POST: Create comment and verify session
   if (req.method === 'POST') {
-    const supabase = createPagesServerClient({ req, res });
-    // This checks the Authorization header for your token
-    const { data: { session } } = await supabase.auth.getSession(); 
-    
-    const { content, nickname, pageId } = req.body;
-    const isVerified = !!session;
-    const userEmail = session?.user?.email || 'guest@example.com';
+    const { content, nickname, pageId } = req.body
+    if (!content || !pageId) {
+      return res.status(400).json({ error: 'content and pageId are required' })
+    }
+
+    // getUser() validates JWT server-side via Authorization header
+    // Blogger must pass: Authorization: Bearer <supabase_access_token>
+    const supabase = createPagesServerClient({ req, res })
+    const { data: { user } } = await supabase.auth.getUser()
+
+    const isVerified = !!user
+    const userEmail = user?.email ?? 'guest@example.com'
+
+    // Derive a sensible display name from auth metadata if no nickname provided
+    const displayName = nickname
+      || user?.user_metadata?.full_name
+      || user?.user_metadata?.name
+      || user?.email?.split('@')[0]
+      || 'Guest'
 
     try {
-      let page = await prisma.page.findFirst({ where: { slug: pageId } });
+      let page = await prisma.page.findFirst({ where: { slug: pageId } })
       if (!page) {
         page = await prisma.page.create({
-          data: { 
-            id: `pg-${Date.now()}`,
+          data: {
+            id: crypto.randomUUID(),
             slug: pageId,
-            title: pageId.split('/').pop()?.split('-').join(' ') || "New Post",
-            projectId: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1'
+            title: pageId.split('/').pop()?.split('-').join(' ') ?? 'New Post',
+            projectId: PROJECT_ID
           }
-        });
+        })
       }
 
       const newComment = await prisma.comment.create({
         data: {
-          id: `cm-${Date.now()}`,
+          id: crypto.randomUUID(),
           content,
-          by_nickname: nickname || (isVerified ? 'Adam' : 'Guest'),
+          by_nickname: displayName,
           by_email: userEmail,
-          approved: isVerified, // AUTO-APPROVE if token is valid
-          projectId: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1',
+          approved: isVerified,   // signed-in users skip moderation
+          projectId: PROJECT_ID,
           Page: { connect: { id: page.id } }
         }
-      });
-
-      return res.status(201).json(serialize(newComment));
-    } catch (error) { return res.status(500).json({ error: "Post failed" }); }
+      })
+      return res.status(201).json(serialize(newComment))
+    } catch (error) {
+      console.error('[POST /comments]', error)
+      return res.status(500).json({ error: 'Post failed' })
+    }
   }
+
+  return res.status(405).json({ error: 'Method not allowed' })
 }
