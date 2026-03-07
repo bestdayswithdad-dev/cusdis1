@@ -22,21 +22,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-// GET: Temporary "Recovery" Fetch
+// GET: Fetch approved comments ONLY for the current page
   if (req.method === 'GET') {
     const { pageId } = req.query;
+    
+    if (!pageId) {
+      return res.status(400).json({ error: "Missing pageId" });
+    }
+
     try {
       const comments = await prisma.comment.findMany({
         where: { 
           approved: true,
-          // Temporarily removing the Project ID and Page ID lock 
-          // to see if they show up
+          // Lock to your specific project
+          projectId: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1',
+          // Use the slug directly to ensure Mobile/Desktop sync
+          // We assume your schema has a pageId or slug field on the Comment table
+          pageId: String(pageId) 
         },
         orderBy: { created_at: 'asc' } 
       });
-      console.log("Found comments:", comments.length);
+
       return res.status(200).json(serialize(comments));
     } catch (err) {
+      console.error("Fetch error:", err);
       return res.status(500).json({ error: "Fetch failed" });
     }
   }
