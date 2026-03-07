@@ -2,9 +2,9 @@
     let userLikes = new Set();
     let currentUser = null;
 
-    // Helper to clean URLs for consistent ID mapping
+    // RULE 1: Standardized URL for sync between ?m=1 and desktop
     const getCleanUrl = () => {
-        return window.location.href.split('?')[0].split('#')[0];
+        return window.location.href.split('?')[0].split('#')[0].replace(/\/$/, "");
     };
 
     // Helper to get user data from Supabase local storage
@@ -17,53 +17,12 @@
         } catch (e) { return null; }
     }
 
-    /**
-     * Fetch Blogger Feed with Throttling & Caching
-     * This prevents the 429 "Too Many Requests" error by limiting hits to Google.
-     */
-    const fetchBloggerFeed = async () => {
-        const CACHE_KEY = 'bdb_feed_cache';
-        const CACHE_TIME_KEY = 'bdb_feed_timestamp';
-        const FIVE_MINUTES = 5 * 60 * 1000;
-
-        const lastFetch = localStorage.getItem(CACHE_TIME_KEY);
-        const now = Date.now();
-
-        // Check if we have valid, recent data
-        if (lastFetch && (now - lastFetch < FIVE_MINUTES)) {
-            const cachedData = localStorage.getItem(CACHE_KEY);
-            // Only return if cache is not empty or malformed
-            if (cachedData && cachedData !== "null" && cachedData.length > 10) {
-                return JSON.parse(cachedData);
-            }
-        }
-
-        try {
-            // Fetching the Blogger feed via the site domain
-            const res = await fetch(`https://www.bestdayswithdad.com/feeds/posts/default?alt=json&max-results=12`);
-            
-            if (!res.ok) throw new Error(`Feed fetch failed: ${res.status}`);
-
-            const data = await res.json();
-            
-            // Save to cache
-            localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-            localStorage.setItem(CACHE_TIME_KEY, now.toString());
-            
-            return data;
-        } catch (err) {
-            console.warn("Blogger feed unavailable, falling back to cache.", err);
-            const fallback = localStorage.getItem(CACHE_KEY);
-            return fallback ? JSON.parse(fallback) : null;
-        }
-    };
-
     const createCommentHtml = (comment, isReply = false) => {
         const isLiked = userLikes.has(String(comment.id));
         const voteCount = comment.votes_count || 0;
         const isRedHeart = isLiked || voteCount > 0;
         const isAdmin = currentUser?.email === 'bestdayswithdad@gmail.com'; 
-        const isGuest = comment.by_email === 'guest@example.com';
+        const isGuest = !comment.by_email || comment.by_email === 'guest@example.com';
 
         return `
             <div class="comment-content-wrapper">
@@ -108,25 +67,24 @@
     };
 
     const render = async () => {
+        // RULE 2: Safety Check - Only run if the anchor exists
         const container = document.getElementById('custom-comment-section');
         if (!container) return;
+
         currentUser = getBadgeFromLocker();
-        
         const pageId = encodeURIComponent(getCleanUrl());
         
         try {
-            // Added simple retry logic for Vercel API
-            let res = await fetch(`https://cusdis-jet-one.vercel.app/api/public-comments?pageId=${pageId}`);
+            // Simple retry logic for Vercel stability
+            let res = await fetch(`https://cusdis-jet-one.vercel.app/api/public-comments?pageId=${pageId}&projectId=cbcd61ec-f2ef-425c-a952-30034c2de4e1`);
             
             if (!res.ok) {
-                // Wait 2 seconds and try one more time
                 await new Promise(r => setTimeout(r, 2000));
-                res = await fetch(`https://cusdis-jet-one.vercel.app/api/public-comments?pageId=${pageId}`);
+                res = await fetch(`https://cusdis-jet-one.vercel.app/api/public-comments?pageId=${pageId}&projectId=cbcd61ec-f2ef-425c-a952-30034c2de4e1`);
             }
 
             const comments = await res.json();
 
-            // Handle likes for logged in users
             if (currentUser?.id && window.supabaseClient) {
                 const { data } = await window.supabaseClient.from('comment_likes').select('comment_id').eq('id', currentUser.id);
                 if (data) userLikes = new Set(data.map(l => String(l.comment_id)));
@@ -135,14 +93,14 @@
             const rootComments = comments.filter(c => !c.parentId && !c.parent_id);
             
             let html = `
-                <div style="margin-top: 0;">
+                <div>
                     <div class="comment-disclaimer" style="margin-top: -35px !important;">
                         By posting, you agree to our <a href="/p/comment-policy.html">Comment Policy</a>.<br>
                         Be kind, be helpful, and keep it family-friendly!
                     </div>
                     <div id="comment-form" style="margin-bottom: 30px; text-align: center;">
                         <div id="reply-indicator" style="display:none; background:#e0f2fe; color:#0369a1; padding:10px; border-radius:6px; font-size:11px; font-weight:700; margin-bottom:10px; border:1px solid #bae6fd; text-align:left; cursor:pointer;" onclick="window.cancelReply()">Replying to someone (Click to cancel X)</div>
-                        <input type="text" id="nickname" placeholder="Your Nickname" value="${currentUser ? (currentUser.user_metadata?.full_name || 'Adam') : ''}" />
+                        <input type="text" id="nickname" placeholder="Your Nickname" value="${currentUser ? (currentUser.user_metadata?.full_name || 'Verified Reader') : ''}" />
                         <textarea id="comment-body" placeholder="Share your experience..."></textarea>
                         <input type="hidden" id="parent-id" value="" />
                         <button class="submit-review-btn" onclick="window.submitReview()">Post Review</button>
@@ -160,16 +118,13 @@
             container.innerHTML = html;
             container.classList.add('loaded');
 
-            // Trigger the feed fetch silently in the background to warm cache
-            fetchBloggerFeed();
-
         } catch (error) {
-            console.error("Failed to render comments:", error);
-            container.innerHTML = `<p style="color:red; text-align:center;">Failed to load comments. Please refresh the page.</p>`;
+            console.error("Comment Engine Error:", error);
+            container.innerHTML = `<p style="text-align:center; padding:20px;">Comments are currently syncing. Please check back in a moment.</p>`;
         }
     };
 
-    // UI Window Globals
+    // Global UI Actions
     window.toggleNest = (id) => { 
         const el = document.getElementById(id);
         const btn = document.getElementById(`btn-${id}`);
@@ -203,7 +158,7 @@
         const res = await fetch('https://cusdis-jet-one.vercel.app/api/admin-delete', { 
             method: 'POST', 
             headers: { 'Content-Type': 'application/json' }, 
-            body: JSON.stringify({ commentId: id }) 
+            body: JSON.stringify({ commentId: id, projectId: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1' }) 
         }); 
         if (res.ok) render(); 
     };
@@ -224,7 +179,13 @@
                 'Content-Type': 'application/json',
                 'Authorization': token ? `Bearer ${token}` : ''
             }, 
-            body: JSON.stringify({ content, nickname, parentId: parentId || null, pageId: pageId }) 
+            body: JSON.stringify({ 
+                content, 
+                nickname, 
+                parentId: parentId || null, 
+                pageId: pageId, 
+                projectId: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1' 
+            }) 
         }); 
 
         if (res.ok) { 
@@ -237,7 +198,6 @@
         } 
     };
 
-    // Initialize
     if (document.readyState === 'complete') render();
     else window.addEventListener('load', render);
 })();
