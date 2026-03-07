@@ -4,20 +4,12 @@ import { createPagesServerClient } from '@supabase/auth-helpers-nextjs'
 
 const prisma = new PrismaClient()
 
-// 1. CRITICAL: BigInt serialization patch
+// BIGINT PATCH: Essential for Supabase/Prisma BigInt columns
 if (!(BigInt.prototype as any).toJSON) {
   (BigInt.prototype as any).toJSON = function () {
     return this.toString()
   }
 }
-
-const serialize = (data: any) => {
-  return JSON.parse(
-    JSON.stringify(data, (key, value) =>
-      typeof value === 'bigint' ? value.toString() : value
-    )
-  );
-};
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const supabase = createPagesServerClient({ req, res })
@@ -33,17 +25,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (req.method === 'GET') {
       const data = await prisma.comment.findMany({
         where: {
-          // Verify this matches your 'projectId' or 'project_id' in schema
           projectId: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1'
         },
         orderBy: { created_at: 'desc' },
         include: { 
-          Page: true // MUST match the capitalized 'Page' relation in your schema
+          Page: true // MATCHES SCHEMA RELATION NAME
         }
       })
-      
-      // If data is empty, Prisma might be looking for the wrong projectId
-      return res.status(200).json({ comments: serialize(data) })
+      // Using the patch above, we can return data directly safely
+      return res.status(200).json({ comments: data })
     }
 
     if (req.method === 'PATCH') {
@@ -51,7 +41,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         where: { id: id as string },
         data: { approved: true }
       })
-      return res.status(200).json(serialize(updated))
+      return res.status(200).json(updated)
     }
 
     if (req.method === 'DELETE') {
@@ -61,8 +51,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(204).end()
     }
   } catch (error) {
-    console.error("Prisma Error:", error)
-    return res.status(500).json({ error: 'Database connection failed' })
+    console.error(error)
+    return res.status(500).json({ error: 'Database action failed' })
   } finally {
     await prisma.$disconnect()
   }
