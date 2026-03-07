@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { 
   Title, Text, Button, Stack, Container, Paper, 
   Center, Table, Badge, Group, ActionIcon, 
-  TextInput, Textarea, Divider
+  TextInput, Textarea, Divider, Anchor
 } from '@mantine/core'
 import { AiOutlineCheck, AiOutlineDelete, AiOutlineAlert, AiOutlineMessage } from 'react-icons/ai'
 
@@ -70,12 +70,12 @@ export default function ModerationCenter() {
         <Title order={1}>Moderation & Policy Center</Title>
         
         <Paper withBorder shadow="xs" p="md">
-          <Table verticalSpacing="sm">
+          <Table verticalSpacing="sm" highlightOnHover>
             <thead>
               <tr>
                 <th>User</th>
                 <th>Comment</th>
-                <th>Post Name</th> {/* NEW COLUMN */}
+                <th>Post Name</th> 
                 <th>Status</th>
                 <th style={{ textAlign: 'right' }}>Mod Actions</th>
               </tr>
@@ -89,17 +89,27 @@ export default function ModerationCenter() {
                   </td>
                   <td><Text size="xs" italic>"{c.content}"</Text></td>
                   
-                  {/* NEW: Display the Readable Title we generated */}
+                  {/* LOCATION COLUMN */}
                   <td>
-                    <Text size="xs" weight={700} color="blue">
-                      {c.Page?.title || 'General / Legacy'}
-                    </Text>
-                    <Text size="10px" color="dimmed" truncate style={{ maxWidth: '150px' }}>
-                      {c.Page?.slug}
-                    </Text>
+                    <Stack spacing={0}>
+                      <Text size="xs" weight={700} color="blue">
+                        {c.Page?.title || 'General / Legacy'}
+                      </Text>
+                      {c.Page?.slug && (
+                        <Anchor 
+                          href={`https://www.bestdayswithdad.com${c.Page.slug}`} 
+                          target="_blank" 
+                          size="10px" 
+                          color="dimmed"
+                          sx={{ display: 'block', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                        >
+                          {c.Page.slug}
+                        </Anchor>
+                      )}
+                    </Stack>
                   </td>
 
-                  <td>{c.approved ? <Badge color="green">Public</Badge> : <Badge color="yellow">Pending</Badge>}</td>
+                  <td>{c.approved ? <Badge color="green" variant="light">Public</Badge> : <Badge color="yellow" variant="light">Pending</Badge>}</td>
                   
                   <td>
                     <Group spacing={4} position="right">
