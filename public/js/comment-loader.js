@@ -250,7 +250,3 @@
     if (document.readyState === 'complete') render();
     else window.addEventListener('load', render);
 })();
-
-    if (document.readyState === 'complete') render();
-    else window.addEventListener('load', render);
-})();
