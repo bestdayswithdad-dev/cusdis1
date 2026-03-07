@@ -19,7 +19,7 @@
         const isLiked = userLikes.has(String(comment.id));
         const voteCount = comment.votes_count || 0;
         const isRedHeart = isLiked || voteCount > 0;
-        // FIXED: Only the Host email gets Admin powers
+        // Only the specific Host email gets Admin powers
         const isAdmin = currentUser?.email === 'bestdayswithdad@gmail.com'; 
         const isGuest = comment.by_email === 'guest@example.com';
 
@@ -45,6 +45,7 @@
             </div>`;
     };
 
+    // RESTORED: Recursive tree rendering for replies
     const renderTree = (allComments, parentId, depth = 1) => {
         const children = allComments.filter(c => String(c.parentId) === String(parentId) || String(c.parent_id) === String(parentId));
         if (children.length === 0) return '';
@@ -108,21 +109,42 @@
         container.classList.add('loaded');
     };
 
+    // RESTORED: Utility functions for UI interactions
     window.toggleNest = (id) => { document.getElementById(id).style.display = 'block'; document.getElementById(`btn-${id}`).style.display = 'none'; };
-    window.setReply = (id, name) => { document.getElementById('parent-id').value = id; const ind = document.getElementById('reply-indicator'); ind.innerText = `Replying to ${name} (Click to cancel X)`; ind.style.display = 'block'; document.getElementById('comment-body').focus(); window.scrollTo({ top: document.getElementById('comment-form').offsetTop - 150, behavior: 'smooth' }); };
+    window.setReply = (id, name) => { 
+        document.getElementById('parent-id').value = id; 
+        const ind = document.getElementById('reply-indicator'); 
+        ind.innerText = `Replying to ${name} (Click to cancel X)`; 
+        ind.style.display = 'block'; 
+        document.getElementById('comment-body').focus(); 
+        window.scrollTo({ top: document.getElementById('comment-form').offsetTop - 150, behavior: 'smooth' }); 
+    };
     window.cancelReply = () => { document.getElementById('parent-id').value = ''; document.getElementById('reply-indicator').style.display = 'none'; };
-    window.handleLikeAction = async (commentId, alreadyLiked) => { if (!currentUser) { alert("Join!"); return; } const rpc = alreadyLiked ? 'handle_remove_like' : 'handle_new_like'; const { error } = await window.supabaseClient.rpc(rpc, { c_id: String(commentId), u_id: currentUser.id }); if (!error) render(); };
-    window.adminDelete = async (id) => { if (!confirm("Delete?")) return; const res = await fetch('https://cusdis-jet-one.vercel.app/api/admin-delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ commentId: id }) }); if (res.ok) render(); };
+    
+    window.handleLikeAction = async (commentId, alreadyLiked) => { 
+        if (!currentUser) { alert("Join!"); return; } 
+        const rpc = alreadyLiked ? 'handle_remove_like' : 'handle_new_like'; 
+        const { error } = await window.supabaseClient.rpc(rpc, { c_id: String(commentId), u_id: currentUser.id }); 
+        if (!error) render(); 
+    };
+
+    window.adminDelete = async (id) => { 
+        if (!confirm("Delete this comment?")) return; 
+        const res = await fetch('https://cusdis-jet-one.vercel.app/api/admin-delete', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ commentId: id }) 
+        }); 
+        if (res.ok) render(); 
+    };
 
     window.submitReview = async function() { 
         const content = document.getElementById('comment-body').value; 
         const nickname = document.getElementById('nickname').value; 
         const parentId = document.getElementById('parent-id').value; 
         const pageId = getCleanUrl(); 
-        
         if (!content) return; 
 
-        // PIGGYBACK: Manually send token to bypass cookie blocking
         const lockerData = localStorage.getItem('sb-yfcqtkrayecpkkuzivvf-auth-token');
         const token = lockerData ? JSON.parse(lockerData).access_token : null;
 
@@ -137,15 +159,11 @@
 
         if (res.ok) { 
             const msgEl = document.getElementById('submit-msg');
-            if (currentUser) {
-                msgEl.innerHTML = `✓ Posted! Thanks for being a Verified Reader.`;
-            } else {
-                msgEl.innerHTML = `Thank you! Your review has been sent for moderation.`; 
-            }
+            msgEl.innerHTML = currentUser ? `✓ Posted! Thanks for being a Verified Reader.` : `Thank you! Sent for moderation.`;
             msgEl.style.display = "block"; 
             document.getElementById('comment-body').value = ""; 
             window.cancelReply(); 
-            setTimeout(render, currentUser ? 1000 : 3500); 
+            setTimeout(render, 1000); 
         } 
     };
 
