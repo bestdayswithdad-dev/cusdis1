@@ -11,7 +11,7 @@ if (!(BigInt.prototype as any).toJSON) {
   }
 }
 
-// HELPER: Prevents JSON crashes with BigInt database values (Double Layer Safety)
+// HELPER: Double-layer safety for JSON serialization
 const serialize = (data: any) => {
   return JSON.parse(
     JSON.stringify(data, (key, value) =>
@@ -24,7 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const supabase = createPagesServerClient({ req, res })
   const { data: { session } } = await supabase.auth.getSession()
 
-  // SECURITY: Only you (the admin) can access this bridge
+  // SECURITY: Only DadAdmin (you) can access this
   if (!session || session.user.email !== 'bestdayswithdad@gmail.com') {
     return res.status(401).json({ error: 'Unauthorized' })
   }
@@ -32,7 +32,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { id } = req.query
 
   try {
-    // ACTION: Fetch all reviews WITH Page Titles
+    // GET: Fetch all reviews with their associated Page Titles
     if (req.method === 'GET') {
       const data = await prisma.comment.findMany({
         where: {
@@ -40,13 +40,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         },
         orderBy: { created_at: 'desc' },
         include: { 
-          Page: true // Relational join to the pages table
+          Page: true // Fetches title and slug from the 'pages' table
         }
       })
       return res.status(200).json({ comments: serialize(data) })
     }
 
-    // ACTION: Approve a specific review
+    // PATCH: Approve a specific review
     if (req.method === 'PATCH') {
       const updated = await prisma.comment.update({
         where: { id: id as string },
@@ -55,7 +55,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json(serialize(updated))
     }
 
-    // ACTION: Permanently delete a review
+    // DELETE: Permanently remove a review
     if (req.method === 'DELETE') {
       await prisma.comment.delete({
         where: { id: id as string }
@@ -63,7 +63,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(204).end()
     }
 
-    return res.status(405).end() // Method Not Allowed
+    return res.status(405).end()
   } catch (error) {
     console.error(error)
     return res.status(500).json({ error: 'Database action failed' })
