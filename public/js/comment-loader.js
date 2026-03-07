@@ -19,7 +19,8 @@
         const isLiked = userLikes.has(String(comment.id));
         const voteCount = comment.votes_count || 0;
         const isRedHeart = isLiked || voteCount > 0;
-        const isAdmin = currentUser?.email === 'bestdayswithdad@gmail.com' || currentUser?.email === 'adambrokensha@gmail.com';
+        // FIXED: Only the Host email gets Admin powers
+        const isAdmin = currentUser?.email === 'bestdayswithdad@gmail.com'; 
         const isGuest = comment.by_email === 'guest@example.com';
 
         return `
@@ -28,7 +29,7 @@
                     <div class="comment-emoji">👤</div>
                     <span class="comment-author-name">${comment.by_nickname}</span>
                     ${!isGuest ? '<span class="verified-reader-badge">Verified Reader</span>' : ''}
-                    ${isAdmin && (comment.by_email === 'bestdayswithdad@gmail.com' || comment.by_email === 'adambrokensha@gmail.com') ? 
+                    ${comment.by_email === 'bestdayswithdad@gmail.com' ? 
                         '<span class="verified-reader-badge" style="background:#f59e0b !important;">Host</span>' : ''}
                 </div>
                 <div class="comment-text-row">
@@ -121,7 +122,7 @@
         
         if (!content) return; 
 
-        // PIGGYBACK: Get token for manual Authorization
+        // PIGGYBACK: Manually send token to bypass cookie blocking
         const lockerData = localStorage.getItem('sb-yfcqtkrayecpkkuzivvf-auth-token');
         const token = lockerData ? JSON.parse(lockerData).access_token : null;
 
