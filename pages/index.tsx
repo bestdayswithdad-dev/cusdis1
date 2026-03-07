@@ -19,7 +19,6 @@ export default function ModerationCenter() {
   const fetchComments = async () => {
     const res = await fetch('/api/comments')
     const data = await res.json()
-    // data.comments now includes the Page relation from our API update
     setComments(data.comments || [])
   }
 
@@ -49,15 +48,15 @@ export default function ModerationCenter() {
     setEmailData({
       to: email || '',
       subject: 'Policy Violation Warning - Best Days With Dad',
-      body: `Hi,\n\nYour recent comment ("${content}") has been flagged for violating our community guidelines. Please ensure future posts remain respectful.\n\nBest,\nMod Team`
+      body: `Hi,\n\nYour recent comment ("${content}") has been flagged for violating our community guidelines.\n\nBest,\nMod Team`
     })
   }
 
   const prepareReply = (email: string, content: string) => {
     setEmailData({
       to: email || '',
-      subject: 'Moderator Response to your Review',
-      body: `\n\n--- In response to your comment ---\n"${content}"\n\nHi! Thanks for reaching out. My answer to your question is...`
+      subject: 'Moderator Response',
+      body: `\n\n--- In response to ---\n"${content}"\n\nHi! Thanks for the review...`
     })
   }
 
@@ -89,7 +88,7 @@ export default function ModerationCenter() {
                   </td>
                   <td><Text size="xs" italic>"{c.content}"</Text></td>
                   
-                  {/* LOCATION COLUMN */}
+                  {/* NEW LOCATION COLUMN */}
                   <td>
                     <Stack spacing={0}>
                       <Text size="xs" weight={700} color="blue">
