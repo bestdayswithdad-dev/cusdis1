@@ -30,8 +30,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         where: { 
           approved: true,
           projectId: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1',
-          // FIXED: Use page_id to match your Supabase column
-          page_id: String(pageId) 
+          // Reverted to pageId to match Prisma Type definition
+          pageId: String(pageId) 
         },
         orderBy: { created_at: 'asc' } 
       });
@@ -50,7 +50,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const isVerified = !!session;
 
     try {
-      // 1. Find or create the page
+      // 1. Find or create the page using findFirst per project rules
       let page = await prisma.page.findFirst({
         where: { slug: pageId }
       });
@@ -64,6 +64,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         page = await prisma.page.create({
           data: { 
+            // Manual ID generation to satisfy schema requirement
             id: `pg-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
             slug: pageId,
             title: readableTitle || "New Blog Post",
@@ -79,11 +80,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           content,
           by_nickname: nickname || (isVerified ? 'Verified Reader' : 'Guest'),
           by_email: session?.user?.email || 'guest@example.com',
-          approved: isVerified, // PERK: Instant post for logged-in users
+          approved: isVerified, // Instant post for logged-in users
           projectId: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1',
           parentId: parentId || null,
-          // FIXED: Match your database column name
-          page_id: pageId, 
+          pageId: pageId, 
           Page: { connect: { id: page.id } }
         }
       });
