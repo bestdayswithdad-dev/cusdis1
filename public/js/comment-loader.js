@@ -20,40 +20,53 @@
     <style>
         #custom-comment-section {
             font-family: 'Montserrat', sans-serif !important;
-            margin-top: 40px;
-            padding: 0px; /* Removed padding to let it sit flush */
-            background: transparent; /* Removed the white box */
+            margin-top: 50px;
+            padding: 25px;
+            background: rgba(255, 255, 255, 0.8) !important;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1.5px solid #000000;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
             color: #1a202c;
         }
+        
         .comment-disclaimer {
-            margin-top: -35px !important;
-            font-size: 11px;
-            font-weight: 700;
+            margin-top: -45px !important;
+            background: rgba(248, 250, 252, 0.95);
+            padding: 12px;
+            border-radius: 8px;
+            border: 1.5px solid #000000; /* Matching boxed look */
+            font-size: 12px;
             color: #64748b;
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 30px;
+            font-weight: 700;
+            line-height: 1.4;
         }
         .comment-disclaimer a {
-            text-decoration: none !important; /* No underline */
-            color: #0056b3;
+            text-decoration: none !important;
+            color: #334155;
             transition: color 0.2s;
         }
         .comment-disclaimer a:hover {
-            color: #f59e0b; /* Hover color change */
+            color: #f59e0b;
         }
+        
         .comment-card {
             background: #ffffff;
-            border: 1.5px solid #000000;
-            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
             padding: 20px;
             margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
         }
         .comment-author-name {
             font-weight: 800;
             font-size: 14px;
         }
         .verified-reader-badge {
-            background: #0056b3 !important;
+            background: #334155 !important; /* Syncing badge with Slate button */
             color: white !important;
             padding: 2px 8px;
             border-radius: 4px;
@@ -93,10 +106,10 @@
             border-radius: 4px;
             margin-bottom: 10px;
             font-family: 'Montserrat', sans-serif;
-            background: #fff;
+            background: rgba(255, 255, 255, 0.9);
         }
         .submit-review-btn {
-            background: #004494; /* Restored original darker blue */
+            background: #334155; /* SLATE TYPE COLOUR */
             color: white;
             border: none;
             padding: 14px 20px;
@@ -109,7 +122,7 @@
             transition: background 0.2s;
         }
         .submit-review-btn:hover {
-            background: #003370;
+            background: #1e293b; /* Darker Slate on hover */
         }
         .reply-item-container {
             margin-left: 25px;
