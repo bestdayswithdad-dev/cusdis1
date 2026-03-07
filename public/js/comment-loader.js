@@ -7,18 +7,23 @@
         return window.location.href.split('?')[0].split('#')[0];
     };
 
+    // IDENTITY LOCK: Reads the Supabase token you confirmed is present
     const getBadgeFromLocker = () => {
         try {
+            // Looking for the specific key used by Supabase Auth Helpers
             const token = JSON.parse(localStorage.getItem('best-days-auth-auth-token'));
             return token?.user || null;
         } catch (e) { return null; }
     }
 
     const createCommentHtml = (comment, isReply = false) => {
-        const isLiked = userLikes.has(String(comment.id));
+        const userHasLiked = userLikes.has(String(comment.id));
         const voteCount = comment.votes_count || 0;
-        // RED HEART LOGIC: Active if user liked it OR if votes > 0
-        const isRedHeart = isLiked || voteCount > 0;
+        
+        // Red heart if current user liked it OR if votes > 0
+        const isRedHeart = userHasLiked || voteCount > 0;
+        
+        // Admin check based on your specific email
         const isAdmin = currentUser?.email === 'bestdayswithdad@gmail.com';
         const isGuest = comment.by_email === 'guest@example.com';
 
@@ -27,18 +32,24 @@
                 <div class="comment-header-row">
                     <div class="comment-emoji">👤</div>
                     <span class="comment-author-name">${comment.by_nickname}</span>
-                    ${!isGuest ? '<span class="verified-reader-badge">Casual Adventurer</span>' : ''}
+                    
+                    ${!isGuest ? '<span class="verified-reader-badge">Verified Reader</span>' : ''}
+                    
                     ${isAdmin && comment.by_email === 'bestdayswithdad@gmail.com' ? 
-                        '<span class="verified-reader-badge" style="background:#f59e0b !important;">MOD</span>' : ''}
+                        '<span class="verified-reader-badge" style="background:#f59e0b !important;">Host</span>' : ''}
                 </div>
                 <div class="comment-text-row">
                     <p>${comment.content}</p>
                 </div>
                 <div class="comment-actions">
                     <button class="executive-btn" onclick="window.setReply('${comment.id}', '${comment.by_nickname}')">Reply</button>
-                    <button class="executive-btn ${isRedHeart ? 'is-active' : ''}" onclick="window.handleLikeAction('${comment.id}', ${isLiked})" style="${isRedHeart ? 'color: #ef4444;' : ''}">
+                    
+                    <button class="executive-btn ${isRedHeart ? 'is-active' : ''}" 
+                            onclick="window.handleLikeAction('${comment.id}', ${userHasLiked})" 
+                            style="${isRedHeart ? 'color: #ef4444;' : ''}">
                         ${isRedHeart ? '❤️ HELPFUL' : '🤍 MARK AS HELPFUL'} ${voteCount > 0 ? `(${voteCount})` : ''}
                     </button>
+                    
                     ${isAdmin ? `<button class="executive-btn" style="color:#ef4444;" onclick="window.adminDelete('${comment.id}')">🗑️ DELETE</button>` : ''}
                 </div>
             </div>`;
@@ -67,13 +78,15 @@
     const render = async () => {
         const container = document.getElementById('custom-comment-section');
         if (!container) return;
+        
+        // UNLOCK PERKS: Identify user on every render
         currentUser = getBadgeFromLocker();
         
-        // Use normalized URL for fetching
         const pageId = encodeURIComponent(getCleanUrl());
         const res = await fetch(`https://cusdis-jet-one.vercel.app/api/public-comments?pageId=${pageId}`);
         const comments = await res.json();
 
+        // PERK: Sync personal likes if logged in
         if (currentUser?.id && window.supabaseClient) {
             const { data } = await window.supabaseClient.from('comment_likes').select('comment_id').eq('id', currentUser.id);
             if (data) userLikes = new Set(data.map(l => String(l.comment_id)));
@@ -89,7 +102,9 @@
                 </div>
                 <div id="comment-form" style="margin-bottom: 30px; text-align: center;">
                     <div id="reply-indicator" style="display:none; background:#e0f2fe; color:#0369a1; padding:10px; border-radius:6px; font-size:11px; font-weight:700; margin-bottom:10px; border:1px solid #bae6fd; text-align:left; cursor:pointer;" onclick="window.cancelReply()">Replying to someone (Click to cancel X)</div>
+                    
                     <input type="text" id="nickname" placeholder="Your Nickname" value="${currentUser ? 'Adam' : ''}" />
+                    
                     <textarea id="comment-body" placeholder="Share your experience..."></textarea>
                     <input type="hidden" id="parent-id" value="" />
                     <button class="submit-review-btn" onclick="window.submitReview()">Post Review</button>
@@ -111,7 +126,18 @@
     window.toggleNest = (id) => { document.getElementById(id).style.display = 'block'; document.getElementById(`btn-${id}`).style.display = 'none'; };
     window.setReply = (id, name) => { document.getElementById('parent-id').value = id; const ind = document.getElementById('reply-indicator'); ind.innerText = `Replying to ${name} (Click to cancel X)`; ind.style.display = 'block'; document.getElementById('comment-body').focus(); window.scrollTo({ top: document.getElementById('comment-form').offsetTop - 150, behavior: 'smooth' }); };
     window.cancelReply = () => { document.getElementById('parent-id').value = ''; document.getElementById('reply-indicator').style.display = 'none'; };
-    window.handleLikeAction = async (commentId, alreadyLiked) => { if (!currentUser) { alert("Join!"); return; } const rpc = alreadyLiked ? 'handle_remove_like' : 'handle_new_like'; const { error } = await window.supabaseClient.rpc(rpc, { c_id: String(commentId), u_id: currentUser.id }); if (!error) render(); };
+    
+    // PERK: Server-side RPC for handling likes
+    window.handleLikeAction = async (commentId, alreadyLiked) => { 
+        if (!currentUser) { 
+            alert("Join the community to mark reviews as helpful!"); 
+            return; 
+        } 
+        const rpc = alreadyLiked ? 'handle_remove_like' : 'handle_new_like'; 
+        const { error } = await window.supabaseClient.rpc(rpc, { c_id: String(commentId), u_id: currentUser.id }); 
+        if (!error) render(); 
+    };
+
     window.adminDelete = async (id) => { if (!confirm("Delete?")) return; const res = await fetch('https://cusdis-jet-one.vercel.app/api/admin-delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ commentId: id }) }); if (res.ok) render(); };
 
     window.submitReview = async function() { 
