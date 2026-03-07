@@ -17,9 +17,8 @@ export default function ModerationCenter() {
   const [emailData, setEmailData] = useState({ to: '', subject: '', body: '' })
 
   const fetchComments = async () => {
-    const res = await fetch('/api/comments')
+    const res = await fetch(`/api/comments?t=${Date.now()}`)
     const data = await res.json()
-    // data.comments will contain the nested Page object from the include: { Page: true }
     setComments(data.comments || [])
   }
 
@@ -48,8 +47,8 @@ export default function ModerationCenter() {
   const prepareWarning = (email: string, content: string) => {
     setEmailData({
       to: email || '',
-      subject: 'Policy Violation Warning - Best Days With Dad',
-      body: `Hi,\n\nYour recent comment ("${content}") has been flagged for violating our community guidelines.\n\nBest,\nMod Team`
+      subject: 'Policy Violation Warning',
+      body: `Hi,\n\nYour recent comment ("${content}") has been flagged.\n\nBest,\nMod Team`
     })
   }
 
@@ -61,14 +60,13 @@ export default function ModerationCenter() {
     })
   }
 
-  if (loading) return <Center h="100vh"><Text>Loading Moderation Tools...</Text></Center>
+  if (loading) return <Center h="100vh"><Text>Loading...</Text></Center>
   if (!user || user.email !== ADMIN_EMAIL) return <Center h="100vh"><Paper p="xl" withBorder>Access Denied</Paper></Center>
 
   return (
     <Container size="lg" py="xl">
       <Stack spacing="xl">
         <Title order={1}>Moderation & Policy Center</Title>
-        
         <Paper withBorder shadow="xs" p="md">
           <Table verticalSpacing="sm" highlightOnHover>
             <thead>
@@ -88,8 +86,6 @@ export default function ModerationCenter() {
                     <Text size="xs" color="dimmed">{c.by_email}</Text>
                   </td>
                   <td><Text size="xs" italic>"{c.content}"</Text></td>
-                  
-                  {/* NEW LOCATION COLUMN - Using Capital 'P' to match API */}
                   <td>
                     <Stack spacing={0}>
                       <Text size="xs" weight={700} color="blue">
@@ -108,9 +104,7 @@ export default function ModerationCenter() {
                       )}
                     </Stack>
                   </td>
-
                   <td>{c.approved ? <Badge color="green" variant="light">Public</Badge> : <Badge color="yellow" variant="light">Pending</Badge>}</td>
-                  
                   <td>
                     <Group spacing={4} position="right">
                       {!c.approved && (
@@ -133,19 +127,6 @@ export default function ModerationCenter() {
               ))}
             </tbody>
           </Table>
-        </Paper>
-
-        <Divider label="Policy Enforcement Email" labelPosition="center" />
-
-        <Paper withBorder p="xl" bg="gray.0">
-          <Stack>
-            <TextInput label="Recipient" value={emailData.to} readOnly />
-            <TextInput label="Subject" value={emailData.subject} onChange={(e) => setEmailData({...emailData, subject: e.target.value})} />
-            <Textarea label="Message" minRows={6} value={emailData.body} onChange={(e) => setEmailData({...emailData, body: e.target.value})} />
-            <Button color="dark" fullWidth onClick={() => alert("Email logic connection required")}>
-              Send Official Mod Email
-            </Button>
-          </Stack>
         </Paper>
       </Stack>
     </Container>
