@@ -3,7 +3,7 @@ import { NextApiRequest, NextApiResponse } from 'next'
 
 const prisma = new PrismaClient()
 
-// BIGINT SERIALIZER: Prevents the JSON.stringify crash
+// HELPER: Prevents JSON crashes with BigInt database values
 const serialize = (data: any) => {
   return JSON.parse(
     JSON.stringify(data, (key, value) =>
@@ -13,14 +13,13 @@ const serialize = (data: any) => {
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // CORS Headers
   res.setHeader('Access-Control-Allow-Origin', 'https://www.bestdayswithdad.com');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // GET: Fetch comments for specific post
+  // GET: Fetch approved comments for a specific page
   if (req.method === 'GET') {
     const { pageId } = req.query;
     try {
@@ -31,14 +30,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         },
         orderBy: { created_at: 'asc' } 
       });
-      // Use serialize() to safely return BigInt data
       return res.status(200).json(serialize(comments));
     } catch (err) {
       return res.status(500).json({ error: "Fetch failed" });
     }
   }
 
-  // POST: Create comment and auto-link to Page/Project
+  // POST: Create comment and auto-generate readable Page Title
   if (req.method === 'POST') {
     const { content, nickname, parentId, pageId } = req.body;
 
@@ -48,11 +46,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
 
       if (!page) {
+        // Create a readable title from the URL (e.g., 'plaster-fun-house' -> 'Plaster Fun House')
+        const urlParts = pageId.split('/');
+        const fileName = urlParts[urlParts.length - 1].replace('.html', '');
+        const readableTitle = fileName.split('-')
+          .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
+
         page = await prisma.page.create({
           data: { 
             id: `pg-${Date.now()}`,
             slug: pageId,
-            title: "Blogger Post",
+            title: readableTitle || "New Blog Post",
             Project: { connect: { id: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1' } } 
           }
         });
@@ -68,7 +73,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       });
 
-      // Use serialize() to safely return newly created data
       return res.status(201).json(serialize(newComment));
     } catch (error) {
       console.error(error);
