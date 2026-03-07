@@ -18,7 +18,7 @@
     }
 
     /**
-     * NEW: Fetch Blogger Feed with Throttling & Caching
+     * Fetch Blogger Feed with Throttling & Caching
      * This prevents the 429 "Too Many Requests" error by limiting hits to Google.
      */
     const fetchBloggerFeed = async () => {
@@ -29,17 +29,19 @@
         const lastFetch = localStorage.getItem(CACHE_TIME_KEY);
         const now = Date.now();
 
-        // Return cached data if available and fresh
+        // Check if we have valid, recent data
         if (lastFetch && (now - lastFetch < FIVE_MINUTES)) {
             const cachedData = localStorage.getItem(CACHE_KEY);
-            if (cachedData) return JSON.parse(cachedData);
+            // Only return if cache is not empty or malformed
+            if (cachedData && cachedData !== "null" && cachedData.length > 10) {
+                return JSON.parse(cachedData);
+            }
         }
 
         try {
-            // Fetching the Blogger feed
+            // Fetching the Blogger feed via the site domain
             const res = await fetch(`https://www.bestdayswithdad.com/feeds/posts/default?alt=json&max-results=12`);
             
-            // If Google redirects to a CAPTCHA (CORS error usually triggers here)
             if (!res.ok) throw new Error(`Feed fetch failed: ${res.status}`);
 
             const data = await res.json();
@@ -50,8 +52,9 @@
             
             return data;
         } catch (err) {
-            console.warn("Blogger feed unavailable, using stale cache or empty state.", err);
-            return JSON.parse(localStorage.getItem(CACHE_KEY)) || null;
+            console.warn("Blogger feed unavailable, falling back to cache.", err);
+            const fallback = localStorage.getItem(CACHE_KEY);
+            return fallback ? JSON.parse(fallback) : null;
         }
     };
 
@@ -109,11 +112,18 @@
         if (!container) return;
         currentUser = getBadgeFromLocker();
         
-        // Parallel fetch for speed: Comments + Blogger Feed (if needed for sidebar/footer)
         const pageId = encodeURIComponent(getCleanUrl());
         
         try {
-            const res = await fetch(`https://cusdis-jet-one.vercel.app/api/public-comments?pageId=${pageId}`);
+            // Added simple retry logic for Vercel API
+            let res = await fetch(`https://cusdis-jet-one.vercel.app/api/public-comments?pageId=${pageId}`);
+            
+            if (!res.ok) {
+                // Wait 2 seconds and try one more time
+                await new Promise(r => setTimeout(r, 2000));
+                res = await fetch(`https://cusdis-jet-one.vercel.app/api/public-comments?pageId=${pageId}`);
+            }
+
             const comments = await res.json();
 
             // Handle likes for logged in users
@@ -126,13 +136,13 @@
             
             let html = `
                 <div style="margin-top: 0;">
-                    <div class="comment-disclaimer">
+                    <div class="comment-disclaimer" style="margin-top: -35px !important;">
                         By posting, you agree to our <a href="/p/comment-policy.html">Comment Policy</a>.<br>
                         Be kind, be helpful, and keep it family-friendly!
                     </div>
                     <div id="comment-form" style="margin-bottom: 30px; text-align: center;">
                         <div id="reply-indicator" style="display:none; background:#e0f2fe; color:#0369a1; padding:10px; border-radius:6px; font-size:11px; font-weight:700; margin-bottom:10px; border:1px solid #bae6fd; text-align:left; cursor:pointer;" onclick="window.cancelReply()">Replying to someone (Click to cancel X)</div>
-                        <input type="text" id="nickname" placeholder="Your Nickname" value="${currentUser ? 'Adam' : ''}" />
+                        <input type="text" id="nickname" placeholder="Your Nickname" value="${currentUser ? (currentUser.user_metadata?.full_name || 'Adam') : ''}" />
                         <textarea id="comment-body" placeholder="Share your experience..."></textarea>
                         <input type="hidden" id="parent-id" value="" />
                         <button class="submit-review-btn" onclick="window.submitReview()">Post Review</button>
@@ -155,14 +165,16 @@
 
         } catch (error) {
             console.error("Failed to render comments:", error);
-            container.innerHTML = `<p style="color:red;">Failed to load comments. Please refresh.</p>`;
+            container.innerHTML = `<p style="color:red; text-align:center;">Failed to load comments. Please refresh the page.</p>`;
         }
     };
 
     // UI Window Globals
     window.toggleNest = (id) => { 
-        document.getElementById(id).style.display = 'block'; 
-        document.getElementById(`btn-${id}`).style.display = 'none'; 
+        const el = document.getElementById(id);
+        const btn = document.getElementById(`btn-${id}`);
+        if (el) el.style.display = 'block'; 
+        if (btn) btn.style.display = 'none'; 
     };
     
     window.setReply = (id, name) => { 
