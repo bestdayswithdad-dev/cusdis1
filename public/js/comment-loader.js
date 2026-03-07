@@ -21,6 +21,7 @@
             font-family: 'Montserrat', sans-serif !important;
             margin-top: 50px;
             padding: 25px;
+            /* Premium Glassmorphism Effect */
             background: rgba(255, 255, 255, 0.8) !important;
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
@@ -30,6 +31,7 @@
             color: #1a202c;
         }
         
+        /* RESTORED: Boxed Disclaimer with Original Styling */
         .comment-disclaimer {
             margin-top: -45px !important;
             background: #ffffff !important;
@@ -52,7 +54,7 @@
         }
         
         .comment-disclaimer a:hover {
-            color: #f59e0b !important;
+            color: #f59e0b !important; /* Brand Gold Hover */
         }
         
         .comment-card {
@@ -117,7 +119,7 @@
         }
         
         .submit-review-btn {
-            background: #334155 !important;
+            background: #334155 !important; /* Original Slate Type Colour */
             color: white !important;
             border: none;
             padding: 14px 20px;
@@ -195,7 +197,7 @@
                 <div>
                     <div class="comment-disclaimer">By posting, you agree to our <a href="/p/comment-policy.html">Comment Policy</a>.</div>
                     <div id="comment-form" style="margin-bottom:30px; text-align: center;">
-                        <div id="reply-indicator" style="display:none; background:#f0f9ff; padding:10px; font-size:11px; font-weight:700; margin-bottom:10px; border:1.5px solid #000; cursor:pointer;" onclick="window.cancelReply()">Replying (Click to cancel X)</div>
+                        <div id="reply-indicator" style="display:none; background:#e0f2fe; color:#0369a1; padding:10px; border-radius:6px; margin-bottom:10px; text-align:left; cursor:pointer;" onclick="window.cancelReply()">Replying (Click to cancel X)</div>
                         <input type="text" id="nickname" placeholder="Your Nickname" value="${currentUser?.user_metadata?.full_name || (currentUser ? 'Adam' : '')}" />
                         <textarea id="comment-body" placeholder="Share your experience..." rows="3"></textarea>
                         <input type="hidden" id="parent-id" value="" />
@@ -244,6 +246,10 @@
             setTimeout(render, 1000); 
         } 
     };
+
+    if (document.readyState === 'complete') render();
+    else window.addEventListener('load', render);
+})();
 
     if (document.readyState === 'complete') render();
     else window.addEventListener('load', render);
