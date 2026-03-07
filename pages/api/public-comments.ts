@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 import { NextApiRequest, NextApiResponse } from 'next'
+import { createPagesServerClient } from '@supabase/auth-helpers-nextjs'
 
 const prisma = new PrismaClient()
 
@@ -13,9 +14,11 @@ const serialize = (data: any) => {
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // CORS Headers
   res.setHeader('Access-Control-Allow-Origin', 'https://www.bestdayswithdad.com');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Credentials', 'true'); // Required for cookies
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
@@ -26,6 +29,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const comments = await prisma.comment.findMany({
         where: { 
           approved: true,
+          projectId: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1', // Project ID lock
           Page: { slug: pageId as string } 
         },
         orderBy: { created_at: 'asc' } 
@@ -38,15 +42,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // POST: Create comment and auto-generate readable Page Title
   if (req.method === 'POST') {
+    // IDENTITY CHECK: Detect if a user is signed in via cookies
+    const supabase = createPagesServerClient({ req, res });
+    const { data: { session } } = await supabase.auth.getSession();
+    
     const { content, nickname, parentId, pageId } = req.body;
+    const isVerified = !!session; // If session exists, user is verified
 
     try {
+      // 1. Find or create the page using findFirst as per project rules
       let page = await prisma.page.findFirst({
         where: { slug: pageId }
       });
 
       if (!page) {
-        // Create a readable title from the URL (e.g., 'plaster-fun-house' -> 'Plaster Fun House')
+        // Create readable title: 'plaster-fun-house' -> 'Plaster Fun House'
         const urlParts = pageId.split('/');
         const fileName = urlParts[urlParts.length - 1].replace('.html', '');
         const readableTitle = fileName.split('-')
@@ -55,7 +65,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         page = await prisma.page.create({
           data: { 
-            id: `pg-${Date.now()}`,
             slug: pageId,
             title: readableTitle || "New Blog Post",
             Project: { connect: { id: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1' } } 
@@ -63,11 +72,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
       }
 
+      // 2. Create the comment
       const newComment = await prisma.comment.create({
         data: {
-          id: `cm-${Date.now()}`,
           content,
-          by_nickname: nickname || 'Guest',
+          by_nickname: nickname || (isVerified ? 'Verified Reader' : 'Guest'),
+          by_email: session?.user?.email || 'guest@example.com',
+          approved: isVerified, // INSTANT POST: true for logged-in users
+          projectId: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1',
           parentId: parentId || null,
           Page: { connect: { id: page.id } }
         }
