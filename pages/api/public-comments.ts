@@ -4,6 +4,7 @@ import { createPagesServerClient } from '@supabase/auth-helpers-nextjs'
 
 const prisma = new PrismaClient()
 
+// HELPER: Prevents JSON crashes with BigInt database values
 const serialize = (data: any) => {
   return JSON.parse(
     JSON.stringify(data, (key, value) =>
@@ -13,19 +14,22 @@ const serialize = (data: any) => {
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // CORS Headers - Essential for cross-domain communication
   res.setHeader('Access-Control-Allow-Origin', 'https://www.bestdayswithdad.com');
-  res.setHeader('Access-Har-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS'); // Fixed typo here
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.setHeader('Access-Control-Allow-Credentials', 'true'); // Required to accept your token
+  res.setHeader('Access-Control-Allow-Credentials', 'true'); // Required for cookies/tokens
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
+  // GET: Fetch approved comments for a specific page
   if (req.method === 'GET') {
     const { pageId } = req.query;
     try {
       const comments = await prisma.comment.findMany({
         where: { 
           approved: true,
+          projectId: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1', //
           Page: { slug: pageId as string } 
         },
         orderBy: { created_at: 'asc' } 
@@ -36,19 +40,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
+  // POST: Create comment with auto-approval for signed-in users
   if (req.method === 'POST') {
     const supabase = createPagesServerClient({ req, res });
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await supabase.auth.getSession(); // Captures the 'Adam' session
     
     const { content, nickname, parentId, pageId } = req.body;
-    const isVerified = !!session; 
+    const isVerified = !!session; //
 
     try {
+      // 1. Find or create the page using findFirst
       let page = await prisma.page.findFirst({
         where: { slug: pageId }
       });
 
       if (!page) {
+        // Generate readable title: 'plaster-fun-house' -> 'Plaster Fun House'
         const urlParts = pageId.split('/');
         const fileName = urlParts[urlParts.length - 1].replace('.html', '');
         const readableTitle = fileName.split('-')
@@ -65,13 +72,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
       }
 
+      // 2. Create the comment
       const newComment = await prisma.comment.create({
         data: {
           id: `cm-${Date.now()}`,
           content,
           by_nickname: nickname || (isVerified ? 'Adam' : 'Guest'),
+          // Pulls the real email from Supabase session
           by_email: session?.user?.email || 'guest@example.com',
-          approved: isVerified, // This skips moderation if you are logged in
+          approved: isVerified, // AUTO-APPROVE: true if logged in
           projectId: 'cbcd61ec-f2ef-425c-a952-30034c2de4e1',
           parentId: parentId || null,
           Page: { connect: { id: page.id } }
@@ -80,6 +89,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       return res.status(201).json(serialize(newComment));
     } catch (error) {
+      console.error(error);
       return res.status(500).json({ error: "Post failed" });
     }
   }
