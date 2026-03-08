@@ -142,7 +142,7 @@
                     <div class="comment-emoji">👤</div>
                     <span class="comment-author-name">${comment.by_nickname}</span>
                     ${comment.by_email === 'bestdayswithdad@gmail.com' ? '<span class="host-badge">Host</span>' : ''}
-                    ${(!isGuest && comment.by_email !== 'bestdayswithdad@gmail.com') ? '<span class="verified-reader-badge">Verified Reader</span>' : ''}
+                    ${(!isGuest && comment.by_email !== 'bestdayswithdad@gmail.com') ? '<span class="verified-reader-badge">Casual Adventurer</span>' : ''}
                 </div>
                 <div class="comment-text-row"><p style="margin-bottom:15px; line-height:1.6; color:#334155;">${comment.content}</p></div>
                 <div class="comment-actions">
@@ -185,7 +185,7 @@
                         <input type="text" id="nickname" placeholder="Your Nickname" value="${currentUser?.user_metadata?.full_name || (currentUser ? 'Adam' : '')}" />
                         <textarea id="comment-body" placeholder="Share your experience..." rows="4"></textarea>
                         <input type="hidden" id="parent-id" value="" />
-                        <button class="submit-review-btn" onclick="window.submitReview()">Post Review</button>
+                        <button class="submit-review-btn" onclick="window.submitReview()">Post Comment</button>
                         <div id="submit-msg"></div>
                     </div>
                     <div id="comment-list">${rootComments.map(c => `<div class="comment-card">${createCommentHtml(c)}${renderTree(comments, c.id, 1)}</div>`).join('')}</div>
