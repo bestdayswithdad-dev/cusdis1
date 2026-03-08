@@ -77,7 +77,7 @@
         .comment-emoji { font-size: 18px; }
         .comment-author-name { font-weight: 800; font-size: 16px; color: #94a3b8; }
         
-        .verified-reader-badge { background: none; color: #AFCBFF !important; padding: 3px 10px; border-radius: 4px; font-size: 14px; font-weight: 800; text-transform: uppercase; }
+        .verified-reader-badge { background: none; color: #5C9AFF !important; padding: 3px 10px; border-radius: 4px; font-size: 14px; font-weight: 800; text-transform: uppercase; }
         .host-badge { background: #f59e0b !important; color: white !important; padding: 3px 10px; border-radius: 4px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
         
         .submit-review-btn {
