@@ -54,7 +54,7 @@
             background: rgba(203, 213, 225, 0.4) !important;
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
-            border: 1px solid #000000;
+            border: .5px solid #000000;
             border-radius: 8px;
             margin-bottom: 12px;
             font-family: 'Montserrat', sans-serif;
@@ -67,7 +67,6 @@
             background: rgba(241, 245, 249, 0.7) !important;
             backdrop-filter: blur(15px);
             -webkit-backdrop-filter: blur(15px);
-            border: 1px solid #000000;
             border-radius: 12px;
             padding: 22px;
             margin-bottom: 20px;
