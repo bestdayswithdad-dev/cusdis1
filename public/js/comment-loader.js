@@ -77,7 +77,7 @@
         .comment-emoji { font-size: 18px; }
         .comment-author-name { font-weight: 800; font-size: 16px; color: #94a3b8; }
         
-        .verified-reader-badge { background: none; color: #5C9AFF !important; padding: 3px 10px; border-radius: 4px; font-size: 14px; font-weight: 800; text-transform: uppercase; }
+        .verified-reader-badge { background: none; color: #5C9AFF !important; padding: 3px 10px; border-radius: 4px; font-size: 12px; font-weight: 800; text-transform: uppercase; }
         .host-badge { background: #f59e0b !important; color: white !important; padding: 3px 10px; border-radius: 4px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
         
         .submit-review-btn {
@@ -93,8 +93,44 @@
             letter-spacing: 1.5px;
         }
         
-        .executive-btn { background: none; border: none; font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 800; cursor: pointer; color: #475569; margin-right: 15px; padding: 0; text-transform: uppercase; }
-        .executive-btn.is-active { color: #ef4444 !important; }
+        /* Updated Base Class with Transition */
+.executive-btn { 
+    background: none; 
+    border: none; 
+    font-family: 'Montserrat', sans-serif; 
+    font-size: 11px; 
+    font-weight: 800; 
+    cursor: pointer; 
+    color: #475569; 
+    margin-right: 15px; 
+    padding: 0; 
+    text-transform: uppercase;
+    transition: all 0.2s ease; /* Makes the hover/active state smooth */
+    position: relative; /* For the optional underline effect */
+}
+
+/* Hover Effect */
+.executive-btn:hover:not(.is-active) { 
+    color: #1e293b; /* Darker Slate */
+    transform: translateY(-1px); /* Subtle lift */
+}
+
+/* Active State (Your existing red) */
+.executive-btn.is-active { 
+    color: #ef4444 !important; 
+    transform: translateY(0); /* Resets the lift when active */
+}
+
+/* Optional: Add a small underline on hover */
+.executive-btn:hover:not(.is-active)::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background-color: #5C9AFF; /* Using your Sky Pop blue for the hover line! */
+}
         .reply-item-container { margin-left: 25px; border-left: 2.5px solid #000000; padding-left: 18px; margin-top: 15px; }
  
     </style>
