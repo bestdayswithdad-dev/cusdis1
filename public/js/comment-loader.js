@@ -24,7 +24,7 @@
         }
         
         .comment-disclaimer {
-            margin-top: -30px !important;
+            margin-top: -60px !important;
             /* Light Slate Tint to stand out on white */
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
@@ -33,7 +33,6 @@
             color: #1e293b;
             text-align: center;
             margin-bottom: 30px;
-            margin-top: -30px;
             font-weight: 800;
             text-transform: uppercase;
         }
@@ -57,6 +56,7 @@
             margin-bottom: 12px;
             font-family: 'Montserrat', sans-serif;
             color: #0f172a;
+             box-shadow: 10px 10px 10px rgba(0, 0, 0, 0.2);
         }
 
         /* TINTED GLASS COMMENT CARDS */
@@ -69,7 +69,7 @@
             padding: 22px;
             margin-bottom: 20px;
             /* Stronger shadow to create the "Lifted" separation on white */
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            box-shadow: 10px 10px 10px rgba(0, 0, 0, 0.2);
         }
 
         .comment-header-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
