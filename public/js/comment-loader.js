@@ -111,8 +111,8 @@
 
 /* Hover Effect */
 .executive-btn:hover:not(.is-active) { 
-    color: #1e293b; /* Darker Slate */
-    transform: translateY(-1px); /* Subtle lift */
+    color: #1e293b !important; /* Darker Slate */
+    transform: translateY(-1px) !important; /* Subtle lift */
 }
 
 /* Active State (Your existing red) */
@@ -121,20 +121,9 @@
     transform: translateY(0); /* Resets the lift when active */
 }
 
-/* Optional: Add a small underline on hover */
-.executive-btn:hover:not(.is-active)::after {
-    content: '';
-    position: absolute;
-    bottom: -2px;
-    left: 0;
-    width: 100%;
-    height: 2px;
-    background-color: #5C9AFF; /* Using your Sky Pop blue for the hover line! */
-}
         .reply-item-container { margin-left: 25px; border-left: 2.5px solid #000000; padding-left: 18px; margin-top: 15px; }
  
     </style>
-    `;
 
     const createCommentHtml = (comment) => {
         const isLiked = userLikes.has(String(comment.id));
