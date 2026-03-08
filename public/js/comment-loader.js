@@ -26,7 +26,7 @@
         }
         
         .comment-disclaimer {
-            margin-top: -40px !important;
+            margin-top: -50px !important;
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
             padding: 12px;
@@ -36,6 +36,7 @@
             margin-bottom: 30px;
             font-weight: 800;
             text-transform: uppercase;
+            background:transparent!important;
         }
         
         .comment-disclaimer a { 
