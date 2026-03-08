@@ -57,6 +57,7 @@
             font-family: 'Montserrat', sans-serif;
             color: #0f172a;
              box-shadow: 10px 10px 10px 10px rgba(0, 0, 0, 0.1);
+             border:none;
         }
 
         /* TINTED GLASS COMMENT CARDS */
