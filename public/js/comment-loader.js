@@ -17,19 +17,18 @@
     <style>
         #custom-comment-section {
             font-family: 'Montserrat', sans-serif !important;
-            margin-top: 10px;
             padding: 0;
             background: transparent !important;
             border: none !important;
         }
         
         .comment-disclaimer {
-            margin-top: -80px !important;
+            margin-top: -100px !important;
             /* Light Slate Tint to stand out on white */
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
             padding: 12px;
-            font-size: 14px;
+            font-size: 12px;
             color: #1e293b;
             text-align: center;
             margin-bottom: 30px;
