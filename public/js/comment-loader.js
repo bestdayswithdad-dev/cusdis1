@@ -13,75 +13,75 @@
             return token?.user || null;
         } catch (e) { return null; }
     };
-
-    const styling = `
+     const styling = `
     <style>
         #custom-comment-section {
             font-family: 'Montserrat', sans-serif !important;
             margin-top: 40px;
             padding: 0;
-            background: transparent !important; /* Fully embedded look */
+            background: transparent !important;
             border: none !important;
-            box-shadow: none !important;
         }
         
         .comment-disclaimer {
             margin-top: -35px !important;
-            background: rgba(255, 255, 255, 0.9) !important;
+            /* Light Slate Tint to stand out on white */
+            background: rgba(226, 232, 240, 0.9) !important;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
             padding: 12px;
             border-radius: 8px;
             border: 1.5px solid #000000 !important;
             font-size: 11px;
-            color: #334155;
+            color: #1e293b;
             text-align: center;
             margin-bottom: 30px;
             font-weight: 800;
             text-transform: uppercase;
         }
         
-        .comment-disclaimer a { text-decoration: none !important; color: #334155; }
+        .comment-disclaimer a { 
+            text-decoration: none !important; 
+            color: #2563eb !important; 
+            font-weight: 900;
+        }
         .comment-disclaimer a:hover { color: #f59e0b !important; }
 
-        /* GLASSMORPHIC INPUTS */
+        /* TINTED GLASS INPUTS */
         #comment-form input, #comment-form textarea {
             width: 100%;
             padding: 14px;
-            background: rgba(255, 255, 255, 0.7) !important;
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
+            /* Using a darker Blue-Grey tint for visibility */
+            background: rgba(203, 213, 225, 0.4) !important;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             border: 1.5px solid #000000;
             border-radius: 8px;
             margin-bottom: 12px;
             font-family: 'Montserrat', sans-serif;
-            transition: all 0.3s ease;
-        }
-        #comment-form input:focus, #comment-form textarea:focus {
-            background: rgba(255, 255, 255, 0.95) !important;
-            outline: none;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            color: #0f172a;
         }
 
-        /* GLASSMORPHIC LIFTED COMMENT CARDS */
+        /* TINTED GLASS COMMENT CARDS */
         .comment-card {
-            background: rgba(255, 255, 255, 0.85) !important;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
+            /* Warm Slate tint so it doesn't blend into the white background */
+            background: rgba(241, 245, 249, 0.7) !important;
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
             border: 1.5px solid #000000;
             border-radius: 12px;
             padding: 22px;
             margin-bottom: 20px;
-            /* The "Lifted" look */
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-        .comment-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 12px 25px rgba(0, 0, 0, 0.12);
+            /* Stronger shadow to create the "Lifted" separation on white */
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
         }
 
-        .comment-author-name { font-weight: 800; font-size: 14px; color: #000000; }
-        .verified-reader-badge { background: #334155 !important; color: white !important; padding: 3px 10px; border-radius: 4px; font-size: 10px; font-weight: 800; margin-left: 10px; text-transform: uppercase; }
-        .host-badge { background: #f59e0b !important; color: white !important; padding: 3px 10px; border-radius: 4px; font-size: 10px; font-weight: 800; margin-left: 10px; text-transform: uppercase; }
+        .comment-header-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+        .comment-emoji { font-size: 18px; }
+        .comment-author-name { font-weight: 800; font-size: 14px; color: #0f172a; }
+        
+        .verified-reader-badge { background: #334155 !important; color: white !important; padding: 3px 10px; border-radius: 4px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+        .host-badge { background: #f59e0b !important; color: white !important; padding: 3px 10px; border-radius: 4px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
         
         .submit-review-btn {
             background: #334155 !important;
@@ -94,13 +94,12 @@
             cursor: pointer;
             width: 100%;
             letter-spacing: 1.5px;
-            transition: all 0.3s ease;
         }
-        .submit-review-btn:hover { background: #1e293b !important; transform: scale(1.01); }
         
-        .executive-btn { background: none; border: none; font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 800; cursor: pointer; color: #64748b; margin-right: 15px; padding: 0; text-transform: uppercase; }
+        .executive-btn { background: none; border: none; font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 800; cursor: pointer; color: #475569; margin-right: 15px; padding: 0; text-transform: uppercase; }
         .executive-btn.is-active { color: #ef4444 !important; }
         .reply-item-container { margin-left: 25px; border-left: 2.5px solid #000000; padding-left: 18px; margin-top: 15px; }
+ 
     </style>
     `;
 
@@ -113,7 +112,8 @@
 
         return `
             <div class="comment-content-wrapper">
-                <div class="comment-header-row" style="margin-bottom:12px; display:flex; align-items:center;">
+                <div class="comment-header-row">
+                    <div class="comment-emoji">👤</div>
                     <span class="comment-author-name">${comment.by_nickname}</span>
                     ${comment.by_email === 'bestdayswithdad@gmail.com' ? '<span class="host-badge">Host</span>' : ''}
                     ${(!isGuest && comment.by_email !== 'bestdayswithdad@gmail.com') ? '<span class="verified-reader-badge">Verified Reader</span>' : ''}
@@ -162,14 +162,7 @@
                         <button class="submit-review-btn" onclick="window.submitReview()">Post Review</button>
                         <div id="submit-msg"></div>
                     </div>
-                    <div id="comment-list">
-                        ${rootComments.length > 0 ? rootComments.map(c => `
-                            <div class="comment-card">
-                                ${createCommentHtml(c)}
-                                ${renderTree(comments, c.id, 1)}
-                            </div>
-                        `).join('') : '<p style="text-align:center; color:#64748b; font-size:14px; padding:25px; background:rgba(255,255,255,0.7); border:1.5px solid #000; border-radius:12px;">No reviews yet. Be the first to share!</p>'}
-                    </div>
+                    <div id="comment-list">${rootComments.map(c => `<div class="comment-card">${createCommentHtml(c)}${renderTree(comments, c.id, 1)}</div>`).join('')}</div>
                 </div>`;
             container.innerHTML = html;
         } catch (e) { container.innerHTML = `<p>Syncing comments...</p>`; }
@@ -183,7 +176,7 @@
         const content = document.getElementById('comment-body').value.trim(); 
         const nickname = document.getElementById('nickname').value.trim(); 
         const parentId = document.getElementById('parent-id').value; 
-        if (!content || !nickname) return alert("Please enter both a nickname and a comment."); 
+        if (!content || !nickname) return; 
 
         const lockerData = localStorage.getItem('sb-yfcqtkrayecpkkuzivvf-auth-token');
         const token = lockerData ? JSON.parse(lockerData).access_token : null;
