@@ -93,7 +93,7 @@
             letter-spacing: 1.5px;
         }
          .submit-review-btn:hover:not(.is-active) { 
-           color: #1e293b !important; /* Darker Slate */
+         background: #1e293b;
     transform: translateY(-1px) !important; /* Subtle lift */
     }
         
