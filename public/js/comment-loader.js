@@ -93,7 +93,7 @@
             letter-spacing: 1.5px;
         }
          .submit-review-btn:hover:not(.is-active) { 
-         background: #1e293b;
+         background: #1e293b !important;
     transform: translateY(-1px) !important; /* Subtle lift */
     }
         
