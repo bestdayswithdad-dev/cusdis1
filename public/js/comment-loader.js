@@ -53,7 +53,7 @@
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             border-radius: 8px;
-            margin-bottom: 15px;
+            margin-bottom: 25px;
             font-family: 'Montserrat', sans-serif;
             color: #0f172a;
             box-shadow: 0 0 10px 2px rgba(0, 0, 0, 0.1);
