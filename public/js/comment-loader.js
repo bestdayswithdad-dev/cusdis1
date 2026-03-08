@@ -24,14 +24,13 @@
         }
         
         .comment-disclaimer {
-            margin-top: -35px !important;
+            margin-top: -50px !important;
             /* Light Slate Tint to stand out on white */
-            background: rgba(226, 232, 240, 0.9) !important;
+            background: rgba(226, 232, 240, 0.7) !important;
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
             padding: 12px;
             border-radius: 8px;
-            border: 1.5px solid #000000 !important;
             font-size: 11px;
             color: #1e293b;
             text-align: center;
@@ -55,7 +54,7 @@
             background: rgba(203, 213, 225, 0.4) !important;
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
-            border: 1.5px solid #000000;
+            border: 1px solid #000000;
             border-radius: 8px;
             margin-bottom: 12px;
             font-family: 'Montserrat', sans-serif;
@@ -68,7 +67,7 @@
             background: rgba(241, 245, 249, 0.7) !important;
             backdrop-filter: blur(15px);
             -webkit-backdrop-filter: blur(15px);
-            border: 1.5px solid #000000;
+            border: 1px solid #000000;
             border-radius: 12px;
             padding: 22px;
             margin-bottom: 20px;
