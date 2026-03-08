@@ -24,12 +24,12 @@
         }
         
         .comment-disclaimer {
-            margin-top: -60px !important;
+            margin-top: -80px !important;
             /* Light Slate Tint to stand out on white */
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
             padding: 12px;
-            font-size: 11px;
+            font-size: 14px;
             color: #1e293b;
             text-align: center;
             margin-bottom: 30px;
