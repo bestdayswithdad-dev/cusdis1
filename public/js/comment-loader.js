@@ -56,7 +56,7 @@
             margin-bottom: 12px;
             font-family: 'Montserrat', sans-serif;
             color: #0f172a;
-             box-shadow: 10px 10px 10px rgba(0, 0, 0, 0.2);
+             box-shadow: 10px 10px 10px 10px rgba(0, 0, 0, 0.1);
         }
 
         /* TINTED GLASS COMMENT CARDS */
@@ -69,7 +69,7 @@
             padding: 22px;
             margin-bottom: 20px;
             /* Stronger shadow to create the "Lifted" separation on white */
-            box-shadow: 10px 10px 10px rgba(0, 0, 0, 0.2);
+            box-shadow: 10px 10px 10px 10px rgba(0, 0, 0, 0.1);
         }
 
         .comment-header-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
