@@ -124,7 +124,7 @@
         .reply-item-container { margin-left: 25px; border-left: 2.5px solid #000000; padding-left: 18px; margin-top: 15px; }
  
     </style>
-
+;`
     const createCommentHtml = (comment) => {
         const isLiked = userLikes.has(String(comment.id));
         const voteCount = comment.votes_count || 0;
