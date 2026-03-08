@@ -92,6 +92,10 @@
             width: 200px;
             letter-spacing: 1.5px;
         }
+         .submit-review-btn:hover:not(.is-active) { 
+           color: #1e293b !important; /* Darker Slate */
+    transform: translateY(-1px) !important; /* Subtle lift */
+    }
         
         /* Updated Base Class with Transition */
 .executive-btn { 
