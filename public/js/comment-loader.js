@@ -3,6 +3,7 @@
     let currentUser = null;
     const PROJECT_ID = 'cbcd61ec-f2ef-425c-a952-30034c2de4e1';
 
+    // getCleanUrl logic preserved for Mobile/Desktop sync
     const getCleanUrl = () => window.location.href.split('?')[0].split('#')[0].replace(/\/$/, "");
 
     const getBadgeFromLocker = () => {
@@ -13,7 +14,9 @@
             return token?.user || null;
         } catch (e) { return null; }
     };
-     const styling = `
+
+    // Corrected CSS variable (removed stray semicolon at end)
+    const styling = `
     <style>
         #custom-comment-section {
             font-family: 'Montserrat', sans-serif !important;
@@ -24,7 +27,6 @@
         
         .comment-disclaimer {
             margin-top: -60px !important;
-            /* Light Slate Tint to stand out on white */
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
             padding: 12px;
@@ -43,32 +45,27 @@
         }
         .comment-disclaimer a:hover { color: #f59e0b !important; }
 
-        /* TINTED GLASS INPUTS */
         #comment-form input, #comment-form textarea {
             width: 100%;
             padding: 14px;
-            /* Using a darker Blue-Grey tint for visibility */
-           background: rgba(241, 245, 249, 0.7) !important;
+            background: rgba(241, 245, 249, 0.7) !important;
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             border-radius: 8px;
             margin-bottom: 15px;
             font-family: 'Montserrat', sans-serif;
             color: #0f172a;
-             box-shadow: 0 0 10px 2px rgba(0, 0, 0, 0.1);
-             border:none;
+            box-shadow: 0 0 10px 2px rgba(0, 0, 0, 0.1);
+            border: none;
         }
 
-        /* TINTED GLASS COMMENT CARDS */
         .comment-card {
-            /* Warm Slate tint so it doesn't blend into the white background */
             background: rgba(241, 245, 249, 0.7) !important;
             backdrop-filter: blur(15px);
             -webkit-backdrop-filter: blur(15px);
             border-radius: 12px;
             padding: 22px;
             margin-bottom: 20px;
-            /* Stronger shadow to create the "Lifted" separation on white */
             box-shadow: 0 0 10px 2px rgba(0, 0, 0, 0.1);
         }
 
@@ -91,42 +88,38 @@
             width: 200px;
             letter-spacing: 1.5px;
         }
-         .submit-review-btn:hover:not(.is-active) { 
-         background: #1e293b !important;
-    transform: translateY(-1px) !important; /* Subtle lift */
-    }
+        .submit-review-btn:hover:not(.is-active) { 
+            background: #1e293b !important;
+            transform: translateY(-1px) !important;
+        }
         
-        /* Updated Base Class with Transition */
-.executive-btn { 
-    background: none; 
-    border: none; 
-    font-family: 'Montserrat', sans-serif; 
-    font-size: 11px; 
-    font-weight: 800; 
-    cursor: pointer; 
-    color: #475569; 
-    margin-right: 15px; 
-    padding: 0; 
-    text-transform: uppercase;
-    transition: all 0.2s ease; /* Makes the hover/active state smooth */
-    position: relative; /* For the optional underline effect */
-}
+        .executive-btn { 
+            background: none; 
+            border: none; 
+            font-family: 'Montserrat', sans-serif; 
+            font-size: 11px; 
+            font-weight: 800; 
+            cursor: pointer; 
+            color: #475569; 
+            margin-right: 15px; 
+            padding: 0; 
+            text-transform: uppercase;
+            transition: all 0.2s ease;
+            position: relative;
+        }
 
-/* Hover Effect */
-.executive-btn:hover:not(.is-active) { 
-    color: #1e293b !important; /* Darker Slate */
-    transform: translateY(-1px) !important; /* Subtle lift */
-}
+        .executive-btn:hover:not(.is-active) { 
+            color: #1e293b !important;
+            transform: translateY(-1px) !important;
+        }
 
-/* Active State (Your existing red) */
-.executive-btn.is-active { 
-    color: #ef4444 !important; 
-    transform: translateY(0); /* Resets the lift when active */
-}
+        .executive-btn.is-active { 
+            color: #ef4444 !important; 
+            transform: translateY(0);
+        }
 
         .reply-item-container { margin-left: 25px; border-left: 2.5px solid #000000; padding-left: 18px; margin-top: 15px; }
- 
-    </style>
+    </style>`;
 
     const createCommentHtml = (comment) => {
         const isLiked = userLikes.has(String(comment.id));
