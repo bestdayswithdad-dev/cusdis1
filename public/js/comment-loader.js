@@ -33,6 +33,7 @@
             color: #1e293b;
             text-align: center;
             margin-bottom: 30px;
+            margin-top: -30px;
             font-weight: 800;
             text-transform: uppercase;
         }
@@ -68,7 +69,7 @@
             padding: 22px;
             margin-bottom: 20px;
             /* Stronger shadow to create the "Lifted" separation on white */
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
         }
 
         .comment-header-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
@@ -87,7 +88,7 @@
             font-weight: 800;
             text-transform: uppercase;
             cursor: pointer;
-            width: 100%;
+            width: 200px;
             letter-spacing: 1.5px;
         }
         
