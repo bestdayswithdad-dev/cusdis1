@@ -23,7 +23,7 @@
         }
         
         .comment-disclaimer {
-            margin-top: -100px !important;
+            margin-top: -60px !important;
             /* Light Slate Tint to stand out on white */
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
