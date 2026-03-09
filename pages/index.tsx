@@ -68,7 +68,7 @@ export default function ModerationCenter() {
       },
       body: JSON.stringify({
         content: replyContent,
-        nickname: "Host",
+        nickname: "Adam - BDWD",
         pageId: replyModal.pageId,
         pageTitle: replyModal.pageTitle,
         parentId: replyModal.parentId, // Correctly threads the reply
