@@ -90,7 +90,7 @@
 
         #comment-body {
             flex: 1;
-            border: none !important;
+            border: 1px solid #e2e8f0;
             background: transparent !important;
             padding: 8px 0;
             font-family: 'Montserrat', sans-serif;
@@ -98,7 +98,7 @@
             color: #1e293b;
             resize: none;
             outline: none !important;
-            box-shadow: none !important;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
             min-height: 24px;
             max-height: 200px; 
             line-height: 1.5;
