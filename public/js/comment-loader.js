@@ -70,7 +70,8 @@
             box-shadow: 0 0 10px 2px rgba(0, 0, 0, 0.1);
             transition: background 0.3s ease;
             text-align: center;
-            margin-top:-35px;
+            margin-top:-30px;
+            width:100px;
         }
 
         .auth-bar.is-logged-in {
