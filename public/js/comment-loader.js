@@ -15,13 +15,14 @@
         } catch (e) { return null; }
     };
 
-    // 3. UI STYLING
+    // 3. UI STYLING: Full Project Styles
     const styling = `
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;800;900&display=swap');
         
         #custom-comment-section { font-family: 'Montserrat', sans-serif !important; padding: 0; background: transparent !important; }
         
+        /* THE -35px MARGIN GAP FIX */
         .comment-disclaimer {
             margin-top: -35px !important; 
             padding: 12px;
@@ -40,7 +41,9 @@
         }
         .comment-disclaimer a:hover, .auth-policy-link:hover { opacity: 0.7; text-decoration: underline !important; }
 
-        .auth-policy-link { font-size: 9px; margin-left: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+        /* PRIVACY POLICY STYLING */
+        .auth-policy-note { font-size: 9px; font-weight: 700; color: #64748b; margin-top: 6px; text-transform: uppercase; display: block; }
+        .auth-policy-note a { color: #2563eb !important; text-decoration: none !important; }
 
         #comment-form input, #comment-form textarea {
             width: 100%;
@@ -99,6 +102,7 @@
         .comment-header-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
         .comment-author-name { font-weight: 800; font-size: 16px; color: #94a3b8; }
         
+        /* ADVENTURE BADGES: TEXT ONLY */
         .casual-adventurer-badge { color: #5C9AFF !important; font-size: 11px; font-weight: 800; text-transform: uppercase; margin-left: 8px; }
         .park-scout-badge { color: #059669 !important; font-size: 11px; font-weight: 800; text-transform: uppercase; margin-left: 8px; }
         .mod-badge-text { color: #f59e0b !important; font-size: 11px; font-weight: 800; text-transform: uppercase; margin-left: 8px; }
@@ -140,7 +144,7 @@
         }
     </style>`;
 
-    // 4. COMPONENT: Builds HTML with Adventure Tiers
+    // 4. COMPONENT: Comment Builder
     const createCommentHtml = (comment) => {
         const isLiked = userLikes.has(String(comment.id));
         const voteCount = comment.votes_count || 0;
@@ -175,7 +179,7 @@
             </div>`;
     };
 
-    // 5. TREE LOGIC: Recursive nesting
+    // 5. TREE LOGIC: Recursive threading
     const renderTree = (allComments, parentId) => {
         const children = allComments.filter(c => String(c.parentId) === String(parentId));
         return children.map(child => `
@@ -205,20 +209,24 @@
             const comments = Array.isArray(data) ? data : (data.comments || []);
             const rootComments = comments.filter(c => !c.parentId);
             
-            // Updated Auth Bar with new phrasing and Privacy Policy link
+            // AUTH BAR: "FULL EXPERIENCE" + Privacy Policy placement
             let authBarHtml = `
                 <div class="auth-bar ${currentUser?.user ? 'is-logged-in' : ''}">
-                    <div style="display: flex; align-items: center;">
+                    <div style="display: flex; flex-direction: column;">
                         ${currentUser?.user ? 
                             `<span style="font-size: 11px; font-weight: 800; color: #065f46;">✓ VERIFIED: ${currentUser.user.email}</span>` : 
                             `<span style="font-size: 11px; font-weight: 800; color: #2563eb;">SIGN IN FOR THE FULL EXPERIENCE</span>`
                         }
-                        <a href="/p/privacy-policy.html" class="auth-policy-link">Privacy Policy</a>
                     </div>
-                    ${currentUser?.user ? 
-                        `<button onclick="window.handleSignOut()" style="background: none; border: none; font-size: 10px; font-weight: 900; cursor: pointer; color: #ef4444;">LOG OUT</button>` : 
-                        `<button onclick="window.handleSignIn()" style="background: #2563eb; color: white; border: none; padding: 8px 14px; border-radius: 4px; font-size: 10px; font-weight: 800; cursor: pointer;">SIGN IN WITH GOOGLE</button>`
-                    }
+                    <div style="text-align: right;">
+                        ${currentUser?.user ? 
+                            `<button onclick="window.handleSignOut()" style="background: none; border: none; font-size: 10px; font-weight: 900; cursor: pointer; color: #ef4444;">LOG OUT</button>` : 
+                            `<div>
+                                <button onclick="window.handleSignIn()" style="background: #2563eb; color: white; border: none; padding: 8px 14px; border-radius: 4px; font-size: 10px; font-weight: 800; cursor: pointer;">SIGN IN WITH GOOGLE</button>
+                                <span class="auth-policy-note">Before signing in, please read our <a href="/p/privacy-policy.html">Privacy Policy</a></span>
+                             </div>`
+                        }
+                    </div>
                 </div>
             `;
 
@@ -281,9 +289,7 @@
             method: 'POST', 
             headers: { 'Content-Type': 'application/json', 'Authorization': token ? `Bearer ${token}` : '' }, 
             body: JSON.stringify({ 
-                content, 
-                nickname, 
-                pageId: getCleanUrl(),
+                content, nickname, pageId: getCleanUrl(),
                 pageTitle: document.title.split(' : ')[0],
                 parentId: parentId || null,
                 by_email: email
@@ -291,10 +297,7 @@
         }); 
 
         if (res.ok) { 
-            const successMsg = token 
-                ? "✓ Scout Report Logged! Thanks for contributing." 
-                : "✓ Comment Sent! Refreshing the feed...";
-                
+            const successMsg = token ? "✓ Scout Report Logged! Thanks for contributing." : "✓ Comment Sent! Refreshing the feed...";
             document.getElementById('submit-msg').innerHTML = `<div class="submit-msg-success">${successMsg}</div>`;
             document.getElementById('comment-body').value = ""; 
             document.getElementById('parent-id').value = "";
@@ -307,8 +310,7 @@
     window.handleSignIn = async () => {
         localStorage.removeItem('sb-yfcqtkrayecpkkuzivvf-auth-token');
         await window.supabaseClient.auth.signInWithOAuth({
-            provider: 'google',
-            options: { redirectTo: window.location.href, queryParams: { prompt: 'select_account' } }
+            provider: 'google', options: { redirectTo: window.location.href, queryParams: { prompt: 'select_account' } }
         });
     };
 
