@@ -20,7 +20,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader('Access-Control-Allow-Credentials', 'true')
   if (req.method === 'OPTIONS') return res.status(200).end()
 
-  // Capture IP Address for Best Days With Dad security
+  // Capture mobile IP from Vercel headers
   const forwarded = req.headers['x-forwarded-for']
   const clientIp = typeof forwarded === 'string' 
     ? forwarded.split(',')[0] 
@@ -30,11 +30,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { pageId } = req.query
     if (!pageId) return res.status(400).json({ error: 'pageId is required' })
     try {
-      const comments = await prisma.comment.findMany({ // Switched to singular
+      const comments = await prisma.comment.findMany({
         where: {
           approved: true,
-          project_id: PROJECT_ID,
-          OR: [{ page_id: String(pageId) }, { pages: { slug: String(pageId) } }]
+          projectId: PROJECT_ID, // Changed to camelCase
+          OR: [{ pageId: String(pageId) }, { Page: { slug: String(pageId) } }] // Changed to camelCase
         },
         orderBy: { created_at: 'asc' }
       })
@@ -65,29 +65,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       || 'Guest')
 
     try {
-      // Find or Create Page using findFirst
+      // Find or Create Page using findFirst (No unique constraint on slug)
       let page = await prisma.page.findFirst({ where: { slug: pageId } })
       if (!page) {
         page = await prisma.page.create({
           data: {
+            id: crypto.randomUUID(),
             slug: pageId,
-            title: pageId.split('/').pop()?.split('-').join(' ') ?? 'New Post',
-            project_id: PROJECT_ID
+            title: pageId.split('/').pop()?.split('-').join(' ') ?? 'New Post', // Auto-generate title
+            projectId: PROJECT_ID
           }
         })
       }
 
-      // Create Comment with IP and Auth info
+      // Create Comment with captured mobile IP and Verified Reader info
       const newComment = await prisma.comment.create({
         data: {
+          id: crypto.randomUUID(),
           content,
-          nickname: displayName,
-          email: userEmail,
-          ip: clientIp || '0.0.0.0', // Capture mobile IP
-          approved: isVerified || isHost, // Bypass moderation for verified users
-          project_id: PROJECT_ID,
-          userId: user?.id || null,
-          page_id: page.id
+          by_nickname: displayName,
+          by_email: userEmail,
+          ip: clientIp || '0.0.0.0', // This saves the IP for your dashboard
+          approved: isVerified || isHost, // Verified Readers skip moderation
+          projectId: PROJECT_ID,
+          Page: { connect: { id: page.id } }
         }
       })
       return res.status(201).json(serialize(newComment))
