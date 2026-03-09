@@ -7,7 +7,7 @@ import {
 } from '@mantine/core'
 import { 
   AiOutlineCheck, AiOutlineDelete, AiOutlineMessage, 
-  AiOutlineFileText, AiOutlineClockCircle, 
+  AiOutlineFileText, AiOutlineClockCircle 
 } from 'react-icons/ai'
 
 const ADMIN_EMAIL = 'bestdayswithdad@gmail.com'
@@ -23,10 +23,8 @@ export default function ModerationCenter() {
 
   const fetchComments = async () => {
     try {
-        // Points back to your moderator bridge
         const res = await fetch('/api/moderator-bridge') 
         const data = await res.json()
-        // Support both array and object responses
         const fetched = data.comments || data
         setComments(Array.isArray(fetched) ? fetched : [])
     } catch (err) { 
@@ -48,11 +46,10 @@ export default function ModerationCenter() {
   const organizedData = useMemo(() => {
     if (!Array.isArray(comments)) return { pending: [], pageGroups: {} };
     
-    // In your stack: status 0 is pending, status 1 is approved
     const pending = comments.filter(c => c.status === 0);
     
     const pageGroups = comments.reduce((acc: any, c) => {
-      // Fix: Access plural 'pages' relation per your schema
+      // Accessing plural 'pages' relation per project schema
       const title = c.pages?.title || 'General / Legacy'; 
       if (!acc[title]) acc[title] = [];
       acc[title].push(c);
@@ -63,13 +60,25 @@ export default function ModerationCenter() {
   }, [comments]);
 
   const handleApprove = async (id: string) => {
-    await fetch(`/api/moderator-bridge?id=${id}`, { method: 'PATCH' })
+    const { data: { session } } = await supabase.auth.getSession();
+    await fetch(`/api/moderator-bridge?id=${id}`, { 
+        method: 'PATCH',
+        headers: { 
+            'Authorization': `Bearer ${session?.access_token}` // Pattern matched to Reply button
+        }
+    })
     fetchComments()
   }
 
   const handleDelete = async (id: string) => {
     if (confirm("Permanently delete this comment?")) {
-      await fetch(`/api/moderator-bridge?id=${id}`, { method: 'DELETE' })
+      const { data: { session } } = await supabase.auth.getSession();
+      await fetch(`/api/moderator-bridge?id=${id}`, { 
+          method: 'DELETE',
+          headers: { 
+              'Authorization': `Bearer ${session?.access_token}` // Pattern matched to Reply button
+          }
+      })
       fetchComments()
     }
   }
@@ -90,7 +99,7 @@ export default function ModerationCenter() {
         pageId: replyModal.pageId,
         pageTitle: replyModal.pageTitle,
         parentId: replyModal.parentId,
-        by_email: ADMIN_EMAIL // Triggers Host/MOD badge
+        by_email: ADMIN_EMAIL
       })
     });
 
@@ -124,7 +133,6 @@ export default function ModerationCenter() {
               <Text size="xs" weight={700}>{c.pages?.title || 'General'}</Text>
             </td>
             <td>
-                {/* status 1 = approved/public */}
                 {c.status === 1 ? <Badge color="green">Public</Badge> : <Badge color="yellow">Pending</Badge>}
             </td>
             <td>
@@ -158,17 +166,29 @@ export default function ModerationCenter() {
 
         <Tabs defaultValue="pending">
           <Tabs.List>
-            <Tabs.Tab value="pending" icon={<AiOutlineClockCircle />}>Pending ({organizedData.pending.length})</Tabs.Tab>
-            <Tabs.Tab value="all">All</Tabs.Tab>
-            {Object.keys(organizedData.pageGroups).map(title => (
-              <Tabs.Tab key={title} value={title} icon={<AiOutlineFileText />}>{title}</Tabs.Tab>
+            <Tabs.Tab value="pending" icon={<AiOutlineClockCircle />}>
+              Pending ({organizedData.pending.length})
+            </Tabs.Tab>
+            <Tabs.Tab value="all">
+              All ({comments.length})
+            </Tabs.Tab>
+            {Object.entries(organizedData.pageGroups).map(([title, data]: [string, any]) => (
+              <Tabs.Tab key={title} value={title} icon={<AiOutlineFileText />}>
+                {title} ({data.length})
+              </Tabs.Tab>
             ))}
           </Tabs.List>
 
-          <Tabs.Panel value="pending" pt="md"><Paper withBorder p="md"><CommentTable data={organizedData.pending} /></Paper></Tabs.Panel>
-          <Tabs.Panel value="all" pt="md"><Paper withBorder p="md"><CommentTable data={comments} /></Paper></Tabs.Panel>
+          <Tabs.Panel value="pending" pt="md">
+            <Paper withBorder p="md"><CommentTable data={organizedData.pending} /></Paper>
+          </Tabs.Panel>
+          <Tabs.Panel value="all" pt="md">
+            <Paper withBorder p="md"><CommentTable data={comments} /></Paper>
+          </Tabs.Panel>
           {Object.entries(organizedData.pageGroups).map(([title, data]: any) => (
-            <Tabs.Panel key={title} value={title} pt="md"><Paper withBorder p="md"><CommentTable data={data} /></Paper></Tabs.Panel>
+            <Tabs.Panel key={title} value={title} pt="md">
+              <Paper withBorder p="md"><CommentTable data={data} /></Paper>
+            </Tabs.Panel>
           ))}
         </Tabs>
 
