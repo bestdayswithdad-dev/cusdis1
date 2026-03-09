@@ -128,7 +128,6 @@
             font-weight: 700;
             text-transform: uppercase;
             text-align: center;
-            margin-top: -35px !important; 
             padding-bottom: 30px;
             line-height: 1.6;
             letter-spacing: 0.3px;
