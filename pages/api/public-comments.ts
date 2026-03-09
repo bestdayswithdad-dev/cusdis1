@@ -2,14 +2,12 @@ import { PrismaClient } from '@prisma/client'
 import { NextApiRequest, NextApiResponse } from 'next'
 import { createPagesServerClient } from '@supabase/auth-helpers-nextjs'
 
-// Singleton — prevents connection pool exhaustion on Vercel serverless
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }
 const prisma = globalForPrisma.prisma ?? new PrismaClient()
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 
 const PROJECT_ID = 'cbcd61ec-f2ef-425c-a952-30034c2de4e1'
 
-// Safely serializes BigInt without mutating global prototypes
 const serialize = (data: unknown) =>
   JSON.parse(JSON.stringify(data, (_, value) =>
     typeof value === 'bigint' ? value.toString() : value
@@ -22,15 +20,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader('Access-Control-Allow-Credentials', 'true')
   if (req.method === 'OPTIONS') return res.status(200).end()
 
+  // --- CAPTURE IP ADDRESS ---
+  const forwarded = req.headers['x-forwarded-for']
+  const clientIp = typeof forwarded === 'string' 
+    ? forwarded.split(',')[0] 
+    : req.socket.remoteAddress
+
   if (req.method === 'GET') {
     const { pageId } = req.query
     if (!pageId) return res.status(400).json({ error: 'pageId is required' })
     try {
-      const comments = await prisma.comment.findMany({
+      const comments = await prisma.comments.findMany({ // Plural table
         where: {
           approved: true,
-          projectId: PROJECT_ID,
-          OR: [{ pageId: String(pageId) }, { Page: { slug: String(pageId) } }]
+          project_id: PROJECT_ID,
+          OR: [{ page_id: String(pageId) }, { pages: { slug: String(pageId) } }]
         },
         orderBy: { created_at: 'asc' }
       })
@@ -47,43 +51,43 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'content and pageId are required' })
     }
 
-    // getUser() validates JWT server-side via Authorization header
-    // Blogger must pass: Authorization: Bearer <supabase_access_token>
     const supabase = createPagesServerClient({ req, res })
     const { data: { user } } = await supabase.auth.getUser()
 
     const isVerified = !!user
     const userEmail = user?.email ?? 'guest@example.com'
+    const isHost = userEmail === 'bestdayswithdad@gmail.com'
 
-    // Derive a sensible display name from auth metadata if no nickname provided
-    const displayName = nickname
+    const displayName = isHost ? "Host" : (nickname
       || user?.user_metadata?.full_name
       || user?.user_metadata?.name
       || user?.email?.split('@')[0]
-      || 'Guest'
+      || 'Guest')
 
     try {
-      let page = await prisma.page.findFirst({ where: { slug: pageId } })
+      // 1. Find or Create Page using findFirst (No unique constraint on slug)
+      let page = await prisma.pages.findFirst({ where: { slug: pageId } })
       if (!page) {
-        page = await prisma.page.create({
+        page = await prisma.pages.create({
           data: {
-            id: crypto.randomUUID(),
             slug: pageId,
             title: pageId.split('/').pop()?.split('-').join(' ') ?? 'New Post',
-            projectId: PROJECT_ID
+            project_id: PROJECT_ID
           }
         })
       }
 
-      const newComment = await prisma.comment.create({
+      // 2. Create Comment with IP and Auth info
+      const newComment = await prisma.comments.create({
         data: {
-          id: crypto.randomUUID(),
           content,
-          by_nickname: displayName,
-          by_email: userEmail,
-          approved: isVerified,   // signed-in users skip moderation
-          projectId: PROJECT_ID,
-          Page: { connect: { id: page.id } }
+          nickname: displayName,
+          email: userEmail,
+          ip: clientIp || '0.0.0.0', // SAVES IP TO SUPABASE
+          approved: isVerified || isHost, // Signed-in users & Host skip moderation
+          project_id: PROJECT_ID,
+          userId: user?.id || null,
+          page_id: page.id
         }
       })
       return res.status(201).json(serialize(newComment))
