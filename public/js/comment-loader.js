@@ -132,6 +132,15 @@
     };
 
     const render = async () => {
+        // --- JANITOR LOGIC START ---
+        // Checks if we just returned from a Google login and wipes the token from the URL
+        if (window.location.hash.includes('access_token')) {
+            setTimeout(() => {
+                window.history.replaceState(null, null, window.location.pathname + window.location.search);
+            }, 500);
+        }
+        // --- JANITOR LOGIC END ---
+
         const container = document.getElementById('custom-comment-section');
         if (!container) return;
         currentUser = getBadgeFromLocker();
