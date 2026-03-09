@@ -70,7 +70,7 @@
             box-shadow: 0 0 10px 2px rgba(0, 0, 0, 0.1);
             transition: background 0.3s ease;
             text-align: center;
-            margin-top:-30px;
+            margin-top: -25px;
             margin-left:auto;
             margin-right:auto;
         }
@@ -233,7 +233,6 @@
                             <button onclick="window.handleSignOut()" style="background: none; border: none; font-size: 12px; font-weight: 900; cursor: pointer; color: #ef4444; text-transform: uppercase;">LOG OUT</button>
                          </div>` : 
                         `<div>
-                            <span style="font-size: 12px; font-weight: 800; color: #2563eb; display: block; margin-bottom: 15px;">SIGN IN FOR THE FULL EXPERIENCE</span>
                             <button onclick="window.handleSignIn()" style="background: #2563eb; color: white; border: none; padding: 12px 24px; border-radius: 4px; font-size: 11px; font-weight: 800; cursor: pointer; margin-bottom: 10px;">SIGN IN WITH GOOGLE</button>
                             <span class="auth-policy-note">Before signing in, please read our <a href="https://www.bestdayswithdad.com/p/privacy-agreement.html">Privacy Policy</a></span>
                          </div>`
