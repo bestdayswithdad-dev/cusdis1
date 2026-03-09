@@ -127,6 +127,12 @@
             display: block;
             margin: 0 auto;
         }
+        
+        .submit-review-btn:hover {
+            background: #475569 !important; /* Lighter Slate */
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
 
         .submit-msg-success {
             margin-top: 15px;
@@ -223,8 +229,8 @@
                 <div class="auth-bar ${currentUser?.user ? 'is-logged-in' : ''}">
                     ${currentUser?.user ? 
                         `<div>
-                            <span style="font-size: 11px; font-weight: 800; color: #065f46; display: block; margin-bottom: 10px;">✓ VERIFIED: ${currentUser.user.email}</span>
-                            <button onclick="window.handleSignOut()" style="background: none; border: none; font-size: 10px; font-weight: 900; cursor: pointer; color: #ef4444; text-transform: uppercase;">LOG OUT</button>
+                            <span style="font-size: 11px; font-weight: 800; color: #065f46; display: block; margin-bottom: 10px;">✓ SIGNED IN: ${currentUser.user.email}</span>
+                            <button onclick="window.handleSignOut()" style="background: none; border: none; font-size: 12px; font-weight: 900; cursor: pointer; color: #ef4444; text-transform: uppercase;">LOG OUT</button>
                          </div>` : 
                         `<div>
                             <span style="font-size: 12px; font-weight: 800; color: #2563eb; display: block; margin-bottom: 15px;">SIGN IN FOR THE FULL EXPERIENCE</span>
