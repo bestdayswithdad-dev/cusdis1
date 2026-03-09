@@ -10,7 +10,7 @@
             const tokenString = localStorage.getItem('sb-yfcqtkrayecpkkuzivvf-auth-token');
             if (!tokenString) return null;
             const token = JSON.parse(tokenString);
-            return token?.user || null;
+            return token;
         } catch (e) { return null; }
     };
 
@@ -28,7 +28,6 @@
             text-transform: uppercase;
         }
         
-        /* RESTORED POLICY LINK HOVER */
         .comment-disclaimer a { 
             text-decoration: none !important; 
             color: #2563eb !important; 
@@ -48,15 +47,22 @@
             border: none;
         }
 
+        /* UPDATED AUTH BAR: Matched to inputs, no border, green when logged in */
         .auth-bar {
             display: flex; 
             justify-content: space-between; 
             align-items: center; 
             margin-bottom: 20px; 
-            padding: 12px; 
-            background: rgba(37, 99, 235, 0.05); 
-            border: 1px dashed #2563eb;
+            padding: 16px; 
+            background: rgba(241, 245, 249, 0.7) !important; /* Matched to inputs */
             border-radius: 8px;
+            box-shadow: 0 0 10px 2px rgba(0, 0, 0, 0.1); /* Matched to inputs */
+            transition: background 0.3s ease;
+        }
+
+        .auth-bar.is-logged-in {
+            background: rgba(5, 150, 105, 0.1) !important; /* Soft Green */
+            border: 1px solid rgba(5, 150, 105, 0.3);
         }
 
         .executive-btn { 
@@ -89,7 +95,6 @@
         .verified-reader-badge { color: #5C9AFF !important; font-size: 12px; font-weight: 800; text-transform: uppercase; }
         .host-badge { background: #f59e0b !important; color: white !important; padding: 3px 10px; border-radius: 4px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
         
-        /* RESTORED POST BUTTON HOVER */
         .submit-review-btn {
             background: #334155 !important;
             color: white !important;
@@ -119,7 +124,7 @@
     const createCommentHtml = (comment) => {
         const isLiked = userLikes.has(String(comment.id));
         const voteCount = comment.votes_count || 0;
-        const isAdmin = currentUser?.email === 'bestdayswithdad@gmail.com';
+        const isAdmin = currentUser?.user?.email === 'bestdayswithdad@gmail.com';
         const isGuest = comment.by_email === 'guest@example.com' || !comment.userId;
 
         return `
@@ -146,7 +151,6 @@
     };
 
     const render = async () => {
-        // --- JANITOR LOGIC ---
         if (window.location.hash.includes('access_token')) {
             setTimeout(() => {
                 window.history.replaceState(null, null, window.location.pathname + window.location.search);
@@ -163,10 +167,11 @@
             const comments = await res.json();
             const rootComments = comments.filter(c => !c.parentId && !c.parent_id);
             
+            // Apply .is-logged-in class if user is present
             let authBarHtml = `
-                <div class="auth-bar">
-                    ${currentUser ? 
-                        `<span style="font-size: 11px; font-weight: 800; color: #1e293b;">✓ LOGGED IN: ${currentUser.email}</span>
+                <div class="auth-bar ${currentUser?.user ? 'is-logged-in' : ''}">
+                    ${currentUser?.user ? 
+                        `<span style="font-size: 11px; font-weight: 800; color: #065f46;">✓ VERIFIED: ${currentUser.user.email}</span>
                          <button onclick="window.handleSignOut()" style="background: none; border: none; font-size: 10px; font-weight: 900; cursor: pointer; color: #ef4444;">LOG OUT</button>` : 
                         `<span style="font-size: 11px; font-weight: 800; color: #2563eb;">WANT "VERIFIED" STATUS?</span>
                          <button onclick="window.handleSignIn()" style="background: #2563eb; color: white; border: none; padding: 8px 14px; border-radius: 4px; font-size: 10px; font-weight: 800; cursor: pointer;">SIGN IN WITH GOOGLE</button>`
@@ -179,7 +184,7 @@
                     <div class="comment-disclaimer">By posting, you agree to our <a href="/p/comment-policy.html">Comment Policy</a>.</div>
                     
                     <div id="comment-form" style="margin-bottom:35px; text-align: center;">
-                        <input type="text" id="nickname" placeholder="Your Nickname" value="${currentUser?.user_metadata?.full_name || ''}" />
+                        <input type="text" id="nickname" placeholder="Your Nickname" value="${currentUser?.user?.user_metadata?.full_name || ''}" />
                         <textarea id="comment-body" placeholder="Share your experience..." rows="4"></textarea>
                         <input type="hidden" id="parent-id" value="" />
                         
@@ -226,8 +231,8 @@
         const parentId = document.getElementById('parent-id').value;
         if (!content || !nickname) return; 
 
-        const lockerData = localStorage.getItem('sb-yfcqtkrayecpkkuzivvf-auth-token');
-        const token = lockerData ? JSON.parse(lockerData).access_token : null;
+        const lockerData = getBadgeFromLocker();
+        const token = lockerData ? lockerData.access_token : null;
 
         const res = await fetch('https://cusdis-jet-one.vercel.app/api/public-comments', { 
             method: 'POST', 
@@ -236,7 +241,8 @@
                 content, 
                 nickname, 
                 pageId: getCleanUrl(),
-                parentId: parentId || null 
+                parentId: parentId || null,
+                isVerified: !!token
             }) 
         }); 
 
