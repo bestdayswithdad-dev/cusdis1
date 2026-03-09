@@ -17,15 +17,27 @@ export default function ModerationCenter() {
   const supabase = createClientComponentClient()
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [comments, setComments] = useState<any[]>([])
+  const [comments, setComments] = useState<any[]>([]) // Initialized as empty array
   const [emailData, setEmailData] = useState({ to: '', subject: '', body: '' })
 
   const fetchComments = async () => {
-    // Note: Fetches from your Vercel API
-    const res = await fetch('/api/public-comments') 
-    const data = await res.json()
-    // Aligning with the Vercel API response structure
-    setComments(data.comments || data || []) 
+    try {
+        const res = await fetch('/api/public-comments') 
+        const data = await res.json()
+        
+        // SAFETY CHECK: Ensure we only set the state if data is an array
+        if (Array.isArray(data)) {
+            setComments(data)
+        } else if (data.comments && Array.isArray(data.comments)) {
+            setComments(data.comments)
+        } else {
+            console.error("API returned non-array data:", data)
+            setComments([]) // Fallback to empty list to prevent crash
+        }
+    } catch (err) {
+        console.error("Failed to fetch comments:", err)
+        setComments([])
+    }
   }
 
   useEffect(() => {
@@ -39,10 +51,12 @@ export default function ModerationCenter() {
   }, [supabase])
 
   const organizedData = useMemo(() => {
+    // SAFETY CHECK: If comments isn't an array yet, return empty groups
+    if (!Array.isArray(comments)) return { flagged: [], pending: [], pageGroups: {} };
+
     const flagged = comments.filter(c => c.content?.toLowerCase().includes('http')); 
     const pending = comments.filter(c => !c.approved && !c.content?.toLowerCase().includes('http'));
 
-    // Reconstructs the Page Name Tabs using the singular 'Page' object
     const pageGroups = comments.reduce((acc: any, c) => {
       const title = c.Page?.title || 'General / Legacy'; 
       if (!acc[title]) acc[title] = [];
@@ -69,22 +83,6 @@ export default function ModerationCenter() {
     }
   }
 
-  const prepareWarning = (email: string, content: string) => {
-    setEmailData({
-      to: email || '',
-      subject: 'Policy Violation Warning - Best Days With Dad',
-      body: `Hi,\n\nYour recent comment ("${content}") has been flagged for violating our community guidelines. Please ensure future posts remain respectful.\n\nBest,\nMod Team`
-    })
-  }
-
-  const prepareReply = (email: string, content: string) => {
-    setEmailData({
-      to: email || '',
-      subject: 'Moderator Response to your Review',
-      body: `\n\n--- In response to your comment ---\n"${content}"\n\nHi! Thanks for reaching out. My answer to your question is...`
-    })
-  }
-
   const CommentTable = ({ data }: { data: any[] }) => (
     <Table verticalSpacing="md" horizontalSpacing="md" fontSize="md">
       <thead>
@@ -100,15 +98,11 @@ export default function ModerationCenter() {
         {data.map((c) => (
           <tr key={c.id}>
             <td style={{ minWidth: '180px' }}>
-              {/* RESTORED: Uses by_nickname instead of 'Guest' */}
               <Text size="md" weight={700} color="dark">{c.by_nickname || 'Guest'}</Text>
               <Text size="xs" color="dimmed" weight={500}>{c.by_email}</Text>
-              
               <Group spacing={4} mt={4}>
                 <AiOutlineGlobal size="0.8rem" color="gray" />
-                <Text size="xs" color="blue" italic>
-                  {c.ip || 'No IP Captured'}
-                </Text>
+                <Text size="xs" color="blue" italic>{c.ip || 'No IP Captured'}</Text>
               </Group>
             </td>
             <td><Text size="md" style={{ lineHeight: 1.5 }}>{c.content}</Text></td>
@@ -123,19 +117,13 @@ export default function ModerationCenter() {
                c.content?.toLowerCase().includes('http') ? <Badge color="red">SPAM/LINK</Badge> :
                <Badge color="yellow">Pending</Badge>}
             </td>
-            <td>
+            <td style={{ textAlign: 'right' }}>
               <Group spacing="xs" position="right">
                 {!c.approved && (
                   <ActionIcon size="lg" color="green" variant="filled" onClick={() => handleApprove(c.id)} title="Approve">
                     <AiOutlineCheck size="1.4rem" />
                   </ActionIcon>
                 )}
-                <ActionIcon size="lg" color="orange" variant="light" onClick={() => prepareWarning(c.by_email, c.content)} title="Warning">
-                  <AiOutlineAlert size="1.4rem" />
-                </ActionIcon>
-                <ActionIcon size="lg" color="blue" variant="light" onClick={() => prepareReply(c.by_email, c.content)} title="Reply">
-                  <AiOutlineMessage size="1.4rem" />
-                </ActionIcon>
                 <ActionIcon size="lg" color="red" variant="subtle" onClick={() => handleDelete(c.id)} title="Delete">
                   <AiOutlineDelete size="1.4rem" />
                 </ActionIcon>
@@ -201,18 +189,6 @@ export default function ModerationCenter() {
             </Tabs.Panel>
           ))}
         </Tabs>
-
-        <Divider label="Policy Enforcement Email" labelPosition="center" />
-        <Paper withBorder p="xl" bg="gray.0" shadow="sm">
-          <Stack spacing="md">
-            <TextInput label="Recipient" value={emailData.to} readOnly />
-            <TextInput label="Subject" value={emailData.subject} onChange={(e) => setEmailData({...emailData, subject: e.target.value})} />
-            <Textarea label="Message" minRows={6} value={emailData.body} onChange={(e) => setEmailData({...emailData, body: e.target.value})} />
-            <Button size="lg" color="dark" fullWidth onClick={() => alert("Email logic connection required")}>
-              Send Official Mod Email
-            </Button>
-          </Stack>
-        </Paper>
       </Stack>
     </Container>
   )
