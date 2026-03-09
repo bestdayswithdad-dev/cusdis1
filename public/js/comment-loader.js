@@ -3,7 +3,7 @@
     let currentUser = null;
     const PROJECT_ID = 'cbcd61ec-f2ef-425c-a952-30034c2de4e1';
 
-    // getCleanUrl logic for Mobile/Desktop sync
+    // Syncs Desktop and Mobile (?m=1) comments
     const getCleanUrl = () => window.location.href.split('?')[0].split('#')[0].replace(/\/$/, "");
 
     const getBadgeFromLocker = () => {
@@ -17,11 +17,7 @@
 
     const styling = `
     <style>
-        #custom-comment-section { 
-            font-family: 'Montserrat', sans-serif !important; 
-            padding: 0; 
-            background: transparent !important; 
-        }
+        #custom-comment-section { font-family: 'Montserrat', sans-serif !important; padding: 0; background: transparent !important; }
         
         .comment-disclaimer {
             margin-top: -35px !important; 
@@ -57,7 +53,6 @@
             border-radius: 8px;
         }
 
-        /* RESTORED EXECUTIVE BUTTONS & COLOR LOGIC */
         .executive-btn { 
             background: none; 
             border: none; 
@@ -99,7 +94,6 @@
             text-transform: uppercase;
         }
 
-        /* RESTORED REPLY INDENTATION */
         .reply-item-container { 
             margin-left: 25px; 
             border-left: 2.5px solid #000; 
@@ -128,7 +122,6 @@
                     <button class="executive-btn ${isLiked ? 'is-active' : ''}" onclick="window.handleLikeAction('${comment.id}', ${isLiked})">
                         ${isLiked ? '❤️ HELPFUL' : '🤍 MARK AS HELPFUL'} ${voteCount > 0 ? `(${voteCount})` : ''}
                     </button>
-                    ${isAdmin ? `<button class="executive-btn" style="color:#ef4444;" onclick="window.adminDelete('${comment.id}')">🗑️ DELETE</button>` : ''}
                 </div>
             </div>`;
     };
@@ -152,7 +145,7 @@
             let authBarHtml = `
                 <div class="auth-bar">
                     ${currentUser ? 
-                        `<span style="font-size: 11px; font-weight: 800; color: #1e293b;">✓ LOGGED IN AS: ${currentUser.email}</span>
+                        `<span style="font-size: 11px; font-weight: 800; color: #1e293b;">✓ LOGGED IN: ${currentUser.email}</span>
                          <button onclick="window.handleSignOut()" style="background: none; border: none; font-size: 10px; font-weight: 900; cursor: pointer; color: #ef4444;">LOG OUT</button>` : 
                         `<span style="font-size: 11px; font-weight: 800; color: #2563eb;">WANT "VERIFIED" STATUS?</span>
                          <button onclick="window.handleSignIn()" style="background: #2563eb; color: white; border: none; padding: 8px 14px; border-radius: 4px; font-size: 10px; font-weight: 800; cursor: pointer;">SIGN IN WITH GOOGLE</button>`
@@ -167,6 +160,7 @@
                     <div id="comment-form" style="margin-bottom:35px; text-align: center;">
                         <input type="text" id="nickname" placeholder="Your Nickname" value="${currentUser?.user_metadata?.full_name || ''}" />
                         <textarea id="comment-body" placeholder="Share your experience..." rows="4"></textarea>
+                        <input type="hidden" id="parent-id" value="" />
                         
                         ${authBarHtml}
 
@@ -182,21 +176,21 @@
         } catch (e) { container.innerHTML = `<p>Syncing comments...</p>`; }
     };
 
-    // ACTION HANDLERS
+    // ACTION & AUTH HANDLERS
     window.setReply = (id, name) => { 
         document.getElementById('parent-id').value = id; 
-        const ind = document.getElementById('reply-indicator');
-        if (ind) {
-            ind.innerText = `Replying to ${name} (Click to cancel X)`; 
-            ind.style.display = 'block'; 
-        }
         document.getElementById('comment-body').focus(); 
+        document.getElementById('comment-body').placeholder = `Replying to ${name}...`;
     };
 
     window.handleSignIn = async () => {
+        localStorage.removeItem('sb-yfcqtkrayecpkkuzivvf-auth-token');
         await window.supabaseClient.auth.signInWithOAuth({
             provider: 'google',
-            options: { redirectTo: window.location.href }
+            options: { 
+                redirectTo: window.location.href,
+                queryParams: { prompt: 'select_account' }
+            }
         });
     };
 
@@ -209,6 +203,7 @@
     window.submitReview = async function() { 
         const content = document.getElementById('comment-body').value.trim(); 
         const nickname = document.getElementById('nickname').value.trim(); 
+        const parentId = document.getElementById('parent-id').value;
         if (!content || !nickname) return; 
 
         const lockerData = localStorage.getItem('sb-yfcqtkrayecpkkuzivvf-auth-token');
@@ -217,12 +212,18 @@
         const res = await fetch('https://cusdis-jet-one.vercel.app/api/public-comments', { 
             method: 'POST', 
             headers: { 'Content-Type': 'application/json', 'Authorization': token ? `Bearer ${token}` : '' }, 
-            body: JSON.stringify({ content, nickname, pageId: getCleanUrl() }) 
+            body: JSON.stringify({ 
+                content, 
+                nickname, 
+                pageId: getCleanUrl(),
+                parentId: parentId || null 
+            }) 
         }); 
 
         if (res.ok) { 
             document.getElementById('submit-msg').innerHTML = `<div style="margin-top:15px; color:#059669; font-weight:800;">✓ SUCCESS!</div>`;
             document.getElementById('comment-body').value = ""; 
+            document.getElementById('parent-id').value = "";
             setTimeout(render, 1500); 
         } 
     };
