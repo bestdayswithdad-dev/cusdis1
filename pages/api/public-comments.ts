@@ -20,7 +20,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader('Access-Control-Allow-Credentials', 'true')
   if (req.method === 'OPTIONS') return res.status(200).end()
 
-  // --- CAPTURE IP ADDRESS ---
+  // Capture IP Address for Best Days With Dad security
   const forwarded = req.headers['x-forwarded-for']
   const clientIp = typeof forwarded === 'string' 
     ? forwarded.split(',')[0] 
@@ -30,7 +30,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { pageId } = req.query
     if (!pageId) return res.status(400).json({ error: 'pageId is required' })
     try {
-      const comments = await prisma.comments.findMany({ // Plural table
+      const comments = await prisma.comment.findMany({ // Switched to singular
         where: {
           approved: true,
           project_id: PROJECT_ID,
@@ -65,10 +65,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       || 'Guest')
 
     try {
-      // 1. Find or Create Page using findFirst (No unique constraint on slug)
-      let page = await prisma.pages.findFirst({ where: { slug: pageId } })
+      // Find or Create Page using findFirst
+      let page = await prisma.page.findFirst({ where: { slug: pageId } })
       if (!page) {
-        page = await prisma.pages.create({
+        page = await prisma.page.create({
           data: {
             slug: pageId,
             title: pageId.split('/').pop()?.split('-').join(' ') ?? 'New Post',
@@ -77,14 +77,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         })
       }
 
-      // 2. Create Comment with IP and Auth info
-      const newComment = await prisma.comments.create({
+      // Create Comment with IP and Auth info
+      const newComment = await prisma.comment.create({
         data: {
           content,
           nickname: displayName,
           email: userEmail,
-          ip: clientIp || '0.0.0.0', // SAVES IP TO SUPABASE
-          approved: isVerified || isHost, // Signed-in users & Host skip moderation
+          ip: clientIp || '0.0.0.0', // Capture mobile IP
+          approved: isVerified || isHost, // Bypass moderation for verified users
           project_id: PROJECT_ID,
           userId: user?.id || null,
           page_id: page.id
