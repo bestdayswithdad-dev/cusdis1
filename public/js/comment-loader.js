@@ -28,7 +28,7 @@
         .input-wrapper {
             position: relative;
             margin-top: 40px;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
         }
 
         .nickname-label-bar {
@@ -88,15 +88,6 @@
 
         .user-avatar-img { width: 100%; height: 100%; object-fit: cover; }
 
-        .privacy-link-tiny {
-            font-size: 8px;
-            font-weight: 700;
-            color: #cbd5e1;
-            text-decoration: none;
-            text-transform: uppercase;
-            margin-top: 4px;
-        }
-
         #comment-body {
             flex: 1;
             border: none !important;
@@ -131,18 +122,19 @@
         }
         .send-btn:hover { background: #000 !important; transform: scale(1.05); }
 
-        .comment-disclaimer {
-            font-size: 10px;
+        .comment-legal-footer {
+            font-size: 9px;
             color: #94a3b8;
             font-weight: 700;
             text-transform: uppercase;
             text-align: center;
-            margin-top: -35px !important;
-            padding-bottom: 20px;
+            margin-top: -35px !important; 
+            padding-bottom: 30px;
+            line-height: 1.6;
+            letter-spacing: 0.3px;
         }
-        .comment-disclaimer a { color: #64748b !important; text-decoration: underline; }
+        .comment-legal-footer a { color: #64748b !important; text-decoration: underline; }
 
-        /* Comment List Layout */
         .comment-card { 
             background: #fff !important; 
             border-radius: 16px; 
@@ -171,8 +163,6 @@
                     (isGuest ? '<span class="casual-adventurer-badge">Casual Adventurer</span>' : 
                     '<span class="park-scout-badge">Park Scout</span>');
 
-        // Check for avatar in comment metadata (assuming it's passed or mapped)
-        // If your backend doesn't store the avatar URL yet, we can fallback to the guest icon
         const avatarUrl = comment.metadata?.avatar_url || null;
         const avatarImg = avatarUrl ? `<img src="${avatarUrl}" class="user-avatar-img">` : `<span style="font-size:18px;">👤</span>`;
 
@@ -251,7 +241,6 @@
                     <div id="comment-form">
                         <div class="auth-trigger-area">
                             ${authButton}
-                            <a href="https://www.bestdayswithdad.com/p/privacy-agreement.html" class="privacy-link-tiny">Privacy</a>
                         </div>
                         <textarea id="comment-body" placeholder="Message Best Days With Dad..." rows="1" oninput="window.autoExpand(this)"></textarea>
                         <input type="hidden" id="parent-id" value="" />
@@ -261,8 +250,11 @@
                     </div>
                 </div>
 
-                <div class="comment-disclaimer">
-                    By posting, you agree to our <a href="/p/comment-policy.html">Comment Policy</a>
+                <div class="comment-legal-footer">
+                    By signing in or posting, you agree to our 
+                    <a href="https://www.bestdayswithdad.com/p/terms-of-service.html">Terms of Service</a>, 
+                    <a href="https://www.bestdayswithdad.com/p/privacy-agreement.html">Privacy Policy</a>, 
+                    & <a href="/p/comment-policy.html">Comment Policy</a>.
                 </div>
                 <div id="submit-msg"></div>`;
             
@@ -304,7 +296,7 @@
                 pageTitle: document.title.split(' : ')[0],
                 parentId: parentId || null,
                 by_email: email,
-                metadata: { avatar_url } // Sending the avatar URL to be stored
+                metadata: { avatar_url } 
             }) 
         }); 
 
