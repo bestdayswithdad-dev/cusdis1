@@ -15,7 +15,7 @@
         } catch (e) { return null; }
     };
 
-    // 3. UI STYLING: Full Executive styles + Disclaimer Fix + Green Auth Bar + Themed Badges
+    // 3. UI STYLING
     const styling = `
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;800;900&display=swap');
@@ -32,13 +32,15 @@
             text-transform: uppercase;
         }
         
-        .comment-disclaimer a { 
+        .comment-disclaimer a, .auth-policy-link { 
             text-decoration: none !important; 
             color: #2563eb !important; 
             font-weight: 900;
             transition: opacity 0.2s ease;
         }
-        .comment-disclaimer a:hover { opacity: 0.7; text-decoration: underline !important; }
+        .comment-disclaimer a:hover, .auth-policy-link:hover { opacity: 0.7; text-decoration: underline !important; }
+
+        .auth-policy-link { font-size: 9px; margin-left: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
 
         #comment-form input, #comment-form textarea {
             width: 100%;
@@ -97,10 +99,9 @@
         .comment-header-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
         .comment-author-name { font-weight: 800; font-size: 16px; color: #94a3b8; }
         
-        /* ADVENTURE RESOURCE BADGES */
-        .casual-adventurer-badge { color: #5C9AFF !important; font-size: 11px; font-weight: 800; text-transform: uppercase; }
-        .park-scout-badge { color: #059669 !important; font-size: 11px; font-weight: 800; text-transform: uppercase; }
-        .host-badge { background: #f59e0b !important; color: white !important; padding: 3px 10px; border-radius: 4px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+        .casual-adventurer-badge { color: #5C9AFF !important; font-size: 11px; font-weight: 800; text-transform: uppercase; margin-left: 8px; }
+        .park-scout-badge { color: #059669 !important; font-size: 11px; font-weight: 800; text-transform: uppercase; margin-left: 8px; }
+        .mod-badge-text { color: #f59e0b !important; font-size: 11px; font-weight: 800; text-transform: uppercase; margin-left: 8px; }
         
         .submit-review-btn {
             background: #334155 !important;
@@ -114,10 +115,21 @@
             transition: all 0.2s ease;
             border: none;
         }
-        .submit-review-btn:hover {
-            background: #1e293b !important;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+
+        .submit-msg-success {
+            margin-top: 15px;
+            color: #059669;
+            font-weight: 900;
+            font-size: 13px;
+            text-transform: uppercase;
+            animation: fadeInOut 3s forwards;
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(-5px); }
+            10% { opacity: 1; transform: translateY(0); }
+            80% { opacity: 1; }
+            100% { opacity: 0; }
         }
 
         .reply-item-container { 
@@ -135,14 +147,12 @@
         const isGuest = !comment.userId || comment.by_email === 'guest@example.com';
         const isHost = comment.by_email === 'bestdayswithdad@gmail.com';
 
-        // Resource Tier Logic
         let badgeHtml = '';
         if (isHost) {
-            badgeHtml = '<span class="host-badge">MOD</span>';
+            badgeHtml = '<span class="mod-badge-text">MOD</span>';
         } else if (isGuest) {
             badgeHtml = '<span class="casual-adventurer-badge">Casual Adventurer</span>';
         } else {
-            // Logged-in resource tier
             badgeHtml = '<span class="park-scout-badge">Park Scout</span>';
         }
 
@@ -195,13 +205,19 @@
             const comments = Array.isArray(data) ? data : (data.comments || []);
             const rootComments = comments.filter(c => !c.parentId);
             
+            // Updated Auth Bar with new phrasing and Privacy Policy link
             let authBarHtml = `
                 <div class="auth-bar ${currentUser?.user ? 'is-logged-in' : ''}">
+                    <div style="display: flex; align-items: center;">
+                        ${currentUser?.user ? 
+                            `<span style="font-size: 11px; font-weight: 800; color: #065f46;">✓ VERIFIED: ${currentUser.user.email}</span>` : 
+                            `<span style="font-size: 11px; font-weight: 800; color: #2563eb;">SIGN IN FOR THE FULL EXPERIENCE</span>`
+                        }
+                        <a href="/p/privacy-policy.html" class="auth-policy-link">Privacy Policy</a>
+                    </div>
                     ${currentUser?.user ? 
-                        `<span style="font-size: 11px; font-weight: 800; color: #065f46;">✓ VERIFIED: ${currentUser.user.email}</span>
-                         <button onclick="window.handleSignOut()" style="background: none; border: none; font-size: 10px; font-weight: 900; cursor: pointer; color: #ef4444;">LOG OUT</button>` : 
-                        `<span style="font-size: 11px; font-weight: 800; color: #2563eb;">WANT "PARK SCOUT" STATUS?</span>
-                         <button onclick="window.handleSignIn()" style="background: #2563eb; color: white; border: none; padding: 8px 14px; border-radius: 4px; font-size: 10px; font-weight: 800; cursor: pointer;">SIGN IN WITH GOOGLE</button>`
+                        `<button onclick="window.handleSignOut()" style="background: none; border: none; font-size: 10px; font-weight: 900; cursor: pointer; color: #ef4444;">LOG OUT</button>` : 
+                        `<button onclick="window.handleSignIn()" style="background: #2563eb; color: white; border: none; padding: 8px 14px; border-radius: 4px; font-size: 10px; font-weight: 800; cursor: pointer;">SIGN IN WITH GOOGLE</button>`
                     }
                 </div>
             `;
@@ -275,7 +291,11 @@
         }); 
 
         if (res.ok) { 
-            document.getElementById('submit-msg').innerHTML = `<div style="margin-top:15px; color:#059669; font-weight:800;">✓ SUCCESS!</div>`;
+            const successMsg = token 
+                ? "✓ Scout Report Logged! Thanks for contributing." 
+                : "✓ Comment Sent! Refreshing the feed...";
+                
+            document.getElementById('submit-msg').innerHTML = `<div class="submit-msg-success">${successMsg}</div>`;
             document.getElementById('comment-body').value = ""; 
             document.getElementById('parent-id').value = "";
             document.getElementById('comment-body').placeholder = "Share your experience...";
@@ -283,7 +303,7 @@
         } 
     };
 
-    // 8. AUTH
+    // 8. AUTH HANDLERS
     window.handleSignIn = async () => {
         localStorage.removeItem('sb-yfcqtkrayecpkkuzivvf-auth-token');
         await window.supabaseClient.auth.signInWithOAuth({
