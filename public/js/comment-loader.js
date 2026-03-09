@@ -15,14 +15,14 @@
         } catch (e) { return null; }
     };
 
-    // 3. UI STYLING: Full Project Styles + New Vertical Stack
+    // 3. UI STYLING: Full Project Styles + Auth-First Layout
     const styling = `
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;800;900&display=swap');
         
         #custom-comment-section { font-family: 'Montserrat', sans-serif !important; padding: 0; background: transparent !important; }
         
-        /* THE -35px MARGIN GAP FIX & Policy below Post button */
+        /* Policy below Post button */
         .comment-disclaimer {
             margin-top: 15px; 
             padding: 12px;
@@ -57,13 +57,13 @@
             color: #1e293b;
         }
 
-        /* NEW VERTICAL STACKED AUTH BAR */
+        /* VERTICAL STACKED AUTH BAR */
         .auth-bar {
             display: flex; 
             flex-direction: column;
             align-items: center; 
             gap: 12px;
-            margin-bottom: 25px; 
+            margin-bottom: 30px; 
             padding: 20px; 
             background: rgba(241, 245, 249, 0.7) !important;
             border-radius: 8px;
@@ -117,7 +117,7 @@
             border-radius: 8px;
             font-weight: 800;
             cursor: pointer;
-            width: 200px;
+            width: 220px;
             text-transform: uppercase;
             transition: all 0.2s ease;
             border: none;
@@ -196,7 +196,7 @@
         `).join('');
     };
 
-    // 6. MAIN RENDER: Janitor + Final Stacked UI Logic
+    // 6. MAIN RENDER: AUTH-FIRST LAYOUT
     const render = async () => {
         if (window.location.hash.includes('access_token')) {
             setTimeout(() => {
@@ -235,11 +235,13 @@
             container.innerHTML = styling + `
                 <div>
                     <div id="comment-form" style="margin-bottom:35px; text-align: center;">
+                        
+                        /* AUTH BAR AT THE TOP */
+                        ${authBarHtml}
+
                         <input type="text" id="nickname" placeholder="Your Nickname" value="${currentUser?.user?.user_metadata?.full_name || ''}" />
                         <textarea id="comment-body" placeholder="Share your experience..." rows="4"></textarea>
                         <input type="hidden" id="parent-id" value="" />
-                        
-                        ${authBarHtml}
 
                         <button class="submit-review-btn" onclick="window.submitReview()">Post Comment</button>
                         
