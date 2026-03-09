@@ -9,7 +9,8 @@ if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 
 const PROJECT_ID = 'cbcd61ec-f2ef-425c-a952-30034c2de4e1'
 
-// MANDATORY SERIALIZER: Converts BigInt IDs to Strings for JSON safety
+// SERIALIZER: Keeps the BigInt logic just in case other fields use it, 
+// though we are using Strings for IDs here.
 const serialize = (data: unknown) =>
   JSON.parse(JSON.stringify(data, (_, value) =>
     typeof value === 'bigint' ? value.toString() : value
@@ -29,7 +30,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     ? forwarded.split(',')[0] 
     : req.socket.remoteAddress
 
-  // --- GET LOGIC: Fetch approved comments for a specific page ---
+  // --- GET LOGIC ---
   if (req.method === 'GET') {
     const { pageId } = req.query
     if (!pageId) return res.status(400).json({ error: 'pageId is required' })
@@ -49,14 +50,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
-  // --- POST LOGIC: Handle new comment submissions ---
+  // --- POST LOGIC ---
   if (req.method === 'POST') {
     const { content, nickname, pageId, pageTitle, parentId } = req.body
     if (!content || !pageId) {
       return res.status(400).json({ error: 'content and pageId are required' })
     }
 
-    // IDENTITY CHECK: Verify the user with Supabase
     const supabase = createPagesServerClient({ req, res })
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -64,7 +64,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const userEmail = user?.email ?? 'guest@example.com'
     const isHost = userEmail === 'bestdayswithdad@gmail.com'
 
-    // Display Name Logic: Favors "Host" or Google metadata over "Guest"
     const displayName = isHost ? "Host" : (nickname
       || user?.user_metadata?.full_name
       || user?.user_metadata?.name
@@ -72,7 +71,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       || 'Guest')
 
     try {
-      // PAGE SYNC: Find or Create Page using findFirst
       let page = await prisma.page.findFirst({ where: { slug: pageId } })
       
       if (!page) {
@@ -80,26 +78,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           data: {
             id: crypto.randomUUID(),
             slug: pageId,
-            // Uses pageTitle from the frontend, or auto-generates from slug
             title: pageTitle || (pageId.split('/').pop()?.split('-').join(' ') ?? 'New Post'),
             projectId: PROJECT_ID
           }
         })
       }
 
-      // CREATE COMMENT: Linked identity and page data
       const newComment = await prisma.comment.create({
         data: {
           id: crypto.randomUUID(),
           content,
           by_nickname: displayName,
-          by_email: userEmail, // Populates 'User / IP' column on your dashboard
+          by_email: userEmail,
           ip: clientIp || '0.0.0.0',
-          approved: isVerified || isHost, // Verified Readers and Host skip moderation
+          approved: isVerified || isHost,
           projectId: PROJECT_ID,
           Page: { connect: { id: page.id } },
-          // FIXED: Changed parent_id to parentId
-          parentId: parentId ? BigInt(parentId) : null
+          // FIXED: Removed BigInt() wrapper as your schema expects a String
+          parentId: parentId ? String(parentId) : null
         }
       })
       
