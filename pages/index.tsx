@@ -23,12 +23,13 @@ export default function ModerationCenter() {
   const [replyModal, setReplyModal] = useState({ opened: false, parentId: '', pageId: '', pageTitle: '', nickname: '' })
   const [replyContent, setReplyContent] = useState('')
 
+  // Hits the specific moderator bridge for secure admin actions
   const fetchComments = async () => {
     try {
-        const res = await fetch('/api/public-comments') 
+        const res = await fetch('/api/moderator-bridge') 
         const data = await res.json()
-        if (Array.isArray(data)) setComments(data)
-        else if (data.comments) setComments(data.comments)
+        if (data.comments) setComments(data.comments)
+        else if (Array.isArray(data)) setComments(data)
     } catch (err) { console.error("Fetch failed", err); setComments([]) }
   }
 
@@ -45,9 +46,11 @@ export default function ModerationCenter() {
   const organizedData = useMemo(() => {
     if (!Array.isArray(comments)) return { flagged: [], pending: [], pageGroups: {} };
     const flagged = comments.filter(c => c.content?.toLowerCase().includes('http')); 
-    const pending = comments.filter(c => !c.approved && !c.content?.toLowerCase().includes('http'));
+    // Status 0 is Pending, Status 1 is Approved
+    const pending = comments.filter(c => c.status === 0 && !c.content?.toLowerCase().includes('http'));
     const pageGroups = comments.reduce((acc: any, c) => {
-      const title = c.Page?.title || 'General / Legacy'; 
+      // Use plural 'pages' as per schema
+      const title = c.pages?.title || 'General / Legacy'; 
       if (!acc[title]) acc[title] = [];
       acc[title].push(c);
       return acc;
@@ -55,7 +58,7 @@ export default function ModerationCenter() {
     return { flagged, pending, pageGroups };
   }, [comments]);
 
-  // DIRECT TO WEBSITE REPLY LOGIC
+  // Submit reply using the public endpoint with Host email for badge trigger
   const submitDashboardReply = async () => {
     if (!replyContent.trim()) return;
     const { data: { session } } = await supabase.auth.getSession();
@@ -71,7 +74,8 @@ export default function ModerationCenter() {
         nickname: "Adam - BDWD",
         pageId: replyModal.pageId,
         pageTitle: replyModal.pageTitle,
-        parentId: replyModal.parentId, // Correctly threads the reply
+        parentId: replyModal.parentId, 
+        by_email: ADMIN_EMAIL // Ensures badge is set to MOD
       })
     });
 
@@ -83,17 +87,17 @@ export default function ModerationCenter() {
   }
 
   const handleApprove = async (id: string) => {
-    await fetch(`/api/public-comments?id=${id}`, { 
+    // Pass ID in query string as expected by moderator-bridge
+    await fetch(`/api/moderator-bridge?id=${id}`, { 
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ approved: true })
+        headers: { 'Content-Type': 'application/json' }
     })
     fetchComments()
   }
 
   const handleDelete = async (id: string) => {
-    if (confirm("Delete this comment?")) {
-      await fetch(`/api/public-comments?id=${id}`, { method: 'DELETE' })
+    if (confirm("Permanently delete this comment?")) {
+      await fetch(`/api/moderator-bridge?id=${id}`, { method: 'DELETE' })
       fetchComments()
     }
   }
@@ -115,28 +119,23 @@ export default function ModerationCenter() {
             <td>
               <Text size="md" weight={700}>{c.by_nickname || 'Guest'}</Text>
               <Text size="xs" color="dimmed">{c.by_email}</Text>
-              <Group spacing={4} mt={4}>
-                <AiOutlineGlobal size="0.8rem" color="gray" />
-                <Text size="xs" color="blue" italic>{c.ip || '0.0.0.0'}</Text>
-              </Group>
             </td>
             <td><Text size="md" style={{ lineHeight: 1.5 }}>{c.content}</Text></td>
             <td>
               <Stack spacing={4}>
-                <Text size="sm" weight={700} color="blue">{c.Page?.title || 'General'}</Text>
-                <Text size="xs" color="dimmed" truncate>{c.Page?.slug}</Text>
+                <Text size="sm" weight={700} color="blue">{c.pages?.title || 'General'}</Text>
+                <Text size="xs" color="dimmed" truncate>{c.pages?.slug}</Text>
               </Stack>
             </td>
-            <td>{c.approved ? <Badge color="green">Public</Badge> : <Badge color="yellow">Pending</Badge>}</td>
+            <td>{c.status === 1 ? <Badge color="green">Public</Badge> : <Badge color="yellow">Pending</Badge>}</td>
             <td>
               <Group spacing="xs" position="right">
-                {!c.approved && (
+                {c.status !== 1 && (
                   <ActionIcon size="lg" color="green" variant="filled" onClick={() => handleApprove(c.id)} title="Approve">
                     <AiOutlineCheck size="1.4rem" />
                   </ActionIcon>
                 )}
-                {/* RESTORED REPLY BUTTON */}
-                <ActionIcon size="lg" color="blue" variant="light" onClick={() => setReplyModal({ opened: true, parentId: c.id, pageId: c.Page?.slug, pageTitle: c.Page?.title, nickname: c.by_nickname })} title="Reply to Site">
+                <ActionIcon size="lg" color="blue" variant="light" onClick={() => setReplyModal({ opened: true, parentId: c.id, pageId: c.pages?.slug, pageTitle: c.pages?.title, nickname: c.by_nickname })} title="Reply as Host">
                   <AiOutlineMessage size="1.4rem" />
                 </ActionIcon>
                 <ActionIcon size="lg" color="red" variant="subtle" onClick={() => handleDelete(c.id)} title="Delete">
@@ -150,8 +149,8 @@ export default function ModerationCenter() {
     </Table>
   );
 
-  if (loading) return <Center h="100vh"><Text>Loading...</Text></Center>
-  if (!user || user.email !== ADMIN_EMAIL) return <Center h="100vh"><Text>Access Denied</Text></Center>
+  if (loading) return <Center h="100vh"><Text>Authenticating Mod Access...</Text></Center>
+  if (!user || user.email !== ADMIN_EMAIL) return <Center h="100vh"><Text>Unauthorized Access</Text></Center>
 
   return (
     <Container size="xl" py="xl">
@@ -161,7 +160,7 @@ export default function ModerationCenter() {
         <Tabs defaultValue="pending" variant="outline" color="blue">
           <Tabs.List mb="md">
             <Tabs.Tab value="pending" icon={<AiOutlineClockCircle size="1.2rem" />} color="yellow">Pending ({organizedData.pending.length})</Tabs.Tab>
-            <Tabs.Tab value="all" icon={<AiOutlineMessage size="1.2rem" />}>All</Tabs.Tab>
+            <Tabs.Tab value="all" icon={<AiOutlineMessage size="1.2rem" />}>All Comments</Tabs.Tab>
             {Object.keys(organizedData.pageGroups).map(title => (
               <Tabs.Tab key={title} value={title} icon={<AiOutlineFileText size="1.2rem" />}>{title}</Tabs.Tab>
             ))}
@@ -174,10 +173,9 @@ export default function ModerationCenter() {
           ))}
         </Tabs>
 
-        {/* DIRECT REPLY MODAL */}
         <Modal opened={replyModal.opened} onClose={() => setReplyModal({ ...replyModal, opened: false })} title={`Reply to ${replyModal.nickname}`}>
           <Stack>
-            <Text size="sm" color="dimmed">Your reply will appear instantly on the website under the "{replyModal.pageTitle}" post.</Text>
+            <Text size="sm" color="dimmed">Post a reply as the host. This will automatically set your badge to MOD.</Text>
             <Textarea placeholder="Write your response..." minRows={4} value={replyContent} onChange={(e) => setReplyContent(e.currentTarget.value)} />
             <Button color="blue" onClick={submitDashboardReply}>Post Reply to Website</Button>
           </Stack>
