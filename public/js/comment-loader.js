@@ -71,7 +71,8 @@
             transition: background 0.3s ease;
             text-align: center;
             margin-top:-30px;
-            width:100px;
+            margin-left:auto;
+            margin-right:auto;
         }
 
         .auth-bar.is-logged-in {
