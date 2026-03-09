@@ -8,7 +8,7 @@ import {
 import { 
   AiOutlineCheck, AiOutlineDelete, AiOutlineAlert, 
   AiOutlineMessage, AiOutlineFlag, AiOutlineFileText,
-  AiOutlineClockCircle
+  AiOutlineClockCircle, AiOutlineGlobal // Added for IP icon
 } from 'react-icons/ai'
 
 const ADMIN_EMAIL = 'bestdayswithdad@gmail.com'
@@ -21,10 +21,11 @@ export default function ModerationCenter() {
   const [emailData, setEmailData] = useState({ to: '', subject: '', body: '' })
 
   const fetchComments = async () => {
-    // Note: Ensure this matches your API route name (e.g., /api/admin-bridge)
+    // Note: This fetches from your Vercel API
     const res = await fetch('/api/comments') 
     const data = await res.json()
-    setComments(data.comments || [])
+    // Aligning with your API response structure
+    setComments(data.comments || data || []) 
   }
 
   useEffect(() => {
@@ -37,16 +38,12 @@ export default function ModerationCenter() {
     init()
   }, [supabase])
 
-  // UPDATED: Logic to separate Pending from Flagged
   const organizedData = useMemo(() => {
-    // "Flagged" is now strictly for posts containing links
-    const flagged = comments.filter(c => c.content.toLowerCase().includes('http')); 
-    
-    // "Pending" is for unapproved posts that aren't flagged
-    const pending = comments.filter(c => !c.approved && !c.content.toLowerCase().includes('http'));
+    const flagged = comments.filter(c => c.content?.toLowerCase().includes('http')); 
+    const pending = comments.filter(c => !c.approved && !c.content?.toLowerCase().includes('http'));
 
     const pageGroups = comments.reduce((acc: any, c) => {
-      const title = c.Page?.title || 'General / Legacy';
+      const title = c.pages?.title || 'General / Legacy'; // Updated to plural 'pages'
       if (!acc[title]) acc[title] = [];
       acc[title].push(c);
       return acc;
@@ -87,7 +84,7 @@ export default function ModerationCenter() {
     <Table verticalSpacing="md" horizontalSpacing="md" fontSize="md">
       <thead>
         <tr>
-          <th>User</th>
+          <th>User / IP</th> {/* Updated Header */}
           <th>Comment</th>
           <th>Post Name</th>
           <th>Status</th>
@@ -98,19 +95,26 @@ export default function ModerationCenter() {
         {data.map((c) => (
           <tr key={c.id}>
             <td style={{ minWidth: '180px' }}>
-              <Text size="md" weight={600}>{c.by_nickname || 'Guest'}</Text>
-              <Text size="sm" color="dimmed">{c.by_email}</Text>
+              <Text size="md" weight={600}>{c.nickname || 'Guest'}</Text>
+              <Text size="xs" color="dimmed">{c.email}</Text>
+              {/* IP ADDRESS DISPLAY */}
+              <Group spacing={4} mt={4}>
+                <AiOutlineGlobal size="0.8rem" color="gray" />
+                <Text size="xs" color="blue" italic>
+                  {c.ip || 'No IP Captured'}
+                </Text>
+              </Group>
             </td>
             <td><Text size="md" style={{ lineHeight: 1.5 }}>{c.content}</Text></td>
             <td style={{ minWidth: '200px' }}>
               <Stack spacing={4}>
-                <Text size="sm" weight={700} color="blue">{c.Page?.title || 'General / Legacy'}</Text>
-                <Text size="xs" color="dimmed" truncate>{c.Page?.slug}</Text>
+                <Text size="sm" weight={700} color="blue">{c.pages?.title || 'General / Legacy'}</Text>
+                <Text size="xs" color="dimmed" truncate>{c.pages?.slug}</Text>
               </Stack>
             </td>
             <td>
               {c.approved ? <Badge color="green">Public</Badge> : 
-               c.content.toLowerCase().includes('http') ? <Badge color="red">SPAM/LINK</Badge> :
+               c.content?.toLowerCase().includes('http') ? <Badge color="red">SPAM/LINK</Badge> :
                <Badge color="yellow">Pending</Badge>}
             </td>
             <td>
@@ -120,10 +124,10 @@ export default function ModerationCenter() {
                     <AiOutlineCheck size="1.4rem" />
                   </ActionIcon>
                 )}
-                <ActionIcon size="lg" color="orange" variant="light" onClick={() => prepareWarning(c.by_email, c.content)} title="Warning">
+                <ActionIcon size="lg" color="orange" variant="light" onClick={() => prepareWarning(c.email, c.content)} title="Warning">
                   <AiOutlineAlert size="1.4rem" />
                 </ActionIcon>
-                <ActionIcon size="lg" color="blue" variant="light" onClick={() => prepareReply(c.by_email, c.content)} title="Reply">
+                <ActionIcon size="lg" color="blue" variant="light" onClick={() => prepareReply(c.email, c.content)} title="Reply">
                   <AiOutlineMessage size="1.4rem" />
                 </ActionIcon>
                 <ActionIcon size="lg" color="red" variant="subtle" onClick={() => handleDelete(c.id)} title="Delete">
