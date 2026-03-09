@@ -15,18 +15,18 @@
         } catch (e) { return null; }
     };
 
-    // 3. UI STYLING: Full Project Styles
+    // 3. UI STYLING: Full Project Styles + New Vertical Stack
     const styling = `
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;800;900&display=swap');
         
         #custom-comment-section { font-family: 'Montserrat', sans-serif !important; padding: 0; background: transparent !important; }
         
-        /* THE -35px MARGIN GAP FIX */
+        /* THE -35px MARGIN GAP FIX & Policy below Post button */
         .comment-disclaimer {
-            margin-top: -35px !important; 
+            margin-top: 15px; 
             padding: 12px;
-            font-size: 12px;
+            font-size: 11px;
             color: #1e293b;
             text-align: center;
             font-weight: 800;
@@ -42,7 +42,7 @@
         .comment-disclaimer a:hover, .auth-policy-link:hover { opacity: 0.7; text-decoration: underline !important; }
 
         /* PRIVACY POLICY STYLING */
-        .auth-policy-note { font-size: 9px; font-weight: 700; color: #64748b; margin-top: 6px; text-transform: uppercase; display: block; }
+        .auth-policy-note { font-size: 9px; font-weight: 700; color: #64748b; margin-top: 8px; text-transform: uppercase; display: block; }
         .auth-policy-note a { color: #2563eb !important; text-decoration: none !important; }
 
         #comment-form input, #comment-form textarea {
@@ -57,16 +57,19 @@
             color: #1e293b;
         }
 
+        /* NEW VERTICAL STACKED AUTH BAR */
         .auth-bar {
             display: flex; 
-            justify-content: space-between; 
+            flex-direction: column;
             align-items: center; 
-            margin-bottom: 20px; 
-            padding: 16px; 
+            gap: 12px;
+            margin-bottom: 25px; 
+            padding: 20px; 
             background: rgba(241, 245, 249, 0.7) !important;
             border-radius: 8px;
             box-shadow: 0 0 10px 2px rgba(0, 0, 0, 0.1);
             transition: background 0.3s ease;
+            text-align: center;
         }
 
         .auth-bar.is-logged-in {
@@ -118,6 +121,8 @@
             text-transform: uppercase;
             transition: all 0.2s ease;
             border: none;
+            display: block;
+            margin: 0 auto;
         }
 
         .submit-msg-success {
@@ -127,6 +132,7 @@
             font-size: 13px;
             text-transform: uppercase;
             animation: fadeInOut 3s forwards;
+            text-align: center;
         }
 
         @keyframes fadeInOut {
@@ -190,7 +196,7 @@
         `).join('');
     };
 
-    // 6. MAIN RENDER
+    // 6. MAIN RENDER: Janitor + Final Stacked UI Logic
     const render = async () => {
         if (window.location.hash.includes('access_token')) {
             setTimeout(() => {
@@ -209,31 +215,25 @@
             const comments = Array.isArray(data) ? data : (data.comments || []);
             const rootComments = comments.filter(c => !c.parentId);
             
-            // AUTH BAR: "FULL EXPERIENCE" + Privacy Policy placement
+            // AUTH BAR: Redesigned as a vertical stack with Privacy Policy URL updated
             let authBarHtml = `
                 <div class="auth-bar ${currentUser?.user ? 'is-logged-in' : ''}">
-                    <div style="display: flex; flex-direction: column;">
-                        ${currentUser?.user ? 
-                            `<span style="font-size: 11px; font-weight: 800; color: #065f46;">✓ VERIFIED: ${currentUser.user.email}</span>` : 
-                            `<span style="font-size: 11px; font-weight: 800; color: #2563eb;">SIGN IN FOR THE FULL EXPERIENCE</span>`
-                        }
-                    </div>
-                    <div style="text-align: right;">
-                        ${currentUser?.user ? 
-                            `<button onclick="window.handleSignOut()" style="background: none; border: none; font-size: 10px; font-weight: 900; cursor: pointer; color: #ef4444;">LOG OUT</button>` : 
-                            `<div>
-                                <button onclick="window.handleSignIn()" style="background: #2563eb; color: white; border: none; padding: 8px 14px; border-radius: 4px; font-size: 10px; font-weight: 800; cursor: pointer;">SIGN IN WITH GOOGLE</button>
-                                <span class="auth-policy-note">Before signing in, please read our <a href="/p/privacy-policy.html">Privacy Policy</a></span>
-                             </div>`
-                        }
-                    </div>
+                    ${currentUser?.user ? 
+                        `<div>
+                            <span style="font-size: 11px; font-weight: 800; color: #065f46; display: block; margin-bottom: 10px;">✓ VERIFIED: ${currentUser.user.email}</span>
+                            <button onclick="window.handleSignOut()" style="background: none; border: none; font-size: 10px; font-weight: 900; cursor: pointer; color: #ef4444; text-transform: uppercase;">LOG OUT</button>
+                         </div>` : 
+                        `<div>
+                            <span style="font-size: 12px; font-weight: 800; color: #2563eb; display: block; margin-bottom: 15px;">SIGN IN FOR THE FULL EXPERIENCE</span>
+                            <button onclick="window.handleSignIn()" style="background: #2563eb; color: white; border: none; padding: 12px 24px; border-radius: 4px; font-size: 11px; font-weight: 800; cursor: pointer; margin-bottom: 10px;">SIGN IN WITH GOOGLE</button>
+                            <span class="auth-policy-note">Before signing in, please read our <a href="https://www.bestdayswithdad.com/p/privacy-agreement.html">Privacy Policy</a></span>
+                         </div>`
+                    }
                 </div>
             `;
 
             container.innerHTML = styling + `
                 <div>
-                    <div class="comment-disclaimer">By posting, you agree to our <a href="/p/comment-policy.html">Comment Policy</a>.</div>
-                    
                     <div id="comment-form" style="margin-bottom:35px; text-align: center;">
                         <input type="text" id="nickname" placeholder="Your Nickname" value="${currentUser?.user?.user_metadata?.full_name || ''}" />
                         <textarea id="comment-body" placeholder="Share your experience..." rows="4"></textarea>
@@ -242,6 +242,11 @@
                         ${authBarHtml}
 
                         <button class="submit-review-btn" onclick="window.submitReview()">Post Comment</button>
+                        
+                        <div class="comment-disclaimer">
+                           By posting, you agree to our <a href="/p/comment-policy.html">Comment Policy</a>.
+                        </div>
+
                         <div id="submit-msg"></div>
                     </div>
 
@@ -257,7 +262,7 @@
         } catch (e) { container.innerHTML = `<p>Syncing comments...</p>`; }
     };
 
-    // 7. ACTIONS
+    // 7. ACTIONS: Replies, Likes, Submissions
     window.setReply = (id, name) => { 
         document.getElementById('parent-id').value = id; 
         document.getElementById('comment-body').focus(); 
