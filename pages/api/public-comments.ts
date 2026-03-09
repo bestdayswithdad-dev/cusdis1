@@ -34,11 +34,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { pageId } = req.query
     if (!pageId) return res.status(400).json({ error: 'pageId is required' })
     try {
-      const comments = await prisma.comments.findMany({
+      // FIXED: Switched to singular 'comment'
+      const comments = await prisma.comment.findMany({
         where: {
           approved: true,
           projectId: PROJECT_ID,
-          OR: [{ pageId: String(pageId) }, { pages: { slug: String(pageId) } }]
+          OR: [{ pageId: String(pageId) }, { Page: { slug: String(pageId) } }]
         },
         orderBy: { created_at: 'asc' }
       })
@@ -72,30 +73,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       || 'Guest')
 
     try {
-      // PAGE SYNC: Find or Create Page using findFirst
-      let page = await prisma.pages.findFirst({ where: { slug: pageId } })
+      // PAGE SYNC: Find or Create Page using singular 'page'
+      let page = await prisma.page.findFirst({ where: { slug: pageId } })
       
       if (!page) {
-        page = await prisma.pages.create({
+        page = await prisma.page.create({
           data: {
+            id: crypto.randomUUID(),
             slug: pageId,
             // Uses pageTitle from the frontend, or auto-generates from slug
             title: pageTitle || (pageId.split('/').pop()?.split('-').join(' ') ?? 'New Post'),
-            project_id: PROJECT_ID
+            projectId: PROJECT_ID
           }
         })
       }
 
-      // CREATE COMMENT: Link identity and page data
-      const newComment = await prisma.comments.create({
+      // CREATE COMMENT: Using singular 'comment'
+      const newComment = await prisma.comment.create({
         data: {
+          id: crypto.randomUUID(),
           content,
           by_nickname: displayName,
           by_email: userEmail, // Populates 'User / IP' column on your dashboard
           ip: clientIp || '0.0.0.0',
           approved: isVerified || isHost, // Verified Readers and Host skip moderation
-          project_id: PROJECT_ID,
-          page_id: page.id,
+          projectId: PROJECT_ID,
+          Page: { connect: { id: page.id } },
           parent_id: parentId ? BigInt(parentId) : null
         }
       })
