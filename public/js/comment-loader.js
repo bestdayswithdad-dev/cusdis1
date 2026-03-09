@@ -3,7 +3,6 @@
     let currentUser = null;
     const PROJECT_ID = 'cbcd61ec-f2ef-425c-a952-30034c2de4e1';
 
-    // Syncs Desktop and Mobile (?m=1) comments
     const getCleanUrl = () => window.location.href.split('?')[0].split('#')[0].replace(/\/$/, "");
 
     const getBadgeFromLocker = () => {
@@ -29,7 +28,14 @@
             text-transform: uppercase;
         }
         
-        .comment-disclaimer a { text-decoration: none !important; color: #2563eb !important; font-weight: 900; }
+        /* RESTORED POLICY LINK HOVER */
+        .comment-disclaimer a { 
+            text-decoration: none !important; 
+            color: #2563eb !important; 
+            font-weight: 900;
+            transition: opacity 0.2s ease;
+        }
+        .comment-disclaimer a:hover { opacity: 0.7; text-decoration: underline !important; }
 
         #comment-form input, #comment-form textarea {
             width: 100%;
@@ -83,6 +89,7 @@
         .verified-reader-badge { color: #5C9AFF !important; font-size: 12px; font-weight: 800; text-transform: uppercase; }
         .host-badge { background: #f59e0b !important; color: white !important; padding: 3px 10px; border-radius: 4px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
         
+        /* RESTORED POST BUTTON HOVER */
         .submit-review-btn {
             background: #334155 !important;
             color: white !important;
@@ -92,6 +99,13 @@
             cursor: pointer;
             width: 200px;
             text-transform: uppercase;
+            transition: all 0.2s ease;
+            border: none;
+        }
+        .submit-review-btn:hover {
+            background: #1e293b !important;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
 
         .reply-item-container { 
@@ -132,14 +146,12 @@
     };
 
     const render = async () => {
-        // --- JANITOR LOGIC START ---
-        // Checks if we just returned from a Google login and wipes the token from the URL
+        // --- JANITOR LOGIC ---
         if (window.location.hash.includes('access_token')) {
             setTimeout(() => {
                 window.history.replaceState(null, null, window.location.pathname + window.location.search);
             }, 500);
         }
-        // --- JANITOR LOGIC END ---
 
         const container = document.getElementById('custom-comment-section');
         if (!container) return;
@@ -185,7 +197,6 @@
         } catch (e) { container.innerHTML = `<p>Syncing comments...</p>`; }
     };
 
-    // ACTION & AUTH HANDLERS
     window.setReply = (id, name) => { 
         document.getElementById('parent-id').value = id; 
         document.getElementById('comment-body').focus(); 
