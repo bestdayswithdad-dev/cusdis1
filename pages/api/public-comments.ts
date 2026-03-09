@@ -62,7 +62,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const userEmail = user?.email ?? 'guest@example.com'
     const isHost = userEmail === 'bestdayswithdad@gmail.com'
 
-    const displayName = isHost ? "Host" : (nickname || user?.user_metadata?.full_name || 'Guest')
+    const displayName = isHost ? "Adam-BDWD" : (nickname || user?.user_metadata?.full_name || 'Guest')
 
     try {
       let page = await prisma.page.findFirst({ where: { slug: pageId } })
