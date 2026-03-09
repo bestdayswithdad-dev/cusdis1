@@ -34,7 +34,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { pageId } = req.query
     if (!pageId) return res.status(400).json({ error: 'pageId is required' })
     try {
-      // FIXED: Switched to singular 'comment'
       const comments = await prisma.comment.findMany({
         where: {
           approved: true,
@@ -73,7 +72,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       || 'Guest')
 
     try {
-      // PAGE SYNC: Find or Create Page using singular 'page'
+      // PAGE SYNC: Find or Create Page using findFirst
       let page = await prisma.page.findFirst({ where: { slug: pageId } })
       
       if (!page) {
@@ -88,7 +87,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         })
       }
 
-      // CREATE COMMENT: Using singular 'comment'
+      // CREATE COMMENT: Linked identity and page data
       const newComment = await prisma.comment.create({
         data: {
           id: crypto.randomUUID(),
@@ -99,7 +98,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           approved: isVerified || isHost, // Verified Readers and Host skip moderation
           projectId: PROJECT_ID,
           Page: { connect: { id: page.id } },
-          parent_id: parentId ? BigInt(parentId) : null
+          // FIXED: Changed parent_id to parentId
+          parentId: parentId ? BigInt(parentId) : null
         }
       })
       
