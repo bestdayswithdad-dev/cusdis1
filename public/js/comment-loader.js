@@ -21,8 +21,8 @@
             font-family: 'Montserrat', sans-serif !important; 
             padding: 20px 0; 
             background: transparent !important; 
-            max-width: 800px;
-            margin: 0 auto;
+            max-width: 1000px;
+            margin: -30px auto 0 auto;
         }
         
         .input-wrapper {
