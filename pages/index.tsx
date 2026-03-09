@@ -8,7 +8,7 @@ import {
 import { 
   AiOutlineCheck, AiOutlineDelete, AiOutlineAlert, 
   AiOutlineMessage, AiOutlineFlag, AiOutlineFileText,
-  AiOutlineClockCircle, AiOutlineGlobal // Added for IP icon
+  AiOutlineClockCircle, AiOutlineGlobal
 } from 'react-icons/ai'
 
 const ADMIN_EMAIL = 'bestdayswithdad@gmail.com'
@@ -21,10 +21,10 @@ export default function ModerationCenter() {
   const [emailData, setEmailData] = useState({ to: '', subject: '', body: '' })
 
   const fetchComments = async () => {
-    // Note: This fetches from your Vercel API
-    const res = await fetch('/api/comments') 
+    // Note: Fetches from your Vercel API
+    const res = await fetch('/api/public-comments') 
     const data = await res.json()
-    // Aligning with your API response structure
+    // Aligning with the Vercel API response structure
     setComments(data.comments || data || []) 
   }
 
@@ -42,8 +42,9 @@ export default function ModerationCenter() {
     const flagged = comments.filter(c => c.content?.toLowerCase().includes('http')); 
     const pending = comments.filter(c => !c.approved && !c.content?.toLowerCase().includes('http'));
 
+    // Reconstructs the Page Name Tabs using the singular 'Page' object
     const pageGroups = comments.reduce((acc: any, c) => {
-      const title = c.pages?.title || 'General / Legacy'; // Updated to plural 'pages'
+      const title = c.Page?.title || 'General / Legacy'; 
       if (!acc[title]) acc[title] = [];
       acc[title].push(c);
       return acc;
@@ -53,13 +54,17 @@ export default function ModerationCenter() {
   }, [comments]);
 
   const handleApprove = async (id: string) => {
-    const res = await fetch(`/api/comments?id=${id}`, { method: 'PATCH' })
+    const res = await fetch(`/api/public-comments?id=${id}`, { 
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ approved: true })
+    })
     if (res.ok) fetchComments()
   }
 
   const handleDelete = async (id: string) => {
     if (confirm("Permanently delete this comment?")) {
-      await fetch(`/api/comments?id=${id}`, { method: 'DELETE' })
+      await fetch(`/api/public-comments?id=${id}`, { method: 'DELETE' })
       fetchComments()
     }
   }
@@ -84,7 +89,7 @@ export default function ModerationCenter() {
     <Table verticalSpacing="md" horizontalSpacing="md" fontSize="md">
       <thead>
         <tr>
-          <th>User / IP</th> {/* Updated Header */}
+          <th>User / IP</th>
           <th>Comment</th>
           <th>Post Name</th>
           <th>Status</th>
@@ -95,9 +100,10 @@ export default function ModerationCenter() {
         {data.map((c) => (
           <tr key={c.id}>
             <td style={{ minWidth: '180px' }}>
-              <Text size="md" weight={600}>{c.nickname || 'Guest'}</Text>
-              <Text size="xs" color="dimmed">{c.email}</Text>
-              {/* IP ADDRESS DISPLAY */}
+              {/* RESTORED: Uses by_nickname instead of 'Guest' */}
+              <Text size="md" weight={700} color="dark">{c.by_nickname || 'Guest'}</Text>
+              <Text size="xs" color="dimmed" weight={500}>{c.by_email}</Text>
+              
               <Group spacing={4} mt={4}>
                 <AiOutlineGlobal size="0.8rem" color="gray" />
                 <Text size="xs" color="blue" italic>
@@ -108,8 +114,8 @@ export default function ModerationCenter() {
             <td><Text size="md" style={{ lineHeight: 1.5 }}>{c.content}</Text></td>
             <td style={{ minWidth: '200px' }}>
               <Stack spacing={4}>
-                <Text size="sm" weight={700} color="blue">{c.pages?.title || 'General / Legacy'}</Text>
-                <Text size="xs" color="dimmed" truncate>{c.pages?.slug}</Text>
+                <Text size="sm" weight={700} color="blue">{c.Page?.title || 'General / Legacy'}</Text>
+                <Text size="xs" color="dimmed" truncate>{c.Page?.slug}</Text>
               </Stack>
             </td>
             <td>
@@ -124,10 +130,10 @@ export default function ModerationCenter() {
                     <AiOutlineCheck size="1.4rem" />
                   </ActionIcon>
                 )}
-                <ActionIcon size="lg" color="orange" variant="light" onClick={() => prepareWarning(c.email, c.content)} title="Warning">
+                <ActionIcon size="lg" color="orange" variant="light" onClick={() => prepareWarning(c.by_email, c.content)} title="Warning">
                   <AiOutlineAlert size="1.4rem" />
                 </ActionIcon>
-                <ActionIcon size="lg" color="blue" variant="light" onClick={() => prepareReply(c.email, c.content)} title="Reply">
+                <ActionIcon size="lg" color="blue" variant="light" onClick={() => prepareReply(c.by_email, c.content)} title="Reply">
                   <AiOutlineMessage size="1.4rem" />
                 </ActionIcon>
                 <ActionIcon size="lg" color="red" variant="subtle" onClick={() => handleDelete(c.id)} title="Delete">
