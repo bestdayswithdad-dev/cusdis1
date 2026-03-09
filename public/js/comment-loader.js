@@ -138,7 +138,7 @@
         // Resource Tier Logic
         let badgeHtml = '';
         if (isHost) {
-            badgeHtml = '<span class="host-badge">Host</span>';
+            badgeHtml = '<span class="host-badge">MOD</span>';
         } else if (isGuest) {
             badgeHtml = '<span class="casual-adventurer-badge">Casual Adventurer</span>';
         } else {
