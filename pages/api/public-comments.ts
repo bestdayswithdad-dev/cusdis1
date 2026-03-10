@@ -24,7 +24,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const supabase = createPagesServerClient({ req, res })
 
-  // HELPER: Get user regardless of cross-domain cookie issues
   const getAuthenticatedUser = async () => {
     const { data: { user: sessionUser } } = await supabase.auth.getUser()
     if (sessionUser) return sessionUser
@@ -38,7 +37,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return null
   }
 
-  // 1. PUBLIC GET: Fetch comments
+  // 1. GET: Fetch comments
   if (req.method === 'GET') {
     const { pageId } = req.query
     try {
@@ -56,9 +55,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch (err) { return res.status(500).json({ error: 'Fetch failed' }) }
   }
 
-  // 2. PUBLIC/AUTH POST: Submit a new comment or reply
+  // 2. POST: Submit comment
   if (req.method === 'POST') {
-    // Added 'metadata' to the destructuring
     const { content, nickname, pageId, pageTitle, parentId, metadata } = req.body
     if (!content || !pageId) return res.status(400).json({ error: 'content and pageId are required' })
 
@@ -66,7 +64,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const isVerified = !!user
     const userEmail = user?.email ?? 'guest@example.com'
     const isHost = userEmail === ADMIN_EMAIL
-
     const googleName = user?.user_metadata?.full_name || user?.user_metadata?.name
     const displayName = isHost ? "Adam - BDWD" : (googleName || nickname || 'Guest')
 
@@ -94,7 +91,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           projectId: PROJECT_ID,
           Page: { connect: { id: page.id } },
           parentId: parentId ? String(parentId) : null,
-          // CRITICAL: Save the metadata (avatar_url) sent from frontend
           metadata: metadata || {}
         }
       })
@@ -105,15 +101,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
-  // 3. ADMIN PATCH: Approve a comment
+  // 3. PATCH: Handle Toggle Likes and Admin Approvals
   if (req.method === 'PATCH') {
-    const { id } = req.query
-    const { approved } = req.body
-    const user = await getAuthenticatedUser()
+    const { id, action } = req.query
+    
+    // --- LIKE TOGGLE LOGIC ---
+    if (action === 'like') {
+      const { type } = req.body; // Expecting 'inc' or 'dec'
+      try {
+        const updated = await prisma.comment.update({
+          where: { id: String(id) },
+          data: {
+            votes_count: {
+              [type === 'dec' ? 'decrement' : 'increment']: 1
+            }
+          }
+        })
+        return res.status(200).json(serialize(updated))
+      } catch (err) {
+        return res.status(500).json({ error: 'Like operation failed' })
+      }
+    }
 
+    // --- ADMIN APPROVAL LOGIC ---
+    const user = await getAuthenticatedUser()
     if (user?.email !== ADMIN_EMAIL) return res.status(403).json({ error: 'Unauthorized' })
 
     try {
+      const { approved } = req.body
       const updated = await prisma.comment.update({
         where: { id: String(id) },
         data: { approved: !!approved }
@@ -122,17 +137,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch (err) { return res.status(500).json({ error: 'Update failed' }) }
   }
 
-  // 4. ADMIN DELETE: Delete a comment
+  // 4. DELETE: Admin only
   if (req.method === 'DELETE') {
     const { id } = req.query
     const user = await getAuthenticatedUser()
-
     if (user?.email !== ADMIN_EMAIL) return res.status(403).json({ error: 'Unauthorized' })
 
     try {
-      await prisma.comment.delete({
-        where: { id: String(id) }
-      })
+      await prisma.comment.delete({ where: { id: String(id) } })
       return res.status(200).json({ success: true })
     } catch (err) { return res.status(500).json({ error: 'Delete failed' }) }
   }
