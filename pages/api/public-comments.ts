@@ -26,11 +26,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // HELPER: Get user regardless of cross-domain cookie issues
   const getAuthenticatedUser = async () => {
-    // 1. Try traditional session cookie
     const { data: { user: sessionUser } } = await supabase.auth.getUser()
     if (sessionUser) return sessionUser
 
-    // 2. Try Authorization Header (Bearer Token) for cross-domain requests
     const authHeader = req.headers.authorization
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1]
@@ -60,7 +58,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // 2. PUBLIC/AUTH POST: Submit a new comment or reply
   if (req.method === 'POST') {
-    const { content, nickname, pageId, pageTitle, parentId } = req.body
+    // Added 'metadata' to the destructuring
+    const { content, nickname, pageId, pageTitle, parentId, metadata } = req.body
     if (!content || !pageId) return res.status(400).json({ error: 'content and pageId are required' })
 
     const user = await getAuthenticatedUser()
@@ -94,11 +93,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           approved: isVerified || isHost, 
           projectId: PROJECT_ID,
           Page: { connect: { id: page.id } },
-          parentId: parentId ? String(parentId) : null
+          parentId: parentId ? String(parentId) : null,
+          // CRITICAL: Save the metadata (avatar_url) sent from frontend
+          metadata: metadata || {}
         }
       })
       return res.status(201).json(serialize(newComment))
-    } catch (error) { return res.status(500).json({ error: 'Post failed' }) }
+    } catch (error) { 
+        console.error("Prisma Error:", error);
+        return res.status(500).json({ error: 'Post failed' }) 
+    }
   }
 
   // 3. ADMIN PATCH: Approve a comment
