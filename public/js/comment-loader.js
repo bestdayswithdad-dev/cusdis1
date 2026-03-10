@@ -170,6 +170,10 @@
         const isGuest = !comment.by_email || comment.by_email === 'guest@example.com';
         const isHost = comment.by_email === 'bestdayswithdad@gmail.com';
 
+        // Ownership checks for self-delete
+        const isOwner = currentUser?.user?.email === comment.by_email;
+        const isAdmin = currentUser?.user?.email === 'bestdayswithdad@gmail.com';
+
         let badgeHtml = isHost ? '<span class="mod-badge-text">MOD</span>' : 
                     (isGuest ? '<span class="casual-adventurer-badge">Casual Adventurer</span>' : 
                     '<span class="park-scout-badge">Park Scout</span>');
@@ -191,6 +195,7 @@
                         <button class="executive-btn" onclick="window.handleLikeAction('${comment.id}')">
                             ${isLiked ? '❤️' : '🤍'} ${voteCount > 0 ? voteCount : ''}
                         </button>
+                        ${(isOwner || isAdmin) ? `<button class="executive-btn" style="color: #ef4444;" onclick="window.handleSelfDelete('${comment.id}')">Delete</button>` : ''}
                     </div>
                 </div>
             </div>`;
@@ -327,38 +332,62 @@
     };
 
     window.handleLikeAction = async (id) => {
+        // --- AUTH CHECK FOR LIKES ---
+        const freshLocker = getBadgeFromLocker();
+        if (!freshLocker?.user) {
+            return alert("Please sign in with Google to like comments!");
+        }
+
         const commentId = String(id);
         const isUnliking = userLikes.has(commentId);
+        const token = freshLocker.access_token;
         
-        // Optimistic UI Update
         if (isUnliking) {
             userLikes.delete(commentId);
         } else {
             userLikes.add(commentId);
         }
         
-        // Save to local storage
         localStorage.setItem('bdwd_likes', JSON.stringify(Array.from(userLikes)));
-
-        // Immediate Re-render for responsive feel
         render();
 
         try {
             const res = await fetch(`https://cusdis-jet-one.vercel.app/api/public-comments?id=${id}&action=like`, { 
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify({ type: isUnliking ? 'dec' : 'inc' })
             });
             if (res.ok) { 
-                // Final render to update actual count from server
                 setTimeout(render, 300); 
             }
         } catch (e) { 
             console.error("Like failed", e);
-            // Rollback on error
             if (isUnliking) userLikes.add(commentId);
             else userLikes.delete(commentId);
             render();
+        }
+    };
+
+    window.handleSelfDelete = async (id) => {
+        if (!confirm("Are you sure you want to permanently delete this comment?")) return;
+        
+        const freshLocker = getBadgeFromLocker();
+        const token = freshLocker ? freshLocker.access_token : null;
+
+        const res = await fetch(`https://cusdis-jet-one.vercel.app/api/public-comments?id=${id}`, {
+            method: 'DELETE',
+            headers: { 
+                'Authorization': token ? `Bearer ${token}` : '' 
+            }
+        });
+
+        if (res.ok) {
+            render();
+        } else {
+            alert("Could not delete comment. You may only delete your own posts.");
         }
     };
 
@@ -380,4 +409,4 @@
 
     if (document.readyState === 'complete') render();
     else window.addEventListener('load', render);
-})();;
+})();
