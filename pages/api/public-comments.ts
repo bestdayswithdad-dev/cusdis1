@@ -22,7 +22,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   
   if (req.method === 'OPTIONS') return res.status(200).end()
 
-  // 1. PUBLIC GET: Fetch comments (filtered by pageId if provided)
+  // 1. PUBLIC GET: Fetch comments
   if (req.method === 'GET') {
     const { pageId } = req.query
     try {
@@ -48,11 +48,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const supabase = createPagesServerClient({ req, res })
     const { data: { user } } = await supabase.auth.getUser()
 
+    // LOGIC: Check if user is logged in (Google/OAuth)
     const isVerified = !!user
     const userEmail = user?.email ?? 'guest@example.com'
     const isHost = userEmail === ADMIN_EMAIL
 
-    const displayName = isHost ? "Adam - BDWD" : (nickname || user?.user_metadata?.full_name || 'Guest')
+    // Logic: Prioritize Google Full Name if available, otherwise use nickname
+    const googleName = user?.user_metadata?.full_name || user?.user_metadata?.name
+    const displayName = isHost ? "Adam - BDWD" : (googleName || nickname || 'Guest')
 
     try {
       let page = await prisma.page.findFirst({ where: { slug: pageId } })
@@ -74,7 +77,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           by_nickname: displayName,
           by_email: userEmail,
           ip: req.headers['x-forwarded-for']?.toString().split(',')[0] || req.socket.remoteAddress || '0.0.0.0',
-          approved: isVerified || isHost,
+          
+          // CRITICAL: Automatically approve if the user is the Host OR logged in via Google
+          approved: isVerified || isHost, 
+          
           projectId: PROJECT_ID,
           Page: { connect: { id: page.id } },
           parentId: parentId ? String(parentId) : null
