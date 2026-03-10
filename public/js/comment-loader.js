@@ -154,7 +154,7 @@
     const createCommentHtml = (comment) => {
         const isLiked = userLikes.has(String(comment.id));
         const voteCount = comment.votes_count || 0;
-        const isGuest = !comment.userId || comment.by_email === 'guest@example.com';
+        const isGuest = !comment.by_email || comment.by_email === 'guest@example.com';
         const isHost = comment.by_email === 'bestdayswithdad@gmail.com';
 
         let badgeHtml = isHost ? '<span class="mod-badge-text">MOD</span>' : 
@@ -233,7 +233,7 @@
                 <div class="input-wrapper">
                     <div class="nickname-label-bar">
                         <span style="font-size: 10px; font-weight: 800; color: #cbd5e1;">POSTING AS:</span>
-                        <input type="text" id="nickname" value="${currentUser?.user?.user_metadata?.full_name || 'Guest Explorer'}" />
+                        <input type="text" id="nickname" value="${currentUser?.user?.user_metadata?.full_name || 'Guest Explorer'}" ${currentUser?.user ? 'readonly' : ''} />
                     </div>
                     
                     <div id="comment-form">
@@ -281,6 +281,7 @@
         const parentId = document.getElementById('parent-id').value;
         if (!content || !nickname) return; 
 
+        // Re-fetch token directly from storage to ensure it's fresh
         const freshLocker = getBadgeFromLocker();
         const token = freshLocker ? freshLocker.access_token : null;
         const email = freshLocker?.user?.email || 'guest@example.com';
@@ -288,9 +289,15 @@
 
         const res = await fetch('https://cusdis-jet-one.vercel.app/api/public-comments', { 
             method: 'POST', 
-            headers: { 'Content-Type': 'application/json', 'Authorization': token ? `Bearer ${token}` : '' }, 
+            headers: { 
+                'Content-Type': 'application/json',
+                // Attach the Bearer token for Vercel cross-domain auth
+                'Authorization': token ? `Bearer ${token}` : '' 
+            }, 
             body: JSON.stringify({ 
-                content, nickname, pageId: getCleanUrl(),
+                content, 
+                nickname, 
+                pageId: getCleanUrl(),
                 pageTitle: document.title.split(' : ')[0],
                 parentId: parentId || null,
                 by_email: email,
@@ -304,15 +311,19 @@
             body.style.height = 'auto'; 
             document.getElementById('parent-id').value = "";
             body.placeholder = "Message Best Days With Dad...";
+            // Brief timeout to let database settle before re-rendering
             setTimeout(render, 500); 
         } 
     };
 
     window.handleSignIn = async () => {
         localStorage.removeItem('sb-yfcqtkrayecpkkuzivvf-auth-token');
-        await window.supabaseClient.auth.signInWithOAuth({
-            provider: 'google', options: { redirectTo: window.location.href, queryParams: { prompt: 'select_account' } }
-        });
+        if (window.supabaseClient) {
+            await window.supabaseClient.auth.signInWithOAuth({
+                provider: 'google', 
+                options: { redirectTo: window.location.href, queryParams: { prompt: 'select_account' } }
+            });
+        }
     };
 
     window.handleSignOut = async () => {
