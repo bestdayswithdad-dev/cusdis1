@@ -7,6 +7,7 @@ const prisma = globalForPrisma.prisma ?? new PrismaClient()
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 
 const PROJECT_ID = 'cbcd61ec-f2ef-425c-a952-30034c2de4e1'
+const ADMIN_EMAIL = 'bestdayswithdad@gmail.com'
 
 const serialize = (data: unknown) =>
   JSON.parse(JSON.stringify(data, (_, value) =>
@@ -15,11 +16,13 @@ const serialize = (data: unknown) =>
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   res.setHeader('Access-Control-Allow-Origin', 'https://www.bestdayswithdad.com')
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
   res.setHeader('Access-Control-Allow-Credentials', 'true')
+  
   if (req.method === 'OPTIONS') return res.status(200).end()
 
+  // 1. PUBLIC GET: Fetch comments (filtered by pageId if provided)
   if (req.method === 'GET') {
     const { pageId } = req.query
     try {
@@ -37,6 +40,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch (err) { return res.status(500).json({ error: 'Fetch failed' }) }
   }
 
+  // 2. PUBLIC/AUTH POST: Submit a new comment or reply
   if (req.method === 'POST') {
     const { content, nickname, pageId, pageTitle, parentId } = req.body
     if (!content || !pageId) return res.status(400).json({ error: 'content and pageId are required' })
@@ -46,10 +50,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const isVerified = !!user
     const userEmail = user?.email ?? 'guest@example.com'
-    const isHost = userEmail === 'bestdayswithdad@gmail.com'
+    const isHost = userEmail === ADMIN_EMAIL
 
-    // UPDATED: Host now displays as Adam-BDWD
-    const displayName = isHost ? "Adam-BDWD" : (nickname || user?.user_metadata?.full_name || 'Guest')
+    const displayName = isHost ? "Adam - BDWD" : (nickname || user?.user_metadata?.full_name || 'Guest')
 
     try {
       let page = await prisma.page.findFirst({ where: { slug: pageId } })
@@ -79,6 +82,42 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       })
       return res.status(201).json(serialize(newComment))
     } catch (error) { return res.status(500).json({ error: 'Post failed' }) }
+  }
+
+  // 3. ADMIN PATCH: Approve a comment
+  if (req.method === 'PATCH') {
+    const { id } = req.query
+    const { approved } = req.body
+    
+    const supabase = createPagesServerClient({ req, res })
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (user?.email !== ADMIN_EMAIL) return res.status(403).json({ error: 'Unauthorized' })
+
+    try {
+      const updated = await prisma.comment.update({
+        where: { id: String(id) },
+        data: { approved: !!approved }
+      })
+      return res.status(200).json(serialize(updated))
+    } catch (err) { return res.status(500).json({ error: 'Update failed' }) }
+  }
+
+  // 4. ADMIN DELETE: Delete a comment
+  if (req.method === 'DELETE') {
+    const { id } = req.query
+    
+    const supabase = createPagesServerClient({ req, res })
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (user?.email !== ADMIN_EMAIL) return res.status(403).json({ error: 'Unauthorized' })
+
+    try {
+      await prisma.comment.delete({
+        where: { id: String(id) }
+      })
+      return res.status(200).json({ success: true })
+    } catch (err) { return res.status(500).json({ error: 'Delete failed' }) }
   }
 
   return res.status(405).json({ error: 'Method not allowed' })
