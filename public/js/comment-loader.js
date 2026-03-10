@@ -1,5 +1,6 @@
 (function() {
-    let userLikes = new Set();
+    // Persistent local storage for likes so they survive refreshes
+    let userLikes = new Set(JSON.parse(localStorage.getItem('bdwd_likes') || '[]'));
     let currentUser = null;
     const PROJECT_ID = 'cbcd61ec-f2ef-425c-a952-30034c2de4e1';
 
@@ -173,7 +174,6 @@
                     (isGuest ? '<span class="casual-adventurer-badge">Casual Adventurer</span>' : 
                     '<span class="park-scout-badge">Park Scout</span>');
 
-        // Look for the saved avatar in metadata
         const avatarUrl = comment.metadata?.avatar_url || null;
         const avatarImg = avatarUrl ? `<img src="${avatarUrl}" class="user-avatar-img">` : `<span style="font-size:18px;">👤</span>`;
 
@@ -188,7 +188,7 @@
                     <p style="line-height:1.5; color:#475569; font-size:15px; margin-bottom:10px; margin-top:0;">${comment.content}</p>
                     <div class="comment-actions">
                         <button class="executive-btn" onclick="window.setReply('${comment.id}', '${comment.by_nickname}')">Reply</button>
-                        <button class="executive-btn" onclick="window.handleLikeAction('${comment.id}', ${isLiked})">
+                        <button class="executive-btn" onclick="window.handleLikeAction('${comment.id}')">
                             ${isLiked ? '❤️' : '🤍'} ${voteCount > 0 ? voteCount : ''}
                         </button>
                     </div>
@@ -289,7 +289,6 @@
         const freshLocker = getBadgeFromLocker();
         const token = freshLocker ? freshLocker.access_token : null;
         
-        // Choice: Only send avatar if they are logged in AND the box is checked
         const avatar_url = (freshLocker?.user && (!avatarCheckbox || avatarCheckbox.checked)) 
             ? freshLocker.user.user_metadata.avatar_url 
             : null;
@@ -320,7 +319,6 @@
         } 
     };
 
-    // ... (rest of the functions: setReply, handleLikeAction, handleSignIn, handleSignOut) ...
     window.setReply = (id, name) => { 
         document.getElementById('parent-id').value = id; 
         const body = document.getElementById('comment-body');
@@ -328,12 +326,40 @@
         body.placeholder = `Reply to ${name}...`;
     };
 
-    window.handleLikeAction = async (id, alreadyLiked) => {
-        if (alreadyLiked) return;
+    window.handleLikeAction = async (id) => {
+        const commentId = String(id);
+        const isUnliking = userLikes.has(commentId);
+        
+        // Optimistic UI Update
+        if (isUnliking) {
+            userLikes.delete(commentId);
+        } else {
+            userLikes.add(commentId);
+        }
+        
+        // Save to local storage
+        localStorage.setItem('bdwd_likes', JSON.stringify(Array.from(userLikes)));
+
+        // Immediate Re-render for responsive feel
+        render();
+
         try {
-            const res = await fetch(`https://cusdis-jet-one.vercel.app/api/public-comments?id=${id}&action=like`, { method: 'PATCH' });
-            if (res.ok) { userLikes.add(String(id)); render(); }
-        } catch (e) { console.error("Like failed", e); }
+            const res = await fetch(`https://cusdis-jet-one.vercel.app/api/public-comments?id=${id}&action=like`, { 
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: isUnliking ? 'dec' : 'inc' })
+            });
+            if (res.ok) { 
+                // Final render to update actual count from server
+                setTimeout(render, 300); 
+            }
+        } catch (e) { 
+            console.error("Like failed", e);
+            // Rollback on error
+            if (isUnliking) userLikes.add(commentId);
+            else userLikes.delete(commentId);
+            render();
+        }
     };
 
     window.handleSignIn = async () => {
@@ -354,4 +380,4 @@
 
     if (document.readyState === 'complete') render();
     else window.addEventListener('load', render);
-})();
+})();;
