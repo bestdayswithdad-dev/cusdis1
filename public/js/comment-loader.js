@@ -37,6 +37,7 @@
             display: flex;
             gap: 10px;
             align-items: center;
+            flex-wrap: wrap;
         }
 
         #nickname {
@@ -49,6 +50,18 @@
             outline: none;
             width: auto;
             padding: 0;
+        }
+
+        .avatar-choice-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: #94a3b8;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            margin-left: auto;
+            padding-right: 20px;
         }
 
         #comment-form {
@@ -85,7 +98,6 @@
 
         .user-avatar-btn { cursor: pointer; border: 2px solid transparent; transition: border-color 0.2s; padding: 0; }
         .user-avatar-btn:hover { border-color: #e2e8f0; }
-
         .user-avatar-img { width: 100%; height: 100%; object-fit: cover; }
 
         #comment-body {
@@ -161,6 +173,7 @@
                     (isGuest ? '<span class="casual-adventurer-badge">Casual Adventurer</span>' : 
                     '<span class="park-scout-badge">Park Scout</span>');
 
+        // Look for the saved avatar in metadata
         const avatarUrl = comment.metadata?.avatar_url || null;
         const avatarImg = avatarUrl ? `<img src="${avatarUrl}" class="user-avatar-img">` : `<span style="font-size:18px;">👤</span>`;
 
@@ -233,7 +246,13 @@
                 <div class="input-wrapper">
                     <div class="nickname-label-bar">
                         <span style="font-size: 10px; font-weight: 800; color: #cbd5e1;">POSTING AS:</span>
-                        <input type="text" id="nickname" value="${currentUser?.user?.user_metadata?.full_name || 'Guest Explorer'}" ${currentUser?.user ? 'readonly' : ''} />
+                        <input type="text" id="nickname" value="${currentUser?.user?.user_metadata?.full_name || 'Guest Explorer'}" />
+                        
+                        ${currentUser?.user ? `
+                            <label class="avatar-choice-label">
+                                <input type="checkbox" id="use-avatar" checked> Use Google Photo
+                            </label>
+                        ` : ''}
                     </div>
                     
                     <div id="comment-form">
@@ -253,13 +272,55 @@
                     <a href="https://www.bestdayswithdad.com/p/terms-of-service.html">Terms of Service</a>, 
                     <a href="https://www.bestdayswithdad.com/p/privacy-agreement.html">Privacy Policy</a>, 
                     & <a href="/p/comment-policy.html">Comment Policy</a>.
-                </div>
-                <div id="submit-msg"></div>`;
+                </div>`;
             
             window.autoExpand = autoExpand;
         } catch (e) { container.innerHTML = `<p>Syncing discussion...</p>`; }
     };
 
+    window.submitReview = async function() { 
+        const content = document.getElementById('comment-body').value.trim(); 
+        const nickname = document.getElementById('nickname').value.trim(); 
+        const parentId = document.getElementById('parent-id').value;
+        const avatarCheckbox = document.getElementById('use-avatar');
+        
+        if (!content || !nickname) return; 
+
+        const freshLocker = getBadgeFromLocker();
+        const token = freshLocker ? freshLocker.access_token : null;
+        
+        // Choice: Only send avatar if they are logged in AND the box is checked
+        const avatar_url = (freshLocker?.user && (!avatarCheckbox || avatarCheckbox.checked)) 
+            ? freshLocker.user.user_metadata.avatar_url 
+            : null;
+
+        const res = await fetch('https://cusdis-jet-one.vercel.app/api/public-comments', { 
+            method: 'POST', 
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': token ? `Bearer ${token}` : '' 
+            }, 
+            body: JSON.stringify({ 
+                content, 
+                nickname, 
+                pageId: getCleanUrl(),
+                pageTitle: document.title.split(' : ')[0],
+                parentId: parentId || null,
+                metadata: { avatar_url } 
+            }) 
+        }); 
+
+        if (res.ok) { 
+            const body = document.getElementById('comment-body');
+            body.value = ""; 
+            body.style.height = 'auto'; 
+            document.getElementById('parent-id').value = "";
+            body.placeholder = "Message Best Days With Dad...";
+            setTimeout(render, 500); 
+        } 
+    };
+
+    // ... (rest of the functions: setReply, handleLikeAction, handleSignIn, handleSignOut) ...
     window.setReply = (id, name) => { 
         document.getElementById('parent-id').value = id; 
         const body = document.getElementById('comment-body');
@@ -273,47 +334,6 @@
             const res = await fetch(`https://cusdis-jet-one.vercel.app/api/public-comments?id=${id}&action=like`, { method: 'PATCH' });
             if (res.ok) { userLikes.add(String(id)); render(); }
         } catch (e) { console.error("Like failed", e); }
-    };
-
-    window.submitReview = async function() { 
-        const content = document.getElementById('comment-body').value.trim(); 
-        const nickname = document.getElementById('nickname').value.trim(); 
-        const parentId = document.getElementById('parent-id').value;
-        if (!content || !nickname) return; 
-
-        // Re-fetch token directly from storage to ensure it's fresh
-        const freshLocker = getBadgeFromLocker();
-        const token = freshLocker ? freshLocker.access_token : null;
-        const email = freshLocker?.user?.email || 'guest@example.com';
-        const avatar_url = freshLocker?.user?.user_metadata?.avatar_url || null;
-
-        const res = await fetch('https://cusdis-jet-one.vercel.app/api/public-comments', { 
-            method: 'POST', 
-            headers: { 
-                'Content-Type': 'application/json',
-                // Attach the Bearer token for Vercel cross-domain auth
-                'Authorization': token ? `Bearer ${token}` : '' 
-            }, 
-            body: JSON.stringify({ 
-                content, 
-                nickname, 
-                pageId: getCleanUrl(),
-                pageTitle: document.title.split(' : ')[0],
-                parentId: parentId || null,
-                by_email: email,
-                metadata: { avatar_url } 
-            }) 
-        }); 
-
-        if (res.ok) { 
-            const body = document.getElementById('comment-body');
-            body.value = ""; 
-            body.style.height = 'auto'; 
-            document.getElementById('parent-id').value = "";
-            body.placeholder = "Message Best Days With Dad...";
-            // Brief timeout to let database settle before re-rendering
-            setTimeout(render, 500); 
-        } 
     };
 
     window.handleSignIn = async () => {
