@@ -22,6 +22,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   
   if (req.method === 'OPTIONS') return res.status(200).end()
 
+  const supabase = createPagesServerClient({ req, res })
+
+  // HELPER: Get user regardless of cross-domain cookie issues
+  const getAuthenticatedUser = async () => {
+    // 1. Try traditional session cookie
+    const { data: { user: sessionUser } } = await supabase.auth.getUser()
+    if (sessionUser) return sessionUser
+
+    // 2. Try Authorization Header (Bearer Token) for cross-domain requests
+    const authHeader = req.headers.authorization
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1]
+      const { data: { user: tokenUser } } = await supabase.auth.getUser(token)
+      return tokenUser
+    }
+    return null
+  }
+
   // 1. PUBLIC GET: Fetch comments
   if (req.method === 'GET') {
     const { pageId } = req.query
@@ -45,15 +63,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { content, nickname, pageId, pageTitle, parentId } = req.body
     if (!content || !pageId) return res.status(400).json({ error: 'content and pageId are required' })
 
-    const supabase = createPagesServerClient({ req, res })
-    const { data: { user } } = await supabase.auth.getUser()
-
-    // LOGIC: Check if user is logged in (Google/OAuth)
+    const user = await getAuthenticatedUser()
     const isVerified = !!user
     const userEmail = user?.email ?? 'guest@example.com'
     const isHost = userEmail === ADMIN_EMAIL
 
-    // Logic: Prioritize Google Full Name if available, otherwise use nickname
     const googleName = user?.user_metadata?.full_name || user?.user_metadata?.name
     const displayName = isHost ? "Adam - BDWD" : (googleName || nickname || 'Guest')
 
@@ -77,10 +91,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           by_nickname: displayName,
           by_email: userEmail,
           ip: req.headers['x-forwarded-for']?.toString().split(',')[0] || req.socket.remoteAddress || '0.0.0.0',
-          
-          // CRITICAL: Automatically approve if the user is the Host OR logged in via Google
           approved: isVerified || isHost, 
-          
           projectId: PROJECT_ID,
           Page: { connect: { id: page.id } },
           parentId: parentId ? String(parentId) : null
@@ -94,9 +105,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'PATCH') {
     const { id } = req.query
     const { approved } = req.body
-    
-    const supabase = createPagesServerClient({ req, res })
-    const { data: { user } } = await supabase.auth.getUser()
+    const user = await getAuthenticatedUser()
 
     if (user?.email !== ADMIN_EMAIL) return res.status(403).json({ error: 'Unauthorized' })
 
@@ -112,9 +121,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // 4. ADMIN DELETE: Delete a comment
   if (req.method === 'DELETE') {
     const { id } = req.query
-    
-    const supabase = createPagesServerClient({ req, res })
-    const { data: { user } } = await supabase.auth.getUser()
+    const user = await getAuthenticatedUser()
 
     if (user?.email !== ADMIN_EMAIL) return res.status(403).json({ error: 'Unauthorized' })
 
