@@ -29,7 +29,10 @@ export default function ModerationCenter() {
         const data = await res.json()
         if (Array.isArray(data)) setComments(data)
         else if (data.comments) setComments(data.comments)
-    } catch (err) { console.error("Fetch failed", err); setComments([]) }
+    } catch (err) { 
+      console.error("Fetch failed", err)
+      setComments([]) 
+    }
   }
 
   useEffect(() => {
@@ -55,7 +58,7 @@ export default function ModerationCenter() {
     return { flagged, pending, pageGroups };
   }, [comments]);
 
-  // WORKING REPLY LOGIC
+  // REPLY LOGIC
   const submitDashboardReply = async () => {
     if (!replyContent.trim()) return;
     const { data: { session } } = await supabase.auth.getSession();
@@ -82,10 +85,11 @@ export default function ModerationCenter() {
     }
   }
 
-  // UPDATED TO MATCH REPLY PATTERN
+  // APPROVE LOGIC
   const handleApprove = async (id: string) => {
     const { data: { session } } = await supabase.auth.getSession();
-    await fetch(`/api/public-comments?id=${id}`, { 
+    
+    const res = await fetch(`/api/public-comments?id=${id}`, { 
         method: 'PATCH',
         headers: { 
             'Content-Type': 'application/json',
@@ -93,20 +97,31 @@ export default function ModerationCenter() {
         },
         body: JSON.stringify({ approved: true })
     })
-    fetchComments()
+
+    if (res.ok) {
+      fetchComments()
+    } else {
+      alert("Failed to approve comment.")
+    }
   }
 
-  // UPDATED TO MATCH REPLY PATTERN
+  // DELETE LOGIC
   const handleDelete = async (id: string) => {
-    if (confirm("Delete this comment?")) {
+    if (window.confirm("Are you sure you want to permanently delete this comment?")) {
       const { data: { session } } = await supabase.auth.getSession();
-      await fetch(`/api/public-comments?id=${id}`, { 
+      
+      const res = await fetch(`/api/public-comments?id=${id}`, { 
           method: 'DELETE',
           headers: { 
               'Authorization': `Bearer ${session?.access_token}`
           }
       })
-      fetchComments()
+
+      if (res.ok) {
+        fetchComments()
+      } else {
+        alert("Failed to delete comment.")
+      }
     }
   }
 
@@ -171,24 +186,54 @@ export default function ModerationCenter() {
 
         <Tabs defaultValue="pending" variant="outline" color="blue">
           <Tabs.List mb="md">
-            <Tabs.Tab value="pending" icon={<AiOutlineClockCircle size="1.2rem" />} color="yellow">Pending ({organizedData.pending.length})</Tabs.Tab>
-            <Tabs.Tab value="all" icon={<AiOutlineMessage size="1.2rem" />}>All ({comments.length})</Tabs.Tab>
+            <Tabs.Tab value="pending" icon={<AiOutlineClockCircle size="1.2rem" />} color="yellow">
+              Pending ({organizedData.pending.length})
+            </Tabs.Tab>
+            <Tabs.Tab value="all" icon={<AiOutlineMessage size="1.2rem" />}>
+              All ({comments.length})
+            </Tabs.Tab>
             {Object.entries(organizedData.pageGroups).map(([title, data]: [string, any]) => (
-              <Tabs.Tab key={title} value={title} icon={<AiOutlineFileText size="1.2rem" />}>{title} ({data.length})</Tabs.Tab>
+              <Tabs.Tab key={title} value={title} icon={<AiOutlineFileText size="1.2rem" />}>
+                {title} ({data.length})
+              </Tabs.Tab>
             ))}
           </Tabs.List>
 
-          <Tabs.Panel value="pending"><Paper withBorder p="lg"><CommentTable data={organizedData.pending} /></Paper></Tabs.Panel>
-          <Tabs.Panel value="all"><Paper withBorder p="lg"><CommentTable data={comments} /></Paper></Tabs.Panel>
+          <Tabs.Panel value="pending">
+            <Paper withBorder p="lg">
+              {organizedData.pending.length > 0 ? <CommentTable data={organizedData.pending} /> : <Text color="dimmed" align="center" py="xl">No pending comments</Text>}
+            </Paper>
+          </Tabs.Panel>
+
+          <Tabs.Panel value="all">
+            <Paper withBorder p="lg">
+              <CommentTable data={comments} />
+            </Paper>
+          </Tabs.Panel>
+
           {Object.entries(organizedData.pageGroups).map(([title, data]: any) => (
-            <Tabs.Panel key={title} value={title}><Paper withBorder p="lg"><CommentTable data={data} /></Paper></Tabs.Panel>
+            <Tabs.Panel key={title} value={title}>
+              <Paper withBorder p="lg">
+                <CommentTable data={data} />
+              </Paper>
+            </Tabs.Panel>
           ))}
         </Tabs>
 
-        <Modal opened={replyModal.opened} onClose={() => setReplyModal({ ...replyModal, opened: false })} title={`Reply to ${replyModal.nickname}`}>
+        <Modal 
+          opened={replyModal.opened} 
+          onClose={() => setReplyModal({ ...replyModal, opened: false })} 
+          title={`Reply to ${replyModal.nickname}`}
+          centered
+        >
           <Stack>
             <Text size="sm" color="dimmed">Your reply will appear instantly on the website under the "{replyModal.pageTitle}" post.</Text>
-            <Textarea placeholder="Write your response..." minRows={4} value={replyContent} onChange={(e) => setReplyContent(e.currentTarget.value)} />
+            <Textarea 
+              placeholder="Write your response..." 
+              minRows={4} 
+              value={replyContent} 
+              onChange={(e) => setReplyContent(e.currentTarget.value)} 
+            />
             <Button color="blue" onClick={submitDashboardReply}>Post Reply to Website</Button>
           </Stack>
         </Modal>
