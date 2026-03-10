@@ -33,7 +33,7 @@
         }
 
         .nickname-label-bar {
-            padding-left: 20px;
+            padding-left: 10px;
             margin-bottom: 8px;
             display: flex;
             gap: 10px;
@@ -136,7 +136,7 @@
         .send-btn:hover { background: #000 !important; transform: scale(1.05); }
 
         .comment-legal-footer {
-            font-size: 9px;
+            font-size: 11px;
             color: #94a3b8;
             font-weight: 700;
             text-transform: uppercase;
@@ -145,7 +145,7 @@
             line-height: 1.6;
             letter-spacing: 0.3px;
         }
-        .comment-legal-footer a { color: #64748b !important; text-decoration: underline; }
+        .comment-legal-footer a { color: #2A5DB0 !important; text-decoration: underline; }
 
         .comment-card { 
             background: #fff !important; 
