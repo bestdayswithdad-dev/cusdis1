@@ -37,7 +37,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return null
   }
 
-  // 1. GET: Fetch comments
+  // 1. GET: Fetch comments (Public)
   if (req.method === 'GET') {
     const { pageId } = req.query
     try {
@@ -101,13 +101,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
-  // 3. PATCH: Handle Toggle Likes and Admin Approvals
+  // 3. PATCH: Toggle Likes (Verified Users) & Admin Approvals
   if (req.method === 'PATCH') {
     const { id, action } = req.query
+    const user = await getAuthenticatedUser()
     
     // --- LIKE TOGGLE LOGIC ---
     if (action === 'like') {
-      const { type } = req.body; // Expecting 'inc' or 'dec'
+      // New: Only allow signed-in users to like
+      if (!user) return res.status(401).json({ error: 'Please sign in to like comments' })
+
+      const { type } = req.body; 
       try {
         const updated = await prisma.comment.update({
           where: { id: String(id) },
@@ -124,7 +128,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // --- ADMIN APPROVAL LOGIC ---
-    const user = await getAuthenticatedUser()
     if (user?.email !== ADMIN_EMAIL) return res.status(403).json({ error: 'Unauthorized' })
 
     try {
@@ -137,16 +140,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch (err) { return res.status(500).json({ error: 'Update failed' }) }
   }
 
-  // 4. DELETE: Admin only
+  // 4. DELETE: Admin OR Author
   if (req.method === 'DELETE') {
     const { id } = req.query
     const user = await getAuthenticatedUser()
-    if (user?.email !== ADMIN_EMAIL) return res.status(403).json({ error: 'Unauthorized' })
+    
+    if (!user) return res.status(401).json({ error: 'Unauthorized' })
 
     try {
+      // Find the comment to check ownership
+      const comment = await prisma.comment.findUnique({ where: { id: String(id) } })
+      if (!comment) return res.status(404).json({ error: 'Comment not found' })
+
+      const isAuthor = comment.by_email === user.email
+      const isAdmin = user.email === ADMIN_EMAIL
+
+      if (!isAuthor && !isAdmin) {
+        return res.status(403).json({ error: 'You can only delete your own comments' })
+      }
+
       await prisma.comment.delete({ where: { id: String(id) } })
       return res.status(200).json({ success: true })
-    } catch (err) { return res.status(500).json({ error: 'Delete failed' }) }
+    } catch (err) { 
+      console.error("Delete Error:", err)
+      return res.status(500).json({ error: 'Delete failed' }) 
+    }
   }
 
   return res.status(405).json({ error: 'Method not allowed' })
