@@ -3,12 +3,12 @@ import { useEffect, useState, useMemo } from 'react'
 import { 
   Title, Text, Button, Stack, Container, Paper, 
   Center, Table, Badge, Group, ActionIcon, 
-  Textarea, Divider, Tabs, Modal
+  Textarea, Divider, Tabs, Modal, Box
 } from '@mantine/core'
 import { 
   AiOutlineCheck, AiOutlineDelete, AiOutlineMessage, 
   AiOutlineFlag, AiOutlineFileText, AiOutlineClockCircle, 
-  AiOutlineGlobal 
+  AiOutlineGlobal, AiOutlineLock 
 } from 'react-icons/ai'
 
 const ADMIN_EMAIL = 'bestdayswithdad@gmail.com'
@@ -58,6 +58,18 @@ export default function ModerationCenter() {
     return { flagged, pending, pageGroups };
   }, [comments]);
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    window.location.reload()
+  }
+
+  const handleLogin = async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin }
+    })
+  }
+
   // REPLY LOGIC
   const submitDashboardReply = async () => {
     if (!replyContent.trim()) return;
@@ -71,7 +83,7 @@ export default function ModerationCenter() {
       },
       body: JSON.stringify({
         content: replyContent,
-        nickname: "Adam - BDWD",
+        nickname: "Adam - BDWD", // Matches your logo identification logic
         pageId: replyModal.pageId,
         pageTitle: replyModal.pageTitle,
         parentId: replyModal.parentId,
@@ -98,11 +110,8 @@ export default function ModerationCenter() {
         body: JSON.stringify({ approved: true })
     })
 
-    if (res.ok) {
-      fetchComments()
-    } else {
-      alert("Failed to approve comment.")
-    }
+    if (res.ok) fetchComments()
+    else alert("Failed to approve comment.")
   }
 
   // DELETE LOGIC
@@ -117,11 +126,8 @@ export default function ModerationCenter() {
           }
       })
 
-      if (res.ok) {
-        fetchComments()
-      } else {
-        alert("Failed to delete comment.")
-      }
+      if (res.ok) fetchComments()
+      else alert("Failed to delete comment.")
     }
   }
 
@@ -176,13 +182,40 @@ export default function ModerationCenter() {
     </Table>
   );
 
-  if (loading) return <Center h="100vh"><Text>Loading...</Text></Center>
-  if (!user || user.email !== ADMIN_EMAIL) return <Center h="100vh"><Text>Access Denied</Text></Center>
+  if (loading) return <Center h="100vh"><Stack align="center"><Title order={3}>Best Days With Dad</Title><Text>Waking up the dashboard...</Text></Stack></Center>
+
+  // THE ACCESS CONTROL GATE
+  if (!user || user.email !== ADMIN_EMAIL) {
+    return (
+      <Center h="100vh" bg="#f8f9fa">
+        <Paper withBorder p={40} radius="md" shadow="xl" style={{ maxWidth: 450, textAlign: 'center' }}>
+          <Stack align="center" spacing="lg">
+            <Box bg="blue.1" p="xl" style={{ borderRadius: '50%' }}>
+              <AiOutlineLock size="3rem" color="#228be6" />
+            </Box>
+            <Title order={2}>Admin Access Only</Title>
+            <Text color="dimmed" size="sm">
+              This dashboard is restricted. {user ? `Currently logged in as ${user.email}.` : 'Please log in with the official admin account.'}
+            </Text>
+            <Group grow style={{ width: '100%' }}>
+              <Button size="md" color="blue" onClick={handleLogin}>
+                Login with Google
+              </Button>
+              {user && <Button size="md" variant="subtle" color="gray" onClick={handleLogout}>Log Out</Button>}
+            </Group>
+          </Stack>
+        </Paper>
+      </Center>
+    )
+  }
 
   return (
     <Container size="xl" py="xl">
       <Stack spacing="xl">
-        <Title order={1}>Moderation Center</Title>
+        <Group position="apart">
+          <Title order={1}>Moderation Center</Title>
+          <Button variant="subtle" color="gray" onClick={handleLogout} size="xs">Log Out</Button>
+        </Group>
 
         <Tabs defaultValue="pending" variant="outline" color="blue">
           <Tabs.List mb="md">
