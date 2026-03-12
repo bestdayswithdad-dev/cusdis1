@@ -44,7 +44,7 @@
         #nickname {
             border: none;
             background: transparent;
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 800;
             text-transform: uppercase;
             color: #94a3b8;
