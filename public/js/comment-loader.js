@@ -44,7 +44,7 @@
         #nickname {
             border: none;
             background: transparent;
-            font-size: 12px;
+            font-size: 14px;
             font-weight: 800;
             text-transform: uppercase;
             color: #94a3b8;
@@ -86,8 +86,8 @@
         }
 
         .user-avatar-btn, .comment-avatar {
-            width: 42px;
-            height: 42px;
+            width: 38px;
+            height: 38px;
             border-radius: 50%;
             background: #f1f5f9;
             display: flex;
@@ -121,8 +121,8 @@
         .send-btn {
             background: #1e293b !important;
             color: white !important;
-            width: 36px;
-            height: 36px;
+            width: 38px;
+            height: 38px;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -159,7 +159,7 @@
         .comment-main { flex: 1; }
         .executive-btn { background: none; border: none; font-family: 'Montserrat'; font-size: 11px; font-weight: 800; cursor: pointer; color: #94a3b8; text-transform: uppercase; margin-right: 15px; padding: 0; }
         .casual-adventurer-badge { color: #3b82f6 !important; font-size: 11px; font-weight: 800; text-transform: uppercase; margin-left: 8px; }
-        .park-scout-badge { color: #10b981 !important; font-size: 11x; font-weight: 800; text-transform: uppercase; margin-left: 8px; }
+        .park-scout-badge { color: #10b981 !important; font-size: 11px; font-weight: 800; text-transform: uppercase; margin-left: 8px; }
         .mod-badge-text { color: #f59e0b !important; font-size: 11px; font-weight: 800; text-transform: uppercase; margin-left: 8px; }
         .reply-item-container { margin-left: 10px; border-left: 2px solid #f1f5f9; padding-left: 15px; margin-top: 15px; }
     </style>`;
