@@ -33,7 +33,7 @@
         }
 
         .nickname-label-bar {
-            padding-left: 10px;
+            padding-left: 5px;
             margin-bottom: 8px;
             display: flex;
             gap: 10px;
@@ -62,7 +62,7 @@
             gap: 4px;
             cursor: pointer;
             margin-left: auto;
-            padding-right: 10px;
+            padding-right: 5px;
         }
 
         #comment-form {
