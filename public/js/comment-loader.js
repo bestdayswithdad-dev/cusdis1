@@ -62,7 +62,7 @@
             gap: 4px;
             cursor: pointer;
             margin-left: auto;
-            padding-right: 20px;
+            padding-right: 10px;
         }
 
         #comment-form {
