@@ -44,7 +44,7 @@
         #nickname {
             border: none;
             background: transparent;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 800;
             text-transform: uppercase;
             color: #94a3b8;
@@ -54,7 +54,7 @@
         }
 
         .avatar-choice-label {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 700;
             color: #94a3b8;
             display: flex;
