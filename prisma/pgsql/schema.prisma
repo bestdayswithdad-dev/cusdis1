@@ -11,12 +11,12 @@ datasource db {
 }
 
 model Account {
-  id                Int       @id @default(autoincrement())
+  id                  Int       @id @default(autoincrement())
   compoundId          String    @unique @map("compound_id")
   userId              String    @map("user_id")
   providerType        String    @map("provider_type")
   providerId          String    @map("provider_id")
-  providerAccountId  String    @map("provider_account_id")
+  providerAccountId   String    @map("provider_account_id")
   refreshToken        String?   @map("refresh_token")
   accessToken         String?   @map("access_token")
   accessTokenExpires DateTime? @map("access_token_expires")
@@ -67,23 +67,23 @@ model User {
 }
 
 model Project {
-  id                       String    @id(map: "projects_pkey")
+  id                       String        @id(map: "projects_pkey")
   title                    String
-  created_at                DateTime  @default(now())
-  updated_at                DateTime  @default(now())
+  created_at               DateTime      @default(now())
+  updated_at               DateTime      @default(now())
   
-  // owner_id is the DB column, userId is what Prisma uses
-  userId                    String    @map("owner_id")
+  userId                   String        @map("owner_id")
   
   token                    String?
-  fetch_latest_comments_at DateTime? @map("fetch_latest_comments_at")
-  enable_notification      Boolean?  @default(true) @map("enable_notification")
+  fetch_latest_comments_at DateTime?     @map("fetch_latest_comments_at")
+  enable_notification      Boolean?      @default(true) @map("enable_notification")
   webhook                  String?
-  enable_webhook           Boolean?  @map("enable_webhook")
-  deleted_at               DateTime? @map("deleted_at")
+  enable_webhook           Boolean?      @map("enable_webhook")
+  deleted_at               DateTime?     @map("deleted_at")
   
-  Page                      Page[]
-  user                      User      @relation(fields: [userId], references: [id])
+  Page                     Page[]
+  Submission               Submission[]
+  user                     User          @relation(fields: [userId], references: [id])
 
   @@map("projects")
   @@schema("public")
@@ -105,7 +105,6 @@ model Comment {
   projectId    String?   @map("project_id")
   ip           String?
   
-  // ADD THIS LINE
   metadata     Json?     @default("{}")
   
   user         User?     @relation(fields: [moderatorId], references: [id])
@@ -138,7 +137,7 @@ model Subscription {
   orderId                String?   @map("order_id")
   productId              String?   @map("product_id")
   variantId              String?   @map("variant_id")
-  customerId              String?   @map("customer_id")
+  customerId             String?   @map("customer_id")
   status                 String?
   endsAt                 DateTime? @map("ends_at")
   updatePaymentMethodUrl String?   @map("update_payment_method_url")
@@ -171,5 +170,23 @@ model VerificationRequest {
   updatedAt  DateTime @default(now()) @map("updated_at")
 
   @@map("verification_requests")
+  @@schema("public")
+}
+
+model Submission {
+  id         BigInt   @id @default(autoincrement())
+  type       String   @default("spot")
+  name       String
+  email      String
+  suburb     String?
+  title      String?
+  details    Json?    @default("{}")
+  status     String   @default("pending")
+  projectId  String   @map("project_id")
+  created_at DateTime @default(now())
+  Project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, status])
+  @@map("submissions")
   @@schema("public")
 }
