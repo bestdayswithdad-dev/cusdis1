@@ -65,14 +65,16 @@
             padding-right: 10px;
         }
 
-        /* NOTIFICATION TOAST / BANNER (MODERN EXECUTIVE PALETTE) */
+        /* NOTIFICATION TOAST / BANNER (CENTRED WITH CLOSE BUTTON) */
         .bdwd-notice-banner {
+            position: relative;
             border-radius: 14px;
-            padding: 16px 20px;
+            padding: 18px 36px 18px 24px;
             margin-bottom: 16px;
             font-size: 13.5px;
             line-height: 1.5;
             display: none;
+            text-align: center;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
             animation: bdwdFade 0.3s ease;
         }
@@ -99,12 +101,34 @@
             display: block;
             margin-bottom: 4px;
             font-size: 14px;
+            text-align: center;
+        }
+
+        /* TOP-RIGHT CLOSE (X) BUTTON */
+        .bdwd-notice-close-btn {
+            position: absolute;
+            top: 10px;
+            right: 12px;
+            background: none;
+            border: none;
+            font-size: 18px;
+            font-weight: 700;
+            color: #94a3b8;
+            cursor: pointer;
+            padding: 4px;
+            line-height: 1;
+            transition: color 0.2s ease, transform 0.2s ease;
+        }
+        .bdwd-notice-close-btn:hover {
+            color: #0f172a;
+            transform: scale(1.15);
         }
 
         /* SAFE & POLISHED GOOGLE SIGN-IN BUTTON */
         .bdwd-google-cta-btn {
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 10px;
             background: #ffffff;
             color: #374151;
@@ -115,7 +139,7 @@
             font-weight: 700;
             text-decoration: none;
             cursor: pointer;
-            margin-top: 10px;
+            margin-top: 12px;
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
             transition: all 0.2s ease;
             font-family: 'Montserrat', sans-serif !important;
@@ -353,6 +377,13 @@
         } catch (e) { container.innerHTML = `<p>Syncing discussion...</p>`; }
     };
 
+    window.closeNotice = () => {
+        const noticeBox = document.getElementById('bdwd-notice-box');
+        if (noticeBox) {
+            noticeBox.style.display = 'none';
+        }
+    };
+
     window.submitReview = async function() { 
         const content = document.getElementById('comment-body').value.trim(); 
         const nickname = document.getElementById('nickname').value.trim(); 
@@ -397,26 +428,30 @@
                 document.getElementById('parent-id').value = ""; 
                 body.placeholder = "Message Best Days With Dad..."; 
 
-                // CONTEXTUAL MODERATION FEEDBACK
+                // CONTEXTUAL MODERATION FEEDBACK WITH CLOSE (X) BUTTON
                 if (noticeBox) {
                     if (data.moderationStatus === 'live') {
                         noticeBox.className = 'bdwd-notice-banner success';
                         noticeBox.innerHTML = `
+                            <button class="bdwd-notice-close-btn" onclick="window.closeNotice()" title="Close">&times;</button>
                             <strong>✔ Thanks for your comment!</strong>
-                            As a verified reader, your review was published instantly to this post.
+                            <div>As a verified reader, your review was published instantly to this post.</div>
                         `;
                         noticeBox.style.display = 'block';
                         setTimeout(render, 500);
+                        setTimeout(() => { window.closeNotice(); }, 5000);
                     } else if (data.moderationStatus === 'flagged') {
                         noticeBox.className = 'bdwd-notice-banner flagged';
                         noticeBox.innerHTML = `
+                            <button class="bdwd-notice-close-btn" onclick="window.closeNotice()" title="Close">&times;</button>
                             <strong>⚠️ Comment Sent for Review</strong>
-                            Your comment contained language or links flagged by our family-friendly filter. It has been routed to our moderation team for review.
+                            <div>Your comment contained language or links flagged by our family-friendly filter. It has been routed to our moderation team for review.</div>
                         `;
                         noticeBox.style.display = 'block';
                     } else {
                         noticeBox.className = 'bdwd-notice-banner pending';
                         noticeBox.innerHTML = `
+                            <button class="bdwd-notice-close-btn" onclick="window.closeNotice()" title="Close">&times;</button>
                             <strong>Thank you for submitting a comment with Best Days with Dad!</strong>
                             <div>Sign in with Google to skip moderation on future comments:</div>
                             <button class="bdwd-google-cta-btn" onclick="window.handleSignIn()">
