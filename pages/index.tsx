@@ -3,14 +3,14 @@ import { useEffect, useState, useMemo } from 'react'
 import { 
   Title, Text, Button, Stack, Container, Paper, 
   Center, Table, Badge, Group, ActionIcon, 
-  Textarea, Divider, Tabs, Modal, Box, SegmentedControl,
+  Textarea, Tabs, Modal, Box, SegmentedControl,
   Loader, ScrollArea, CopyButton
 } from '@mantine/core'
 import { 
   AiOutlineCheck, AiOutlineDelete, AiOutlineMessage, 
-  AiOutlineFlag, AiOutlineFileText, AiOutlineClockCircle, 
+  AiOutlineFileText, AiOutlineClockCircle, 
   AiOutlineGlobal, AiOutlineLock, AiOutlineEnvironment,
-  AiOutlineEye, AiOutlineCopy
+  AiOutlineEye, AiOutlineCopy, AiOutlineMail
 } from 'react-icons/ai'
 
 const ADMIN_EMAIL = 'bestdayswithdad@gmail.com'
@@ -19,6 +19,11 @@ export default function ModerationCenter() {
   const supabase = createClientComponentClient()
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+
+  // MAIN WORKSPACE SECTION: 'spots' | 'contact' | 'comments'
+  const [activeSection, setActiveSection] = useState('spots')
+
+  // COMMENTS STATE
   const [comments, setComments] = useState<any[]>([])
 
   // SUBMISSIONS STATE
@@ -76,9 +81,21 @@ export default function ModerationCenter() {
     }
   }, [subFilter])
 
-  const organizedData = useMemo(() => {
-    if (!Array.isArray(comments)) return { flagged: [], pending: [], pageGroups: {} };
-    const flagged = comments.filter(c => c.content?.toLowerCase().includes('http')); 
+  // Split submissions into spots and contact messages
+  const spotSubmissions = useMemo(() => {
+    return submissions.filter(s => s.type === 'spot')
+  }, [submissions])
+
+  const contactSubmissions = useMemo(() => {
+    return submissions.filter(s => s.type === 'contact')
+  }, [submissions])
+
+  const pendingCommentsCount = useMemo(() => {
+    return comments.filter(c => !c.approved && !c.content?.toLowerCase().includes('http')).length
+  }, [comments])
+
+  const organizedComments = useMemo(() => {
+    if (!Array.isArray(comments)) return { pending: [], pageGroups: {} };
     const pending = comments.filter(c => !c.approved && !c.content?.toLowerCase().includes('http'));
     const pageGroups = comments.reduce((acc: any, c) => {
       const title = c.Page?.title || 'General / Legacy'; 
@@ -86,7 +103,7 @@ export default function ModerationCenter() {
       acc[title].push(c);
       return acc;
     }, {});
-    return { flagged, pending, pageGroups };
+    return { pending, pageGroups };
   }, [comments]);
 
   const handleLogout = async () => {
@@ -101,7 +118,6 @@ export default function ModerationCenter() {
     })
   }
 
-  // SUBMISSION STATUS UPDATE
   const updateSubmissionStatus = async (id: string, status: string) => {
     try {
       await fetch('/api/submissions', {
@@ -114,7 +130,7 @@ export default function ModerationCenter() {
       }
       fetchSubmissions()
     } catch (err) {
-      console.error("Failed to update submission status", err)
+      console.error("Failed to update status", err)
     }
   }
 
@@ -126,7 +142,7 @@ export default function ModerationCenter() {
     const contributorName = item.name || 'Anonymous'
     const suburb = item.suburb ? ` (${item.suburb})` : ''
     const address = details.address || ''
-    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${title}${address}`.trim())}`
+    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${title} ${address}`.trim())}`
     const website = details.website || ''
     const placeType = details.place_type || 'Place'
 
@@ -141,7 +157,7 @@ export default function ModerationCenter() {
     const verdict = details.verdict || ''
 
     const badgeIcons: Record<string, string> = {
-      'All Ages': '👨‍👩‍👧‍👦',
+      'All Ages': '👨‍‍👩‍👧‍👦',
       '1-3 Hours': '⏱️',
       'Free Parking': '🅿',
       'Free Entry': '💰',
@@ -385,10 +401,8 @@ ${bodyParagraphs}
     }
   }
 
-  // APPROVE LOGIC
   const handleApprove = async (id: string) => {
     const { data: { session } } = await supabase.auth.getSession();
-    
     const res = await fetch(`/api/public-comments?id=${id}`, { 
         method: 'PATCH',
         headers: { 
@@ -402,11 +416,9 @@ ${bodyParagraphs}
     else alert("Failed to approve comment.")
   }
 
-  // DELETE LOGIC
   const handleDelete = async (id: string) => {
     if (window.confirm("Are you sure you want to permanently delete this comment?")) {
       const { data: { session } } = await supabase.auth.getSession();
-      
       const res = await fetch(`/api/public-comments?id=${id}`, { 
           method: 'DELETE',
           headers: { 
@@ -472,7 +484,6 @@ ${bodyParagraphs}
 
   if (loading) return <Center h="100vh"><Stack align="center"><Title order={3}>Best Days With Dad</Title><Text>Waking up the dashboard...</Text></Stack></Center>
 
-  // ACCESS CONTROL GATE
   if (!user || user.email !== ADMIN_EMAIL) {
     return (
       <Center h="100vh" bg="#f8f9fa">
@@ -501,161 +512,281 @@ ${bodyParagraphs}
     <Container size="xl" py="xl">
       <Stack spacing="xl">
         <Group position="apart">
-          <Title order={1}>Moderation Center</Title>
+          <div>
+            <Title order={1}>Moderation Center</Title>
+            <Text color="dimmed" size="sm">Best Days With Dad Management Portal</Text>
+          </div>
           <Button variant="subtle" color="gray" onClick={handleLogout} size="xs">Log Out</Button>
         </Group>
 
-        <Tabs defaultValue="submissions" variant="outline" color="blue">
-          <Tabs.List mb="md">
-            {/* NEW SUBMISSIONS TAB */}
-            <Tabs.Tab value="submissions" icon={<AiOutlineEnvironment size="1.2rem" />} color="blue">
-              Submissions ({submissions.filter(s => s.status === 'pending').length})
-            </Tabs.Tab>
+        {/* PRIMARY WORKSPACE SELECTOR */}
+        <Paper withBorder p="xs" radius="md" bg="#f1f5f9">
+          <SegmentedControl
+            fullWidth
+            size="md"
+            value={activeSection}
+            onChange={setActiveSection}
+            data={[
+              { 
+                label: `Spot Submissions (${spotSubmissions.filter(s => s.status === 'pending').length})`, 
+                value: 'spots' 
+              },
+              { 
+                label: `Contact Inquiries (${contactSubmissions.filter(s => s.status === 'pending').length})`, 
+                value: 'contact' 
+              },
+              { 
+                label: `Comments (${pendingCommentsCount} Pending)`, 
+                value: 'comments' 
+              }
+            ]}
+          />
+        </Paper>
 
-            <Tabs.Tab value="pending" icon={<AiOutlineClockCircle size="1.2rem" />} color="yellow">
-              Pending Comments ({organizedData.pending.length})
-            </Tabs.Tab>
-            <Tabs.Tab value="all" icon={<AiOutlineMessage size="1.2rem" />}>
-              All Comments ({comments.length})
-            </Tabs.Tab>
-            {Object.entries(organizedData.pageGroups).map(([title, data]: [string, any]) => (
-              <Tabs.Tab key={title} value={title} icon={<AiOutlineFileText size="1.2rem" />}>
-                {title} ({data.length})
-              </Tabs.Tab>
-            ))}
-          </Tabs.List>
+        {/* SECTION 1: SPOT SUBMISSIONS */}
+        {activeSection === 'spots' && (
+          <Paper withBorder p="lg" radius="md">
+            <Group position="apart" mb="md">
+              <div>
+                <Title order={3}>Community Spot Recommendations</Title>
+                <Text size="sm" color="dimmed">Review submissions and export ready-to-publish Blogger HTML.</Text>
+              </div>
+              <SegmentedControl
+                value={subFilter}
+                onChange={setSubFilter}
+                data={[
+                  { label: 'Pending', value: 'pending' },
+                  { label: 'Reviewed', value: 'reviewed' },
+                  { label: 'All', value: 'all' }
+                ]}
+              />
+            </Group>
 
-          {/* SUBMISSIONS PANEL */}
-          <Tabs.Panel value="submissions">
-            <Paper withBorder p="lg">
-              <Group position="apart" mb="md">
-                <Text weight={700} size="md">Community Spot Recommendations &amp; Inquiries</Text>
-                <SegmentedControl
-                  value={subFilter}
-                  onChange={setSubFilter}
-                  data={[
-                    { label: 'Pending', value: 'pending' },
-                    { label: 'Reviewed', value: 'reviewed' },
-                    { label: 'All', value: 'all' }
-                  ]}
-                />
-              </Group>
-
-              {subLoading ? (
-                <Center p="xl"><Loader /></Center>
-              ) : submissions.length === 0 ? (
-                <Text color="dimmed" align="center" py="xl">No {subFilter} submissions found.</Text>
-              ) : (
-                <ScrollArea>
-                  <Table verticalSpacing="sm" highlightOnHover>
-                    <thead>
-                      <tr>
-                        <th>Type</th>
-                        <th>Spot / Title</th>
-                        <th>Contributor</th>
-                        <th>Email</th>
-                        <th>Date</th>
-                        <th>Status</th>
-                        <th style={{ textAlign: 'right' }}>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {submissions.map((sub) => (
-                        <tr key={sub.id}>
-                          <td>
-                            <Badge color={sub.type === 'spot' ? 'blue' : 'teal'}>
-                              {sub.type === 'spot' ? 'Add a Spot' : 'Contact'}
-                            </Badge>
-                          </td>
-                          <td><Text weight={700}>{sub.title || 'Untitled'}</Text></td>
-                          <td>
-                            {sub.name} {sub.suburb && <Text size="xs" color="dimmed">({sub.suburb})</Text>}
-                          </td>
-                          <td><Text size="sm">{sub.email}</Text></td>
-                          <td><Text size="xs">{new Date(sub.created_at).toLocaleDateString()}</Text></td>
-                          <td>
-                            <Badge color={sub.status === 'pending' ? 'yellow' : 'green'}>
-                              {sub.status}
-                            </Badge>
-                          </td>
-                          <td>
-                            <Group spacing="xs" position="right">
-                              <Button 
-                                size="xs" 
-                                variant="light" 
-                                leftIcon={<AiOutlineEye />}
-                                onClick={() => setActiveSub(sub)}
+            {subLoading ? (
+              <Center p="xl"><Loader /></Center>
+            ) : spotSubmissions.length === 0 ? (
+              <Text color="dimmed" align="center" py="xl">No {subFilter} spot submissions found.</Text>
+            ) : (
+              <ScrollArea>
+                <Table verticalSpacing="sm" highlightOnHover>
+                  <thead>
+                    <tr>
+                      <th>Spot Name</th>
+                      <th>Contributor</th>
+                      <th>Email</th>
+                      <th>Rating</th>
+                      <th>Date</th>
+                      <th>Status</th>
+                      <th style={{ textAlign: 'right' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {spotSubmissions.map((sub) => (
+                      <tr key={sub.id}>
+                        <td><Text weight={700}>{sub.title || 'Untitled'}</Text></td>
+                        <td>
+                          {sub.name} {sub.suburb && <Text size="xs" color="dimmed">({sub.suburb})</Text>}
+                        </td>
+                        <td><Text size="sm">{sub.email}</Text></td>
+                        <td>
+                          <Badge color="yellow">{sub.details?.rating ? `${sub.details.rating}/5.0` : 'N/A'}</Badge>
+                        </td>
+                        <td><Text size="xs">{new Date(sub.created_at).toLocaleDateString()}</Text></td>
+                        <td>
+                          <Badge color={sub.status === 'pending' ? 'yellow' : 'green'}>
+                            {sub.status}
+                          </Badge>
+                        </td>
+                        <td>
+                          <Group spacing="xs" position="right">
+                            <Button 
+                              size="xs" 
+                              variant="light" 
+                              leftIcon={<AiOutlineEye />}
+                              onClick={() => setActiveSub(sub)}
+                            >
+                              Inspect &amp; Export
+                            </Button>
+                            {sub.status === 'pending' ? (
+                              <ActionIcon
+                                size="md"
+                                color="green"
+                                variant="subtle"
+                                title="Mark as Reviewed"
+                                onClick={() => updateSubmissionStatus(sub.id, 'reviewed')}
                               >
-                                Inspect &amp; Export
+                                <AiOutlineCheck size="1.2rem" />
+                              </ActionIcon>
+                            ) : (
+                              <Button
+                                size="xs"
+                                color="gray"
+                                variant="subtle"
+                                onClick={() => updateSubmissionStatus(sub.id, 'pending')}
+                              >
+                                Reopen
                               </Button>
-                              {sub.status === 'pending' ? (
-                                <ActionIcon
-                                  size="md"
-                                  color="green"
-                                  variant="subtle"
-                                  title="Mark as Reviewed"
-                                  onClick={() => updateSubmissionStatus(sub.id, 'reviewed')}
-                                >
-                                  <AiOutlineCheck size="1.2rem" />
-                                </ActionIcon>
-                              ) : (
-                                <Button
-                                  size="xs"
-                                  color="gray"
-                                  variant="subtle"
-                                  onClick={() => updateSubmissionStatus(sub.id, 'pending')}
-                                >
-                                  Reopen
-                                </Button>
-                              )}
-                            </Group>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                </ScrollArea>
-              )}
-            </Paper>
-          </Tabs.Panel>
+                            )}
+                          </Group>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              </ScrollArea>
+            )}
+          </Paper>
+        )}
 
-          <Tabs.Panel value="pending">
-            <Paper withBorder p="lg">
-              {organizedData.pending.length > 0 ? <CommentTable data={organizedData.pending} /> : <Text color="dimmed" align="center" py="xl">No pending comments</Text>}
-            </Paper>
-          </Tabs.Panel>
+        {/* SECTION 2: CONTACT INQUIRIES */}
+        {activeSection === 'contact' && (
+          <Paper withBorder p="lg" radius="md">
+            <Group position="apart" mb="md">
+              <div>
+                <Title order={3}>Contact Inquiries</Title>
+                <Text size="sm" color="dimmed">Messages sent via the Contact Us page.</Text>
+              </div>
+              <SegmentedControl
+                value={subFilter}
+                onChange={setSubFilter}
+                data={[
+                  { label: 'Pending', value: 'pending' },
+                  { label: 'Reviewed', value: 'reviewed' },
+                  { label: 'All', value: 'all' }
+                ]}
+              />
+            </Group>
 
-          <Tabs.Panel value="all">
-            <Paper withBorder p="lg">
-              <CommentTable data={comments} />
-            </Paper>
-          </Tabs.Panel>
+            {subLoading ? (
+              <Center p="xl"><Loader /></Center>
+            ) : contactSubmissions.length === 0 ? (
+              <Text color="dimmed" align="center" py="xl">No {subFilter} contact inquiries found.</Text>
+            ) : (
+              <ScrollArea>
+                <Table verticalSpacing="sm" highlightOnHover>
+                  <thead>
+                    <tr>
+                      <th>Sender</th>
+                      <th>Email</th>
+                      <th>Subject</th>
+                      <th>Date</th>
+                      <th>Status</th>
+                      <th style={{ textAlign: 'right' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {contactSubmissions.map((sub) => (
+                      <tr key={sub.id}>
+                        <td><Text weight={700}>{sub.name}</Text></td>
+                        <td><Text size="sm">{sub.email}</Text></td>
+                        <td><Text weight={600}>{sub.title || 'General Inquiry'}</Text></td>
+                        <td><Text size="xs">{new Date(sub.created_at).toLocaleDateString()}</Text></td>
+                        <td>
+                          <Badge color={sub.status === 'pending' ? 'yellow' : 'green'}>
+                            {sub.status}
+                          </Badge>
+                        </td>
+                        <td>
+                          <Group spacing="xs" position="right">
+                            <Button 
+                              size="xs" 
+                              variant="light" 
+                              leftIcon={<AiOutlineEye />}
+                              onClick={() => setActiveSub(sub)}
+                            >
+                              Read Message
+                            </Button>
+                            {sub.status === 'pending' ? (
+                              <ActionIcon
+                                size="md"
+                                color="green"
+                                variant="subtle"
+                                title="Mark as Done"
+                                onClick={() => updateSubmissionStatus(sub.id, 'reviewed')}
+                              >
+                                <AiOutlineCheck size="1.2rem" />
+                              </ActionIcon>
+                            ) : (
+                              <Button
+                                size="xs"
+                                color="gray"
+                                variant="subtle"
+                                onClick={() => updateSubmissionStatus(sub.id, 'pending')}
+                              >
+                                Reopen
+                              </Button>
+                            )}
+                          </Group>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              </ScrollArea>
+            )}
+          </Paper>
+        )}
 
-          {Object.entries(organizedData.pageGroups).map(([title, data]: any) => (
-            <Tabs.Panel key={title} value={title}>
-              <Paper withBorder p="lg">
-                <CommentTable data={data} />
-              </Paper>
-            </Tabs.Panel>
-          ))}
-        </Tabs>
+        {/* SECTION 3: COMMENTS */}
+        {activeSection === 'comments' && (
+          <Paper withBorder p="lg" radius="md">
+            <Tabs defaultValue="pending" variant="outline" color="blue">
+              <Tabs.List mb="md">
+                <Tabs.Tab value="pending" icon={<AiOutlineClockCircle size="1.2rem" />} color="yellow">
+                  Pending ({organizedComments.pending.length})
+                </Tabs.Tab>
+                <Tabs.Tab value="all" icon={<AiOutlineMessage size="1.2rem" />}>
+                  All ({comments.length})
+                </Tabs.Tab>
+                {Object.entries(organizedComments.pageGroups).map(([title, data]: [string, any]) => (
+                  <Tabs.Tab key={title} value={title} icon={<AiOutlineFileText size="1.2rem" />}>
+                    {title} ({data.length})
+                  </Tabs.Tab>
+                ))}
+              </Tabs.List>
 
-        {/* SUBMISSION INSPECTION & BLOGGER POST EXPORT MODAL */}
+              <Tabs.Panel value="pending">
+                {organizedComments.pending.length > 0 ? (
+                  <CommentTable data={organizedComments.pending} />
+                ) : (
+                  <Text color="dimmed" align="center" py="xl">No pending comments</Text>
+                )}
+              </Tabs.Panel>
+
+              <Tabs.Panel value="all">
+                <CommentTable data={comments} />
+              </Tabs.Panel>
+
+              {Object.entries(organizedComments.pageGroups).map(([title, data]: any) => (
+                <Tabs.Panel key={title} value={title}>
+                  <CommentTable data={data} />
+                </Tabs.Panel>
+              ))}
+            </Tabs>
+          </Paper>
+        )}
+
+        {/* SUBMISSION INSPECTION MODAL */}
         <Modal
           opened={!!activeSub}
           onClose={() => setActiveSub(null)}
-          title={<Text weight={700}>Submission Inspector &amp; Post Generator</Text>}
+          title={<Text weight={700}>{activeSub?.type === 'spot' ? 'Spot Submission Details' : 'Contact Message'}</Text>}
           size="xl"
         >
           {activeSub && (
             <Stack spacing="md">
               <Group position="apart">
-                <Text weight={700} size="lg">{activeSub.title || 'Untitled Spot'}</Text>
-                <Badge color={activeSub.type === 'spot' ? 'blue' : 'teal'}>{activeSub.type}</Badge>
+                <Text weight={700} size="lg">{activeSub.title || 'Untitled'}</Text>
+                <Badge color={activeSub.type === 'spot' ? 'blue' : 'teal'}>
+                  {activeSub.type === 'spot' ? 'Add a Spot' : 'Contact Us'}
+                </Badge>
               </Group>
 
               <Text size="sm">
-                <b>Contributor:</b> {activeSub.name} {activeSub.suburb && `(${activeSub.suburb})`} &bull; <b>Email:</b> {activeSub.email}
+                <b>From:</b> {activeSub.name} {activeSub.suburb && `(${activeSub.suburb})`} &bull; <b>Email:</b>{' '}
+                <a href={`mailto:${activeSub.email}`} style={{ color: '#007bff' }}>
+                  {activeSub.email}
+                </a>
               </Text>
 
               {activeSub.type === 'spot' && (
@@ -682,9 +813,11 @@ ${bodyParagraphs}
               )}
 
               {activeSub.type === 'contact' && (
-                <Paper p="sm" withBorder bg="#f8fafc">
-                  <Text weight={600} size="sm" mb="xs">Message Content:</Text>
-                  <Text size="sm">{activeSub.details?.message || 'No message provided.'}</Text>
+                <Paper p="md" withBorder bg="#f8fafc">
+                  <Text weight={700} size="xs" color="dimmed" uppercase mb={6}>Message Content</Text>
+                  <Text size="sm" style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+                    {activeSub.details?.message || 'No message provided.'}
+                  </Text>
                 </Paper>
               )}
 
@@ -692,9 +825,13 @@ ${bodyParagraphs}
                 <Button variant="default" onClick={() => setActiveSub(null)}>
                   Close
                 </Button>
-                {activeSub.status === 'pending' && (
+                {activeSub.status === 'pending' ? (
                   <Button color="green" onClick={() => updateSubmissionStatus(activeSub.id, 'reviewed')}>
-                    Mark as Reviewed
+                    Mark as Done
+                  </Button>
+                ) : (
+                  <Button color="gray" variant="light" onClick={() => updateSubmissionStatus(activeSub.id, 'pending')}>
+                    Reopen
                   </Button>
                 )}
               </Group>
