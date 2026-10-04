@@ -65,6 +65,48 @@
             padding-right: 10px;
         }
 
+        /* NOTIFICATION TOAST / BANNER */
+        .bdwd-notice-banner {
+            border-radius: 12px;
+            padding: 12px 18px;
+            margin-bottom: 12px;
+            font-size: 13px;
+            line-height: 1.5;
+            display: none;
+            animation: bdwdFade 0.3s ease;
+        }
+        .bdwd-notice-banner.success {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-left: 4px solid #22c55e;
+            color: #15803d;
+        }
+        .bdwd-notice-banner.pending {
+            background: #fffdf5;
+            border: 1px solid #fef3c7;
+            border-left: 4px solid #f59e0b;
+            color: #b45309;
+        }
+        .bdwd-notice-banner.flagged {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-left: 4px solid #ef4444;
+            color: #b91c1c;
+        }
+        .bdwd-notice-banner strong {
+            font-weight: 800;
+            display: block;
+            margin-bottom: 2px;
+        }
+        .bdwd-notice-banner a.auth-link {
+            color: #2563eb;
+            text-decoration: underline;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-block;
+            margin-top: 4px;
+        }
+
         #comment-form {
             background: #fff !important;
             padding: 10px 16px;
@@ -152,9 +194,9 @@
             border-radius: 16px; 
             padding: 20px; 
             margin-bottom: 16px; 
-            border: 1px solid #e2e8f0;
-            display: flex;
-            gap: 14px;
+            border: 1px solid #e2e8f0; 
+            display: flex; 
+            gap: 14px; 
         }
         .comment-main { flex: 1; }
         .executive-btn { background: none; border: none; font-family: 'Montserrat'; font-size: 11px; font-weight: 800; cursor: pointer; color: #94a3b8; text-transform: uppercase; margin-right: 15px; padding: 0; }
@@ -162,6 +204,11 @@
         .park-scout-badge { color: #10b981 !important; font-size: 11px; font-weight: 800; text-transform: uppercase; margin-left: 8px; }
         .mod-badge-text { color: #f59e0b !important; font-size: 11px; font-weight: 800; text-transform: uppercase; margin-left: 8px; }
         .reply-item-container { margin-left: 10px; border-left: 2px solid #f1f5f9; padding-left: 15px; margin-top: 15px; }
+
+        @keyframes bdwdFade {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>`;
 
     const createCommentHtml = (comment) => {
@@ -242,13 +289,15 @@
                 <div id="comment-list">
                     ${rootComments.map(c => `
                         <div style="margin-bottom:16px;">
-                            ${createCommentHtml(c)}
-                            ${renderTree(comments, c.id)}
+                            ${createCommentHtml(c)}${renderTree(comments, c.id)}
                         </div>
                     `).join('')}
                 </div>
 
                 <div class="input-wrapper">
+                    <!-- INLINE STATUS FEEDBACK BOX -->
+                    <div id="bdwd-notice-box" class="bdwd-notice-banner"></div>
+
                     <div class="nickname-label-bar">
                         <span style="font-size: 10px; font-weight: 800; color: #cbd5e1;">POSTING AS:</span>
                         <input type="text" id="nickname" value="${currentUser?.user?.user_metadata?.full_name || 'Guest Explorer'}" />
@@ -286,49 +335,87 @@
     window.submitReview = async function() { 
         const content = document.getElementById('comment-body').value.trim(); 
         const nickname = document.getElementById('nickname').value.trim(); 
-        const parentId = document.getElementById('parent-id').value;
-        const avatarCheckbox = document.getElementById('use-avatar');
+        const parentId = document.getElementById('parent-id').value; 
+        const avatarCheckbox = document.getElementById('use-avatar'); 
+        const noticeBox = document.getElementById('bdwd-notice-box');
         
         if (!content || !nickname) return; 
 
-        const freshLocker = getBadgeFromLocker();
-        const token = freshLocker ? freshLocker.access_token : null;
+        if (noticeBox) noticeBox.style.display = 'none';
+
+        const freshLocker = getBadgeFromLocker(); 
+        const token = freshLocker ? freshLocker.access_token : null; 
         
         const avatar_url = (freshLocker?.user && (!avatarCheckbox || avatarCheckbox.checked)) 
             ? freshLocker.user.user_metadata.avatar_url 
-            : null;
+            : null; 
 
-        const res = await fetch('https://cusdis-jet-one.vercel.app/api/public-comments', { 
-            method: 'POST', 
-            headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': token ? `Bearer ${token}` : '' 
-            }, 
-            body: JSON.stringify({ 
-                content, 
-                nickname, 
-                pageId: getCleanUrl(),
-                pageTitle: document.title.split(' : ')[0],
-                parentId: parentId || null,
-                metadata: { avatar_url } 
-            }) 
-        }); 
+        try {
+            const res = await fetch('https://cusdis-jet-one.vercel.app/api/public-comments', { 
+                method: 'POST', 
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Authorization': token ? `Bearer ${token}` : '' 
+                }, 
+                body: JSON.stringify({ 
+                    content, 
+                    nickname, 
+                    pageId: getCleanUrl(), 
+                    pageTitle: document.title.split(' : ')[0], 
+                    parentId: parentId || null, 
+                    metadata: { avatar_url } 
+                }) 
+            }); 
 
-        if (res.ok) { 
-            const body = document.getElementById('comment-body');
-            body.value = ""; 
-            body.style.height = 'auto'; 
-            document.getElementById('parent-id').value = "";
-            body.placeholder = "Message Best Days With Dad...";
-            setTimeout(render, 500); 
-        } 
+            const data = await res.json().catch(() => ({}));
+
+            if (res.ok) { 
+                const body = document.getElementById('comment-body'); 
+                body.value = ""; 
+                body.style.height = 'auto'; 
+                document.getElementById('parent-id').value = ""; 
+                body.placeholder = "Message Best Days With Dad..."; 
+
+                // CONTEXTUAL MODERATION FEEDBACK
+                if (noticeBox) {
+                    if (data.moderationStatus === 'live') {
+                        noticeBox.className = 'bdwd-notice-banner success';
+                        noticeBox.innerHTML = `
+                            <strong>✔ Thanks for your comment!</strong>
+                            As a verified member, your comment is now live on this post.
+                        `;
+                        noticeBox.style.display = 'block';
+                        setTimeout(render, 500);
+                    } else if (data.moderationStatus === 'flagged') {
+                        noticeBox.className = 'bdwd-notice-banner flagged';
+                        noticeBox.innerHTML = `
+                            <strong>⚠️ Comment Sent for Admin Review</strong>
+                            Your comment contained language or links flagged by our family-friendly filter. It has been routed to our moderation team for review.
+                        `;
+                        noticeBox.style.display = 'block';
+                    } else {
+                        noticeBox.className = 'bdwd-notice-banner pending';
+                        noticeBox.innerHTML = `
+                            <strong>⏳ Comment Received & Queued for Moderation</strong>
+                            Thanks for sharing! Because you're commenting as a guest, your review will appear once approved by Adam.
+                            <br><a class="auth-link" onclick="window.handleSignIn()">Sign in with Google for instant posting next time →</a>
+                        `;
+                        noticeBox.style.display = 'block';
+                    }
+                } else {
+                    setTimeout(render, 500);
+                }
+            } 
+        } catch (err) {
+            console.error("Submission failed", err);
+        }
     };
 
     window.setReply = (id, name) => { 
         document.getElementById('parent-id').value = id; 
-        const body = document.getElementById('comment-body');
+        const body = document.getElementById('comment-body'); 
         body.focus(); 
-        body.placeholder = `Reply to ${name}...`;
+        body.placeholder = `Reply to ${name}...`; 
     };
 
     window.handleLikeAction = async (id) => {
@@ -353,42 +440,42 @@
 
         try {
             const res = await fetch(`https://cusdis-jet-one.vercel.app/api/public-comments?id=${id}&action=like`, { 
-                method: 'PATCH',
+                method: 'PATCH', 
                 headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ type: isUnliking ? 'dec' : 'inc' })
-            });
+                    'Content-Type': 'application/json', 
+                    'Authorization': `Bearer ${token}` 
+                }, 
+                body: JSON.stringify({ type: isUnliking ? 'dec' : 'inc' }) 
+            }); 
             if (res.ok) { 
                 setTimeout(render, 300); 
-            }
+            } 
         } catch (e) { 
-            console.error("Like failed", e);
-            if (isUnliking) userLikes.add(commentId);
-            else userLikes.delete(commentId);
-            render();
-        }
+            console.error("Like failed", e); 
+            if (isUnliking) userLikes.add(commentId); 
+            else userLikes.delete(commentId); 
+            render(); 
+        } 
     };
 
     window.handleSelfDelete = async (id) => {
-        if (!confirm("Are you sure you want to permanently delete this comment?")) return;
+        if (!confirm("Are you sure you want to permanently delete this comment?")) return; 
         
-        const freshLocker = getBadgeFromLocker();
-        const token = freshLocker ? freshLocker.access_token : null;
+        const freshLocker = getBadgeFromLocker(); 
+        const token = freshLocker ? freshLocker.access_token : null; 
 
-        const res = await fetch(`https://cusdis-jet-one.vercel.app/api/public-comments?id=${id}`, {
-            method: 'DELETE',
+        const res = await fetch(`https://cusdis-jet-one.vercel.app/api/public-comments?id=${id}`, { 
+            method: 'DELETE', 
             headers: { 
                 'Authorization': token ? `Bearer ${token}` : '' 
-            }
-        });
+            } 
+        }); 
 
-        if (res.ok) {
-            render();
-        } else {
-            alert("Could not delete comment. You may only delete your own posts.");
-        }
+        if (res.ok) { 
+            render(); 
+        } else { 
+            alert("Could not delete comment. You may only delete your own posts."); 
+        } 
     };
 
     window.handleSignIn = async () => {
