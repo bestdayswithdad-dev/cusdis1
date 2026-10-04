@@ -48,7 +48,7 @@ export default function ModerationCenter() {
     }
   }
 
-  const fetchSubmissions = async () => {
+  const fetchSubsubmissions = async () => {
     setSubLoading(true)
     try {
       const res = await fetch(`/api/submissions?status=${subFilter}`)
@@ -68,7 +68,7 @@ export default function ModerationCenter() {
       setUser(session?.user || null)
       if (session?.user?.email === ADMIN_EMAIL) {
         fetchComments()
-        fetchSubmissions()
+        fetchSubsubmissions()
       }
       setLoading(false)
     }
@@ -77,7 +77,7 @@ export default function ModerationCenter() {
 
   useEffect(() => {
     if (user?.email === ADMIN_EMAIL) {
-      fetchSubmissions()
+      fetchSubsubmissions()
     }
   }, [subFilter])
 
@@ -128,7 +128,7 @@ export default function ModerationCenter() {
       if (activeSub && String(activeSub.id) === String(id)) {
         setActiveSub(null)
       }
-      fetchSubmissions()
+      fetchSubsubmissions()
     } catch (err) {
       console.error("Failed to update status", err)
     }
@@ -157,7 +157,7 @@ export default function ModerationCenter() {
     const verdict = details.verdict || ''
 
     const badgeIcons: Record<string, string> = {
-      'All Ages': '👨‍‍👩‍👧‍👦',
+      'All Ages': '👨‍👩‍👧‍👦',
       '1-3 Hours': '⏱️',
       'Free Parking': '🅿',
       'Free Entry': '💰',
@@ -814,7 +814,7 @@ ${bodyParagraphs}
 
               {activeSub.type === 'contact' && (
                 <Paper p="md" withBorder bg="#f8fafc">
-                  <Text weight={700} size="xs" color="dimmed" uppercase mb={6}>Message Content</Text>
+                  <Text weight={700} size="xs" color="dimmed" transform="uppercase" mb={6}>Message Content</Text>
                   <Text size="sm" style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
                     {activeSub.details?.message || 'No message provided.'}
                   </Text>
