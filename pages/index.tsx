@@ -3,17 +3,18 @@ import { useEffect, useState, useMemo } from 'react'
 import { 
   Title, Text, Button, Stack, Container, Paper, 
   Center, Table, Badge, Group, ActionIcon, 
-  Textarea, Tabs, Modal, Box, SegmentedControl,
-  Loader, ScrollArea, CopyButton
+  Textarea, Modal, Box, SegmentedControl,
+  Loader, ScrollArea, CopyButton, TextInput, Select, Pagination, Tooltip
 } from '@mantine/core'
 import { 
   AiOutlineCheck, AiOutlineDelete, AiOutlineMessage, 
-  AiOutlineFileText, AiOutlineClockCircle, 
-  AiOutlineGlobal, AiOutlineLock, AiOutlineEnvironment,
-  AiOutlineEye, AiOutlineCopy, AiOutlineMail
+  AiOutlineClockCircle, AiOutlineGlobal, AiOutlineLock, 
+  AiOutlineEnvironment, AiOutlineEye, AiOutlineCopy, 
+  AiOutlineSearch, AiOutlineCheckCircle, AiOutlineWarning
 } from 'react-icons/ai'
 
 const ADMIN_EMAIL = 'bestdayswithdad@gmail.com'
+const ITEMS_PER_PAGE = 15
 
 export default function ModerationCenter() {
   const supabase = createClientComponentClient()
@@ -21,10 +22,14 @@ export default function ModerationCenter() {
   const [loading, setLoading] = useState(true)
 
   // MAIN WORKSPACE SECTION: 'spots' | 'contact' | 'comments'
-  const [activeSection, setActiveSection] = useState('spots')
+  const [activeSection, setActiveSection] = useState('comments')
 
   // COMMENTS STATE
   const [comments, setComments] = useState<any[]>([])
+  const [commentSubFilter, setCommentSubFilter] = useState<'pending' | 'approved' | 'flagged' | 'all'>('pending')
+  const [commentSearch, setCommentSearch] = useState('')
+  const [selectedPostFilter, setSelectedPostFilter] = useState<string | null>('all')
+  const [commentPage, setCommentPage] = useState(1)
 
   // SUBMISSIONS STATE
   const [submissions, setSubmissions] = useState<any[]>([])
@@ -48,7 +53,7 @@ export default function ModerationCenter() {
     }
   }
 
-  const fetchSubsubmissions = async () => {
+  const fetchSubmissions = async () => {
     setSubLoading(true)
     try {
       const res = await fetch(`/api/submissions?status=${subFilter}`)
@@ -68,7 +73,7 @@ export default function ModerationCenter() {
       setUser(session?.user || null)
       if (session?.user?.email === ADMIN_EMAIL) {
         fetchComments()
-        fetchSubsubmissions()
+        fetchSubmissions()
       }
       setLoading(false)
     }
@@ -77,7 +82,7 @@ export default function ModerationCenter() {
 
   useEffect(() => {
     if (user?.email === ADMIN_EMAIL) {
-      fetchSubsubmissions()
+      fetchSubmissions()
     }
   }, [subFilter])
 
@@ -90,21 +95,66 @@ export default function ModerationCenter() {
     return submissions.filter(s => s.type === 'contact')
   }, [submissions])
 
-  const pendingCommentsCount = useMemo(() => {
-    return comments.filter(c => !c.approved && !c.content?.toLowerCase().includes('http')).length
+  // Extract distinct posts for the filter dropdown
+  const postOptions = useMemo(() => {
+    const map = new Map<string, string>()
+    comments.forEach(c => {
+      const title = c.Page?.title || 'General / Legacy'
+      const slug = c.Page?.slug || title
+      if (!map.has(slug)) {
+        map.set(slug, title)
+      }
+    })
+    return [
+      { value: 'all', label: 'All Posts & Pages' },
+      ...Array.from(map.entries()).map(([value, label]) => ({ value, label }))
+    ]
   }, [comments])
 
-  const organizedComments = useMemo(() => {
-    if (!Array.isArray(comments)) return { pending: [], pageGroups: {} };
-    const pending = comments.filter(c => !c.approved && !c.content?.toLowerCase().includes('http'));
-    const pageGroups = comments.reduce((acc: any, c) => {
-      const title = c.Page?.title || 'General / Legacy'; 
-      if (!acc[title]) acc[title] = [];
-      acc[title].push(c);
-      return acc;
-    }, {});
-    return { pending, pageGroups };
-  }, [comments]);
+  // Process and filter comments cleanly
+  const { filteredComments, pendingCount, flaggedCount } = useMemo(() => {
+    let pending = 0
+    let flagged = 0
+
+    const list = comments.filter(c => {
+      const isLink = c.content?.toLowerCase().includes('http')
+      if (!c.approved && !isLink) pending++
+      if (isLink) flagged++
+
+      // Status Filter
+      if (commentSubFilter === 'pending' && (c.approved || isLink)) return false
+      if (commentSubFilter === 'approved' && !c.approved) return false
+      if (commentSubFilter === 'flagged' && !isLink) return false
+
+      // Post Filter
+      if (selectedPostFilter && selectedPostFilter !== 'all') {
+        const pageSlug = c.Page?.slug || c.Page?.title
+        if (pageSlug !== selectedPostFilter) return false
+      }
+
+      // Search Query
+      if (commentSearch.trim()) {
+        const q = commentSearch.toLowerCase()
+        const textMatch = c.content?.toLowerCase().includes(q)
+        const authorMatch = c.by_nickname?.toLowerCase().includes(q) || c.by_email?.toLowerCase().includes(q)
+        const ipMatch = c.ip?.toLowerCase().includes(q)
+        const postMatch = c.Page?.title?.toLowerCase().includes(q)
+        if (!textMatch && !authorMatch && !ipMatch && !postMatch) return false
+      }
+
+      return true
+    })
+
+    return { filteredComments: list, pendingCount: pending, flaggedCount: flagged }
+  }, [comments, commentSubFilter, selectedPostFilter, commentSearch])
+
+  // Paginated comments slice
+  const paginatedComments = useMemo(() => {
+    const start = (commentPage - 1) * ITEMS_PER_PAGE
+    return filteredComments.slice(start, start + ITEMS_PER_PAGE)
+  }, [filteredComments, commentPage])
+
+  const totalPages = Math.ceil(filteredComments.length / ITEMS_PER_PAGE) || 1
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -118,6 +168,29 @@ export default function ModerationCenter() {
     })
   }
 
+  // BULK APPROVE ALL VISIBLE PENDING
+  const handleBulkApprove = async () => {
+    const unapproved = comments.filter(c => !c.approved && !c.content?.toLowerCase().includes('http'))
+    if (!unapproved.length) return
+
+    if (!window.confirm(`Approve all ${unapproved.length} pending comments at once?`)) return
+
+    const { data: { session } } = await supabase.auth.getSession()
+    await Promise.all(
+      unapproved.map(c => 
+        fetch(`/api/public-comments?id=${c.id}`, {
+          method: 'PATCH',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`
+          },
+          body: JSON.stringify({ approved: true })
+        })
+      )
+    )
+    fetchComments()
+  }
+
   const updateSubmissionStatus = async (id: string, status: string) => {
     try {
       await fetch('/api/submissions', {
@@ -128,7 +201,7 @@ export default function ModerationCenter() {
       if (activeSub && String(activeSub.id) === String(id)) {
         setActiveSub(null)
       }
-      fetchSubsubmissions()
+      fetchSubmissions()
     } catch (err) {
       console.error("Failed to update status", err)
     }
@@ -157,7 +230,7 @@ export default function ModerationCenter() {
     const verdict = details.verdict || ''
 
     const badgeIcons: Record<string, string> = {
-      'All Ages': '👨‍👩‍👧‍👦',
+      'All Ages': '👨‍‍👩‍👧‍👦',
       '1-3 Hours': '⏱️',
       'Free Parking': '🅿',
       'Free Entry': '💰',
@@ -431,57 +504,6 @@ ${bodyParagraphs}
     }
   }
 
-  const CommentTable = ({ data }: { data: any[] }) => (
-    <Table verticalSpacing="md" horizontalSpacing="md" fontSize="md">
-      <thead>
-        <tr>
-          <th>User / IP</th>
-          <th>Comment</th>
-          <th>Post Name</th>
-          <th>Status</th>
-          <th style={{ textAlign: 'right' }}>Mod Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {data.map((c) => (
-          <tr key={c.id}>
-            <td>
-              <Text size="md" weight={700}>{c.by_nickname || 'Guest'}</Text>
-              <Text size="xs" color="dimmed">{c.by_email}</Text>
-              <Group spacing={4} mt={4}>
-                <AiOutlineGlobal size="0.8rem" color="gray" />
-                <Text size="xs" color="blue" italic>{c.ip || '0.0.0.0'}</Text>
-              </Group>
-            </td>
-            <td><Text size="md" style={{ lineHeight: 1.5 }}>{c.content}</Text></td>
-            <td>
-              <Stack spacing={4}>
-                <Text size="sm" weight={700} color="blue">{c.Page?.title || 'General'}</Text>
-                <Text size="xs" color="dimmed" truncate>{c.Page?.slug}</Text>
-              </Stack>
-            </td>
-            <td>{c.approved ? <Badge color="green">Public</Badge> : <Badge color="yellow">Pending</Badge>}</td>
-            <td>
-              <Group spacing="xs" position="right">
-                {!c.approved && (
-                  <ActionIcon size="lg" color="green" variant="filled" onClick={() => handleApprove(c.id)} title="Approve">
-                    <AiOutlineCheck size="1.4rem" />
-                  </ActionIcon>
-                )}
-                <ActionIcon size="lg" color="blue" variant="light" onClick={() => setReplyModal({ opened: true, parentId: c.id, pageId: c.Page?.slug, pageTitle: c.Page?.title, nickname: c.by_nickname })} title="Reply to Site">
-                  <AiOutlineMessage size="1.4rem" />
-                </ActionIcon>
-                <ActionIcon size="lg" color="red" variant="subtle" onClick={() => handleDelete(c.id)} title="Delete">
-                  <AiOutlineDelete size="1.4rem" />
-                </ActionIcon>
-              </Group>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </Table>
-  );
-
   if (loading) return <Center h="100vh"><Stack align="center"><Title order={3}>Best Days With Dad</Title><Text>Waking up the dashboard...</Text></Stack></Center>
 
   if (!user || user.email !== ADMIN_EMAIL) {
@@ -528,22 +550,189 @@ ${bodyParagraphs}
             onChange={setActiveSection}
             data={[
               { 
+                label: `Comments (${pendingCount} Pending)`, 
+                value: 'comments' 
+              },
+              { 
                 label: `Spot Submissions (${spotSubmissions.filter(s => s.status === 'pending').length})`, 
                 value: 'spots' 
               },
               { 
                 label: `Contact Inquiries (${contactSubmissions.filter(s => s.status === 'pending').length})`, 
                 value: 'contact' 
-              },
-              { 
-                label: `Comments (${pendingCommentsCount} Pending)`, 
-                value: 'comments' 
               }
             ]}
           />
         </Paper>
 
-        {/* SECTION 1: SPOT SUBMISSIONS */}
+        {/* SECTION 1: COMMENTS (HIGH SCALE STREAMLINED) */}
+        {activeSection === 'comments' && (
+          <Paper withBorder p="lg" radius="md">
+            <Stack spacing="md">
+              {/* STATUS FILTER & BULK APPROVE */}
+              <Group position="apart">
+                <SegmentedControl
+                  value={commentSubFilter}
+                  onChange={(val: any) => {
+                    setCommentSubFilter(val)
+                    setCommentPage(1)
+                  }}
+                  data={[
+                    { label: `Pending (${pendingCount})`, value: 'pending' },
+                    { label: `Published (${comments.filter(c => c.approved).length})`, value: 'approved' },
+                    { label: `Spam / Links (${flaggedCount})`, value: 'flagged' },
+                    { label: `All (${comments.length})`, value: 'all' }
+                  ]}
+                />
+
+                {commentSubFilter === 'pending' && pendingCount > 0 && (
+                  <Button 
+                    size="sm" 
+                    color="green" 
+                    variant="light" 
+                    leftIcon={<AiOutlineCheckCircle size="1.1rem" />}
+                    onClick={handleBulkApprove}
+                  >
+                    Approve All Pending ({pendingCount})
+                  </Button>
+                )}
+              </Group>
+
+              {/* SEARCH & POST FILTER CONTROLS */}
+              <Group grow>
+                <TextInput
+                  placeholder="Search comments by keyword, nickname, email, or IP..."
+                  icon={<AiOutlineSearch size="1.1rem" />}
+                  value={commentSearch}
+                  onChange={(e) => {
+                    setCommentSearch(e.currentTarget.value)
+                    setCommentPage(1)
+                  }}
+                />
+                <Select
+                  placeholder="Filter by Post..."
+                  value={selectedPostFilter}
+                  onChange={(val) => {
+                    setSelectedPostFilter(val)
+                    setCommentPage(1)
+                  }}
+                  data={postOptions}
+                  searchable
+                  clearable
+                />
+              </Group>
+
+              {/* COMMENTS TABLE */}
+              {filteredComments.length === 0 ? (
+                <Text color="dimmed" align="center" py="xl">
+                  No comments match your active filters.
+                </Text>
+              ) : (
+                <>
+                  <ScrollArea>
+                    <Table verticalSpacing="md" horizontalSpacing="md" fontSize="sm" highlightOnHover>
+                      <thead>
+                        <tr>
+                          <th style={{ width: '22%' }}>User / IP</th>
+                          <th style={{ width: '38%' }}>Comment</th>
+                          <th style={{ width: '20%' }}>Post</th>
+                          <th style={{ width: '10%' }}>Status</th>
+                          <th style={{ width: '10%', textAlign: 'right' }}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paginatedComments.map((c) => {
+                          const hasLinks = c.content?.toLowerCase().includes('http')
+                          return (
+                            <tr key={c.id}>
+                              <td>
+                                <Text size="sm" weight={700}>{c.by_nickname || 'Guest'}</Text>
+                                <Text size="xs" color="dimmed">{c.by_email}</Text>
+                                <Group spacing={4} mt={3}>
+                                  <AiOutlineGlobal size="0.75rem" color="gray" />
+                                  <Text size="xs" color="blue" italic>{c.ip || '0.0.0.0'}</Text>
+                                </Group>
+                              </td>
+                              <td>
+                                <Text size="sm" style={{ lineHeight: 1.5 }}>{c.content}</Text>
+                                {hasLinks && (
+                                  <Group spacing={4} mt={4}>
+                                    <AiOutlineWarning size="0.85rem" color="#e03131" />
+                                    <Text size="xs" color="red" weight={600}>Contains external link</Text>
+                                  </Group>
+                                )}
+                              </td>
+                              <td>
+                                <Text size="xs" weight={700} color="blue">{c.Page?.title || 'General'}</Text>
+                                <Text size="xs" color="dimmed" truncate>{c.Page?.slug}</Text>
+                              </td>
+                              <td>
+                                {c.approved ? (
+                                  <Badge color="green">Live</Badge>
+                                ) : (
+                                  <Badge color="yellow">Pending</Badge>
+                                )}
+                              </td>
+                              <td>
+                                <Group spacing="xs" position="right">
+                                  {!c.approved && (
+                                    <Tooltip label="Approve comment" withArrow>
+                                      <ActionIcon size="md" color="green" variant="filled" onClick={() => handleApprove(c.id)}>
+                                        <AiOutlineCheck size="1.1rem" />
+                                      </ActionIcon>
+                                    </Tooltip>
+                                  )}
+                                  <Tooltip label="Reply as Host" withArrow>
+                                    <ActionIcon 
+                                      size="md" 
+                                      color="blue" 
+                                      variant="light" 
+                                      onClick={() => setReplyModal({ 
+                                        opened: true, 
+                                        parentId: c.id, 
+                                        pageId: c.Page?.slug, 
+                                        pageTitle: c.Page?.title, 
+                                        nickname: c.by_nickname 
+                                      })}
+                                    >
+                                      <AiOutlineMessage size="1.1rem" />
+                                    </ActionIcon>
+                                  </Tooltip>
+                                  <Tooltip label="Delete permanently" withArrow>
+                                    <ActionIcon size="md" color="red" variant="subtle" onClick={() => handleDelete(c.id)}>
+                                      <AiOutlineDelete size="1.1rem" />
+                                    </ActionIcon>
+                                  </Tooltip>
+                                </Group>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </Table>
+                  </ScrollArea>
+
+                  {/* PAGINATION BAR */}
+                  <Group position="apart" pt="md">
+                    <Text size="xs" color="dimmed">
+                      Showing {(commentPage - 1) * ITEMS_PER_PAGE + 1} to {Math.min(commentPage * ITEMS_PER_PAGE, filteredComments.length)} of {filteredComments.length} comments
+                    </Text>
+                    {totalPages > 1 && (
+                      <Pagination
+                        total={totalPages}
+                        page={commentPage}
+                        onChange={setCommentPage}
+                        size="sm"
+                      />
+                    )}
+                  </Group>
+                </>
+              )}
+            </Stack>
+          </Paper>
+        )}
+
+        {/* SECTION 2: SPOT SUBMISSIONS */}
         {activeSection === 'spots' && (
           <Paper withBorder p="lg" radius="md">
             <Group position="apart" mb="md">
@@ -638,7 +827,7 @@ ${bodyParagraphs}
           </Paper>
         )}
 
-        {/* SECTION 2: CONTACT INQUIRIES */}
+        {/* SECTION 3: CONTACT INQUIRIES */}
         {activeSection === 'contact' && (
           <Paper withBorder p="lg" radius="md">
             <Group position="apart" mb="md">
@@ -724,45 +913,6 @@ ${bodyParagraphs}
                 </Table>
               </ScrollArea>
             )}
-          </Paper>
-        )}
-
-        {/* SECTION 3: COMMENTS */}
-        {activeSection === 'comments' && (
-          <Paper withBorder p="lg" radius="md">
-            <Tabs defaultValue="pending" variant="outline" color="blue">
-              <Tabs.List mb="md">
-                <Tabs.Tab value="pending" icon={<AiOutlineClockCircle size="1.2rem" />} color="yellow">
-                  Pending ({organizedComments.pending.length})
-                </Tabs.Tab>
-                <Tabs.Tab value="all" icon={<AiOutlineMessage size="1.2rem" />}>
-                  All ({comments.length})
-                </Tabs.Tab>
-                {Object.entries(organizedComments.pageGroups).map(([title, data]: [string, any]) => (
-                  <Tabs.Tab key={title} value={title} icon={<AiOutlineFileText size="1.2rem" />}>
-                    {title} ({data.length})
-                  </Tabs.Tab>
-                ))}
-              </Tabs.List>
-
-              <Tabs.Panel value="pending">
-                {organizedComments.pending.length > 0 ? (
-                  <CommentTable data={organizedComments.pending} />
-                ) : (
-                  <Text color="dimmed" align="center" py="xl">No pending comments</Text>
-                )}
-              </Tabs.Panel>
-
-              <Tabs.Panel value="all">
-                <CommentTable data={comments} />
-              </Tabs.Panel>
-
-              {Object.entries(organizedComments.pageGroups).map(([title, data]: any) => (
-                <Tabs.Panel key={title} value={title}>
-                  <CommentTable data={data} />
-                </Tabs.Panel>
-              ))}
-            </Tabs>
           </Paper>
         )}
 
