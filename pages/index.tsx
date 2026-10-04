@@ -3,12 +3,14 @@ import { useEffect, useState, useMemo } from 'react'
 import { 
   Title, Text, Button, Stack, Container, Paper, 
   Center, Table, Badge, Group, ActionIcon, 
-  Textarea, Divider, Tabs, Modal, Box
+  Textarea, Divider, Tabs, Modal, Box, SegmentedControl,
+  Loader, ScrollArea, CopyButton
 } from '@mantine/core'
 import { 
   AiOutlineCheck, AiOutlineDelete, AiOutlineMessage, 
   AiOutlineFlag, AiOutlineFileText, AiOutlineClockCircle, 
-  AiOutlineGlobal, AiOutlineLock 
+  AiOutlineGlobal, AiOutlineLock, AiOutlineEnvironment,
+  AiOutlineEye, AiOutlineCopy
 } from 'react-icons/ai'
 
 const ADMIN_EMAIL = 'bestdayswithdad@gmail.com'
@@ -18,6 +20,12 @@ export default function ModerationCenter() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [comments, setComments] = useState<any[]>([])
+
+  // SUBMISSIONS STATE
+  const [submissions, setSubmissions] = useState<any[]>([])
+  const [subFilter, setSubFilter] = useState('pending')
+  const [subLoading, setSubLoading] = useState(false)
+  const [activeSub, setActiveSub] = useState<any>(null)
   
   // REPLY MODAL STATE
   const [replyModal, setReplyModal] = useState({ opened: false, parentId: '', pageId: '', pageTitle: '', nickname: '' })
@@ -25,13 +33,27 @@ export default function ModerationCenter() {
 
   const fetchComments = async () => {
     try {
-        const res = await fetch('/api/public-comments') 
-        const data = await res.json()
-        if (Array.isArray(data)) setComments(data)
-        else if (data.comments) setComments(data.comments)
+      const res = await fetch('/api/public-comments') 
+      const data = await res.json()
+      if (Array.isArray(data)) setComments(data)
+      else if (data.comments) setComments(data.comments)
     } catch (err) { 
-      console.error("Fetch failed", err)
+      console.error("Fetch comments failed", err)
       setComments([]) 
+    }
+  }
+
+  const fetchSubmissions = async () => {
+    setSubLoading(true)
+    try {
+      const res = await fetch(`/api/submissions?status=${subFilter}`)
+      const data = await res.json()
+      setSubmissions(Array.isArray(data) ? data : [])
+    } catch (err) {
+      console.error("Fetch submissions failed", err)
+      setSubmissions([])
+    } finally {
+      setSubLoading(false)
     }
   }
 
@@ -39,11 +61,20 @@ export default function ModerationCenter() {
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       setUser(session?.user || null)
-      if (session?.user?.email === ADMIN_EMAIL) fetchComments()
+      if (session?.user?.email === ADMIN_EMAIL) {
+        fetchComments()
+        fetchSubmissions()
+      }
       setLoading(false)
     }
     init()
   }, [supabase])
+
+  useEffect(() => {
+    if (user?.email === ADMIN_EMAIL) {
+      fetchSubmissions()
+    }
+  }, [subFilter])
 
   const organizedData = useMemo(() => {
     if (!Array.isArray(comments)) return { flagged: [], pending: [], pageGroups: {} };
@@ -70,6 +101,263 @@ export default function ModerationCenter() {
     })
   }
 
+  // SUBMISSION STATUS UPDATE
+  const updateSubmissionStatus = async (id: string, status: string) => {
+    try {
+      await fetch('/api/submissions', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status })
+      })
+      if (activeSub && String(activeSub.id) === String(id)) {
+        setActiveSub(null)
+      }
+      fetchSubmissions()
+    } catch (err) {
+      console.error("Failed to update submission status", err)
+    }
+  }
+
+  // BLOGGER POST GENERATOR HELPER
+  const generateBloggerHtml = (item: any) => {
+    if (!item) return ''
+    const details = item.details || {}
+    const title = item.title || 'Spot Name'
+    const contributorName = item.name || 'Anonymous'
+    const suburb = item.suburb ? ` (${item.suburb})` : ''
+    const address = details.address || ''
+    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${title}${address}`.trim())}`
+    const website = details.website || ''
+    const placeType = details.place_type || 'Place'
+
+    const starMap: Record<string, string> = {
+      '5.0': '⭐⭐⭐⭐⭐ 5.0/5.0',
+      '4.5': '⭐⭐⭐⭐½ 4.5/5.0',
+      '4.0': '⭐⭐⭐⭐ 4.0/5.0',
+      '3.5': '⭐⭐⭐½ 3.5/5.0',
+      '3.0': '⭐⭐⭐ 3.0/5.0'
+    }
+    const ratingDisplay = starMap[details.rating] || `${details.rating || '4.0'}/5.0`
+    const verdict = details.verdict || ''
+
+    const badgeIcons: Record<string, string> = {
+      'All Ages': '👨‍👩‍👧‍👦',
+      '1-3 Hours': '⏱️',
+      'Free Parking': '🅿',
+      'Free Entry': '💰',
+      'Toilets Onsite': '🚻',
+      'Shaded Areas': '🌳',
+      'Fully Fenced': '🚪',
+      'Accessible': '♿',
+      'Coffee / Food': '☕',
+      'Playground': '🛝',
+      'BBQ Facilities': '🥩',
+      'Dog Friendly': '🐶',
+      'Toddler Friendly': '👶',
+      'Indoor Venue': '🏠'
+    }
+
+    let badgesHtml = ''
+    const badgesArray = Array.isArray(details.badges) ? details.badges : []
+    if (badgesArray.length > 0) {
+      badgesArray.forEach((b: string) => {
+        const icon = badgeIcons[b] || '✔'
+        badgesHtml += `        <div class="summary-item"><span class="summary-icon">${icon}</span><span class="summary-text">${b}</span></div>\n`
+      })
+    } else {
+      badgesHtml = `        <div class="summary-item"><span class="summary-icon">👨‍👩‍👧‍👦</span><span class="summary-text">All Ages</span></div>\n`
+    }
+
+    const hours = details.hours || {}
+    const monThu = hours.mon_thu || '10:00 AM - 9:00 PM'
+    const fri = hours.fri || '10:00 AM - 10:00 PM'
+    const sat = hours.sat || '9:00 AM - 10:00 PM'
+    const sun = hours.sun || '9:00 AM - 8:00 PM'
+
+    const rawBody = details.review_body || ''
+    const bodyParagraphs = rawBody
+      .split(/\n\s*\n/)
+      .map((p: string) => `        <p>${p.trim()}</p>`)
+      .join('\n')
+
+    const proTip = details.pro_tip || ''
+
+    let webMarkup = ''
+    if (website) {
+      const cleanWeb = website.replace(/^https?:\/\//, '').replace(/\/$/, '')
+      webMarkup = `
+          <div>
+            <span class="meta-label" style="color:#007bff !important; font-size:9px;">Official Website</span>
+            <span class="meta-value">
+              <a href="${website}" target="_blank">
+                <i class="fa fa-globe" style="margin-right: 8px; color: #007bff;"></i>
+                ${cleanWeb}
+              </a>
+            </span>
+          </div>`
+    }
+
+    return `<style>
+/* ============================================
+   BEST DAYS WITH DAD - UNIFIED POST TEMPLATE
+   ============================================ */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap');
+.post-title-container, .post-header-line-1, .post-header { display: none !important; }
+body { background-color: #ffffff; font-family: 'Montserrat', sans-serif !important; }
+.container { max-width: 1000px; margin: 0 auto; padding: 0; width: 100%; box-sizing: border-box; }
+
+.post-subtitle { display: block; text-align: center; font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 5px; color: #007bff; margin-top: 40px; }
+.post-title { font-size: 3.2rem !important; font-weight: 900 !important; color: #1a202c !important; text-align: center; margin: 10px 10px !important; letter-spacing: -2px !important; text-transform: uppercase !important; line-height: 1; word-break: break-word; }
+.title-accent { width: 60px !important; height: 4px !important; background: #c7af76 !important; margin: 15px auto 20px auto !important; border-radius: 2px !important; }
+
+.contributor-attribution {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 30px;
+  padding: 8px 18px;
+  width: fit-content;
+  max-width: 90%;
+  margin: 0 auto 35px auto;
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+  text-align: center;
+}
+.contributor-attribution i { color: #007bff; font-size: 14px; flex-shrink: 0; }
+.contributor-highlight { color: #0f172a; font-weight: 800; }
+
+.glance-header { text-align: center !important; font-size: 16px !important; text-transform: uppercase !important; letter-spacing: 4px !important; color: #94a3b8 !important; margin: 40px 0 30px 0 !important; display: flex !important; justify-content: center !important; gap: 10px !important; font-weight: 800 !important; }
+.summary-grid { display: grid !important; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)) !important; gap: 12px !important; margin: 0 10px 40px 10px; }
+.summary-item {
+  background: #ffffff !important; border: 1px solid #f1f5f9 !important; border-radius: 12px !important;
+  padding: 20px 5px !important; text-align: center; transition: all 0.4s ease;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-width: 0;
+}
+.summary-item:hover { transform: translateY(-2px); box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1); border-color: #007bff !important; }
+.summary-icon { font-size: 1.8rem !important; margin-bottom: 8px; display: block; }
+.summary-text { font-size: 11px !important; font-weight: 700 !important; text-transform: uppercase; color: #64748b; line-height: 1.2; word-break: break-word; }
+
+.best-day-verdict { background: linear-gradient(135deg, #fffdf5 0%, #ffffff 100%) !important; border-radius: 0 15px 15px 0 !important; border: 1px solid #fef3c7 !important; border-left: 8px solid #c7af76 !important; padding: 30px 20px !important; margin: 10px 10px 30px 10px !important; box-shadow: 0 4px 15px rgba(199, 175, 118, 0.1); }
+.verdict-header { color: #c7af76 !important; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; font-size: 13px; }
+.verdict-summary { color: #1e293b !important; font-size: 1.2rem !important; font-weight: 600; line-height: 1.3; margin-top: 10px; }
+
+.meta-box { border-top: 1px solid #f1f5f9; padding: 40px 15px !important; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px; align-items: start; }
+.meta-label, .hours-title { color: #94a3b8 !important; font-weight: 700; font-size: 14px !important; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; display: block; }
+.meta-value a { font-size: 16px; color: #1a202c !important; font-weight: 700; text-decoration: none; border-bottom: 2px solid rgba(0, 123, 255, 0.1); transition: all 0.3s ease; display: inline-block; word-break: break-word; }
+.hours-grid { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.hours-day { display: flex; justify-content: space-between; padding: 10px 15px; background: #f8fafc; border: 1px solid #edf2f7; border-radius: 8px; font-size: 0.85rem; font-weight: 600; gap: 8px; }
+
+.post-content p { font-size: 18px !important; line-height: 1.8; color: #334155 !important; margin: 0 15px 30px 15px; }
+.callout-box { background: #ffffff !important; border: 3px solid #f1f5f9 !important; border-left: 6px solid #007bff !important; padding: 25px !important; border-radius: 4px 15px 15px 4px !important; margin: 30px 15px !important; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); }
+.callout-header { margin-bottom: 8px; font-size: 15px; color: #007bff; text-transform: uppercase; letter-spacing: 1px; }
+.callout-content { font-size: 16px; color: #334155; line-height: 1.6; }
+
+.comment-disclaimer { margin-top: -35px !important; }
+
+@media (max-width: 850px) {
+  .container { width: 100% !important; padding: 0 !important; }
+  .meta-box { grid-template-columns: minmax(0, 1fr); gap: 28px; padding: 25px 10px !important; }
+  .post-title { font-size: 1.8rem !important; margin: 10px 10px !important; }
+  .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; margin: 0 8px; }
+  .post-subtitle { font-size: 12px !important; }
+  .contributor-attribution { font-size: 11px; padding: 6px 14px; }
+}
+</style>
+
+<div class="container">
+  <article class="post">
+    <header class="hero-header">
+      <span class="post-subtitle">Best Days With Dad - No Nonsense Review</span>
+      <h1 class="post-title">${title}</h1>
+      <div class="title-accent"></div>
+
+      <div class="contributor-attribution">
+        <i class="fa fa-user-check"></i>
+        <span>Contributed by <span class="contributor-highlight">${contributorName}${suburb}</span></span>
+      </div>
+    </header>
+
+    <div class="quick-summary">
+      <h3 class="glance-header">📋 At a Glance</h3>
+      <div class="summary-grid">
+${badgesHtml}      </div>
+    </div>
+
+    <div class="best-day-verdict">
+      <span class="verdict-header">Best Day Score: ${ratingDisplay}</span>
+      <p class="verdict-summary">"${verdict}"</p>
+    </div>
+
+    <div class="meta-box">
+      <div class="meta-item-left">
+        <span class="meta-label">Visit Details</span>
+        <div style="margin-bottom: 25px;">
+          <span class="meta-label" style="color:#007bff !important; font-size:9px;">Location</span>
+          <span class="meta-value">
+            <a href="${mapsUrl}" target="_blank">
+              <i class="fa fa-map-marker" style="margin-right: 8px; color: #007bff;"></i>
+              ${address}
+            </a>
+          </span>
+        </div>${webMarkup}
+      </div>
+
+      <div class="meta-item-right">
+        <span class="hours-title">Hours / Schedule</span>
+        <div class="hours-grid">
+          <div class="hours-day"><span>Mon - Thu:</span><span>${monThu}</span></div>
+          <div class="hours-day"><span>Friday:</span><span>${fri}</span></div>
+          <div class="hours-day"><span>Saturday:</span><span>${sat}</span></div>
+          <div class="hours-day"><span>Sunday:</span><span>${sun}</span></div>
+        </div>
+        <div style="font-size: 11px; color: black; font-style: italic; margin-top: 10px; line-height: 1.4;">
+          *Opening hours are correct at time of publication but are subject to change.
+        </div>
+      </div>
+    </div>
+
+    <div class="post-content">
+${bodyParagraphs}
+
+      <div class="callout-box tip">
+        <div class="callout-header"><span>💡 <b>Pro Tip</b></span></div>
+        <div class="callout-content">${proTip}</div>
+      </div>
+
+      <h3 class="glance-header" style="margin-top: 50px;">Community Reviews:</h3>
+    </div>
+  </article>
+</div>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "${placeType}",
+  "name": "${title}",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "${address}",
+    "addressCountry": "AU"
+  },
+  "url": "${website || mapsUrl}",
+  "hasMap": "${mapsUrl}",
+  "author": {
+    "@type": "Person",
+    "name": "${contributorName}"
+  }
+}
+<\/script>`
+  }
+
   // REPLY LOGIC
   const submitDashboardReply = async () => {
     if (!replyContent.trim()) return;
@@ -83,7 +371,7 @@ export default function ModerationCenter() {
       },
       body: JSON.stringify({
         content: replyContent,
-        nickname: "Adam - BDWD", // Matches your logo identification logic
+        nickname: "Adam - BDWD",
         pageId: replyModal.pageId,
         pageTitle: replyModal.pageTitle,
         parentId: replyModal.parentId,
@@ -184,7 +472,7 @@ export default function ModerationCenter() {
 
   if (loading) return <Center h="100vh"><Stack align="center"><Title order={3}>Best Days With Dad</Title><Text>Waking up the dashboard...</Text></Stack></Center>
 
-  // THE ACCESS CONTROL GATE
+  // ACCESS CONTROL GATE
   if (!user || user.email !== ADMIN_EMAIL) {
     return (
       <Center h="100vh" bg="#f8f9fa">
@@ -217,13 +505,18 @@ export default function ModerationCenter() {
           <Button variant="subtle" color="gray" onClick={handleLogout} size="xs">Log Out</Button>
         </Group>
 
-        <Tabs defaultValue="pending" variant="outline" color="blue">
+        <Tabs defaultValue="submissions" variant="outline" color="blue">
           <Tabs.List mb="md">
+            {/* NEW SUBMISSIONS TAB */}
+            <Tabs.Tab value="submissions" icon={<AiOutlineEnvironment size="1.2rem" />} color="blue">
+              Submissions ({submissions.filter(s => s.status === 'pending').length})
+            </Tabs.Tab>
+
             <Tabs.Tab value="pending" icon={<AiOutlineClockCircle size="1.2rem" />} color="yellow">
-              Pending ({organizedData.pending.length})
+              Pending Comments ({organizedData.pending.length})
             </Tabs.Tab>
             <Tabs.Tab value="all" icon={<AiOutlineMessage size="1.2rem" />}>
-              All ({comments.length})
+              All Comments ({comments.length})
             </Tabs.Tab>
             {Object.entries(organizedData.pageGroups).map(([title, data]: [string, any]) => (
               <Tabs.Tab key={title} value={title} icon={<AiOutlineFileText size="1.2rem" />}>
@@ -231,6 +524,100 @@ export default function ModerationCenter() {
               </Tabs.Tab>
             ))}
           </Tabs.List>
+
+          {/* SUBMISSIONS PANEL */}
+          <Tabs.Panel value="submissions">
+            <Paper withBorder p="lg">
+              <Group position="apart" mb="md">
+                <Text weight={700} size="md">Community Spot Recommendations &amp; Inquiries</Text>
+                <SegmentedControl
+                  value={subFilter}
+                  onChange={setSubFilter}
+                  data={[
+                    { label: 'Pending', value: 'pending' },
+                    { label: 'Reviewed', value: 'reviewed' },
+                    { label: 'All', value: 'all' }
+                  ]}
+                />
+              </Group>
+
+              {subLoading ? (
+                <Center p="xl"><Loader /></Center>
+              ) : submissions.length === 0 ? (
+                <Text color="dimmed" align="center" py="xl">No {subFilter} submissions found.</Text>
+              ) : (
+                <ScrollArea>
+                  <Table verticalSpacing="sm" highlightOnHover>
+                    <thead>
+                      <tr>
+                        <th>Type</th>
+                        <th>Spot / Title</th>
+                        <th>Contributor</th>
+                        <th>Email</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th style={{ textAlign: 'right' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {submissions.map((sub) => (
+                        <tr key={sub.id}>
+                          <td>
+                            <Badge color={sub.type === 'spot' ? 'blue' : 'teal'}>
+                              {sub.type === 'spot' ? 'Add a Spot' : 'Contact'}
+                            </Badge>
+                          </td>
+                          <td><Text weight={700}>{sub.title || 'Untitled'}</Text></td>
+                          <td>
+                            {sub.name} {sub.suburb && <Text size="xs" color="dimmed">({sub.suburb})</Text>}
+                          </td>
+                          <td><Text size="sm">{sub.email}</Text></td>
+                          <td><Text size="xs">{new Date(sub.created_at).toLocaleDateString()}</Text></td>
+                          <td>
+                            <Badge color={sub.status === 'pending' ? 'yellow' : 'green'}>
+                              {sub.status}
+                            </Badge>
+                          </td>
+                          <td>
+                            <Group spacing="xs" position="right">
+                              <Button 
+                                size="xs" 
+                                variant="light" 
+                                leftIcon={<AiOutlineEye />}
+                                onClick={() => setActiveSub(sub)}
+                              >
+                                Inspect &amp; Export
+                              </Button>
+                              {sub.status === 'pending' ? (
+                                <ActionIcon
+                                  size="md"
+                                  color="green"
+                                  variant="subtle"
+                                  title="Mark as Reviewed"
+                                  onClick={() => updateSubmissionStatus(sub.id, 'reviewed')}
+                                >
+                                  <AiOutlineCheck size="1.2rem" />
+                                </ActionIcon>
+                              ) : (
+                                <Button
+                                  size="xs"
+                                  color="gray"
+                                  variant="subtle"
+                                  onClick={() => updateSubmissionStatus(sub.id, 'pending')}
+                                >
+                                  Reopen
+                                </Button>
+                              )}
+                            </Group>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </ScrollArea>
+              )}
+            </Paper>
+          </Tabs.Panel>
 
           <Tabs.Panel value="pending">
             <Paper withBorder p="lg">
@@ -253,6 +640,69 @@ export default function ModerationCenter() {
           ))}
         </Tabs>
 
+        {/* SUBMISSION INSPECTION & BLOGGER POST EXPORT MODAL */}
+        <Modal
+          opened={!!activeSub}
+          onClose={() => setActiveSub(null)}
+          title={<Text weight={700}>Submission Inspector &amp; Post Generator</Text>}
+          size="xl"
+        >
+          {activeSub && (
+            <Stack spacing="md">
+              <Group position="apart">
+                <Text weight={700} size="lg">{activeSub.title || 'Untitled Spot'}</Text>
+                <Badge color={activeSub.type === 'spot' ? 'blue' : 'teal'}>{activeSub.type}</Badge>
+              </Group>
+
+              <Text size="sm">
+                <b>Contributor:</b> {activeSub.name} {activeSub.suburb && `(${activeSub.suburb})`} &bull; <b>Email:</b> {activeSub.email}
+              </Text>
+
+              {activeSub.type === 'spot' && (
+                <>
+                  <Group position="apart">
+                    <Text weight={600} size="sm">Ready-To-Publish Blogger HTML:</Text>
+                    <CopyButton value={generateBloggerHtml(activeSub)} timeout={2000}>
+                      {({ copied, copy }) => (
+                        <Button color={copied ? 'teal' : 'blue'} size="xs" leftIcon={<AiOutlineCopy />} onClick={copy}>
+                          {copied ? 'Copied to Clipboard!' : 'Copy Blogger HTML'}
+                        </Button>
+                      )}
+                    </CopyButton>
+                  </Group>
+
+                  <Textarea
+                    value={generateBloggerHtml(activeSub)}
+                    readOnly
+                    minRows={10}
+                    maxRows={16}
+                    styles={{ input: { fontFamily: 'monospace', fontSize: '11px' } }}
+                  />
+                </>
+              )}
+
+              {activeSub.type === 'contact' && (
+                <Paper p="sm" withBorder bg="#f8fafc">
+                  <Text weight={600} size="sm" mb="xs">Message Content:</Text>
+                  <Text size="sm">{activeSub.details?.message || 'No message provided.'}</Text>
+                </Paper>
+              )}
+
+              <Group position="right" mt="md">
+                <Button variant="default" onClick={() => setActiveSub(null)}>
+                  Close
+                </Button>
+                {activeSub.status === 'pending' && (
+                  <Button color="green" onClick={() => updateSubmissionStatus(activeSub.id, 'reviewed')}>
+                    Mark as Reviewed
+                  </Button>
+                )}
+              </Group>
+            </Stack>
+          )}
+        </Modal>
+
+        {/* COMMENT REPLY MODAL */}
         <Modal 
           opened={replyModal.opened} 
           onClose={() => setReplyModal({ ...replyModal, opened: false })} 
