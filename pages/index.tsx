@@ -16,12 +16,31 @@ import {
 const ADMIN_EMAIL = 'bestdayswithdad@gmail.com'
 const ITEMS_PER_PAGE = 15
 
+// Profanity detector for client-side display badge and filtering
+const PROFANITY_WORDS = [
+  'fuck', 'fucking', 'fucked', 'fucker',
+  'shit', 'shitty', 'bullshit',
+  'cunt', 'cunts',
+  'bitch', 'bitches',
+  'asshole', 'assholes',
+  'dick', 'dicks', 'dickhead',
+  'bastard', 'bastards',
+  'wanker', 'wankers',
+  'cock', 'piss', 'pissed'
+]
+
+function checkProfanity(text: string): boolean {
+  if (!text) return false
+  const pattern = new RegExp(`\\b(${PROFANITY_WORDS.join('|')})\\b`, 'i')
+  return pattern.test(text)
+}
+
 export default function ModerationCenter() {
   const supabase = createClientComponentClient()
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
-  // MAIN WORKSPACE SECTION: 'spots' | 'contact' | 'comments'
+  // MAIN WORKSPACE SECTION: 'comments' | 'spots' | 'contact'
   const [activeSection, setActiveSection] = useState('comments')
 
   // COMMENTS STATE
@@ -117,14 +136,17 @@ export default function ModerationCenter() {
     let flagged = 0
 
     const list = comments.filter(c => {
-      const isLink = c.content?.toLowerCase().includes('http')
-      if (!c.approved && !isLink) pending++
-      if (isLink) flagged++
+      const isProfane = checkProfanity(c.content)
+      const hasLinks = c.content?.toLowerCase().includes('http')
+      const isFlagged = isProfane || hasLinks
+
+      if (!c.approved && !isFlagged) pending++
+      if (isFlagged && !c.approved) flagged++
 
       // Status Filter
-      if (commentSubFilter === 'pending' && (c.approved || isLink)) return false
+      if (commentSubFilter === 'pending' && (c.approved || isFlagged)) return false
       if (commentSubFilter === 'approved' && !c.approved) return false
-      if (commentSubFilter === 'flagged' && !isLink) return false
+      if (commentSubFilter === 'flagged' && (!isFlagged || c.approved)) return false
 
       // Post Filter
       if (selectedPostFilter && selectedPostFilter !== 'all') {
@@ -168,16 +190,21 @@ export default function ModerationCenter() {
     })
   }
 
-  // BULK APPROVE ALL VISIBLE PENDING
+  // BULK APPROVE ONLY CLEAN PENDING (EXCLUDES FLAGGED/PROFANITY)
   const handleBulkApprove = async () => {
-    const unapproved = comments.filter(c => !c.approved && !c.content?.toLowerCase().includes('http'))
-    if (!unapproved.length) return
+    const cleanPending = comments.filter(c => {
+      const isProfane = checkProfanity(c.content)
+      const hasLinks = c.content?.toLowerCase().includes('http')
+      return !c.approved && !isProfane && !hasLinks
+    })
 
-    if (!window.confirm(`Approve all ${unapproved.length} pending comments at once?`)) return
+    if (!cleanPending.length) return
+
+    if (!window.confirm(`Approve all ${cleanPending.length} clean pending comments? (Profanity & link flags are excluded)`)) return
 
     const { data: { session } } = await supabase.auth.getSession()
     await Promise.all(
-      unapproved.map(c => 
+      cleanPending.map(c => 
         fetch(`/api/public-comments?id=${c.id}`, {
           method: 'PATCH',
           headers: { 
@@ -189,6 +216,36 @@ export default function ModerationCenter() {
       )
     )
     fetchComments()
+  }
+
+  const handleApprove = async (id: string) => {
+    const { data: { session } } = await supabase.auth.getSession()
+    const res = await fetch(`/api/public-comments?id=${id}`, { 
+      method: 'PATCH',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session?.access_token}`
+      },
+      body: JSON.stringify({ approved: true })
+    })
+
+    if (res.ok) fetchComments()
+    else alert("Failed to approve comment.")
+  }
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm("Permanently delete this comment?")) {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch(`/api/public-comments?id=${id}`, { 
+        method: 'DELETE',
+        headers: { 
+          'Authorization': `Bearer ${session?.access_token}`
+        }
+      })
+
+      if (res.ok) fetchComments()
+      else alert("Failed to delete comment.")
+    }
   }
 
   const updateSubmissionStatus = async (id: string, status: string) => {
@@ -230,7 +287,7 @@ export default function ModerationCenter() {
     const verdict = details.verdict || ''
 
     const badgeIcons: Record<string, string> = {
-      'All Ages': '👨‍👩‍👧‍👦',
+      'All Ages': '👨‍‍👩‍👧‍👦',
       '1-3 Hours': '⏱️',
       'Free Parking': '🅿',
       'Free Entry': '💰',
@@ -449,8 +506,8 @@ ${bodyParagraphs}
 
   // REPLY LOGIC
   const submitDashboardReply = async () => {
-    if (!replyContent.trim()) return;
-    const { data: { session } } = await supabase.auth.getSession();
+    if (!replyContent.trim()) return
+    const { data: { session } } = await supabase.auth.getSession()
     
     const res = await fetch('/api/public-comments', {
       method: 'POST',
@@ -465,42 +522,12 @@ ${bodyParagraphs}
         pageTitle: replyModal.pageTitle,
         parentId: replyModal.parentId,
       })
-    });
-
-    if (res.ok) {
-      setReplyModal({ ...replyModal, opened: false });
-      setReplyContent('');
-      fetchComments();
-    }
-  }
-
-  const handleApprove = async (id: string) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    const res = await fetch(`/api/public-comments?id=${id}`, { 
-        method: 'PATCH',
-        headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token}`
-        },
-        body: JSON.stringify({ approved: true })
     })
 
-    if (res.ok) fetchComments()
-    else alert("Failed to approve comment.")
-  }
-
-  const handleDelete = async (id: string) => {
-    if (window.confirm("Are you sure you want to permanently delete this comment?")) {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`/api/public-comments?id=${id}`, { 
-          method: 'DELETE',
-          headers: { 
-              'Authorization': `Bearer ${session?.access_token}`
-          }
-      })
-
-      if (res.ok) fetchComments()
-      else alert("Failed to delete comment.")
+    if (res.ok) {
+      setReplyModal({ ...replyModal, opened: false })
+      setReplyContent('')
+      fetchComments()
     }
   }
 
@@ -565,11 +592,11 @@ ${bodyParagraphs}
           />
         </Paper>
 
-        {/* SECTION 1: COMMENTS (HIGH SCALE STREAMLINED) */}
+        {/* SECTION 1: COMMENTS */}
         {activeSection === 'comments' && (
           <Paper withBorder p="lg" radius="md">
             <Stack spacing="md">
-              {/* STATUS FILTER & BULK APPROVE */}
+              {/* STATUS FILTER & PROTECTED BULK APPROVE */}
               <Group position="apart">
                 <SegmentedControl
                   value={commentSubFilter}
@@ -578,9 +605,9 @@ ${bodyParagraphs}
                     setCommentPage(1)
                   }}
                   data={[
-                    { label: `Pending (${pendingCount})`, value: 'pending' },
+                    { label: `Pending Clean (${pendingCount})`, value: 'pending' },
+                    { label: `Flagged / Profanity (${flaggedCount})`, value: 'flagged' },
                     { label: `Published (${comments.filter(c => c.approved).length})`, value: 'approved' },
-                    { label: `Spam / Links (${flaggedCount})`, value: 'flagged' },
                     { label: `All (${comments.length})`, value: 'all' }
                   ]}
                 />
@@ -593,7 +620,7 @@ ${bodyParagraphs}
                     leftIcon={<AiOutlineCheckCircle size="1.1rem" />}
                     onClick={handleBulkApprove}
                   >
-                    Approve All Pending ({pendingCount})
+                    Approve All Clean Pending ({pendingCount})
                   </Button>
                 )}
               </Group>
@@ -642,6 +669,7 @@ ${bodyParagraphs}
                       </thead>
                       <tbody>
                         {paginatedComments.map((c) => {
+                          const isProfane = checkProfanity(c.content)
                           const hasLinks = c.content?.toLowerCase().includes('http')
                           return (
                             <tr key={c.id}>
@@ -655,6 +683,11 @@ ${bodyParagraphs}
                               </td>
                               <td>
                                 <Text size="sm" style={{ lineHeight: 1.5 }}>{c.content}</Text>
+                                {isProfane && (
+                                  <Badge color="red" size="xs" variant="filled" mt={4}>
+                                    Profanity Detected
+                                  </Badge>
+                                )}
                                 {hasLinks && (
                                   <Group spacing={4} mt={4}>
                                     <AiOutlineWarning size="0.85rem" color="#e03131" />
@@ -669,6 +702,8 @@ ${bodyParagraphs}
                               <td>
                                 {c.approved ? (
                                   <Badge color="green">Live</Badge>
+                                ) : isProfane || hasLinks ? (
+                                  <Badge color="red">Flagged</Badge>
                                 ) : (
                                   <Badge color="yellow">Pending</Badge>
                                 )}
