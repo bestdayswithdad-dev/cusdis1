@@ -230,7 +230,7 @@ export default function ModerationCenter() {
     const verdict = details.verdict || ''
 
     const badgeIcons: Record<string, string> = {
-      'All Ages': '👨‍‍👩‍👧‍👦',
+      'All Ages': '👨‍👩‍👧‍👦',
       '1-3 Hours': '⏱️',
       'Free Parking': '🅿',
       'Free Entry': '💰',
@@ -720,7 +720,7 @@ ${bodyParagraphs}
                     {totalPages > 1 && (
                       <Pagination
                         total={totalPages}
-                        page={commentPage}
+                        value={commentPage}
                         onChange={setCommentPage}
                         size="sm"
                       />
