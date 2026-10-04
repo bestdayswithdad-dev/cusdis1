@@ -9,9 +9,6 @@ if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 const PROJECT_ID = 'cbcd61ec-f2ef-425c-a952-30034c2de4e1'
 const ADMIN_EMAIL = 'bestdayswithdad@gmail.com'
 
-// -------------------------------------------------------------
-// TIER 1: ADVANCED NORMALIZATION & HEURISTIC ENGINE
-// -------------------------------------------------------------
 const PROFANITY_ROOTS = [
   'fuck', 'shit', 'cunt', 'bitch', 'asshole', 'dick', 'cock', 
   'pussy', 'bastard', 'wanker', 'twat', 'slut', 'whore', 'fag',
@@ -21,79 +18,33 @@ const PROFANITY_ROOTS = [
 function normalizeText(input: string): string {
   if (!input) return ''
   let text = input.toLowerCase()
-
-  // 1. Strip zero-width spacing and non-printable evasion markers
   text = text.replace(/[\u200B-\u200D\uFEFF]/g, '')
-
-  // 2. Transliterate leetspeak substitutions
   const leetMap: Record<string, string> = {
-    '@': 'a', '4': 'a',
-    '8': 'b',
-    '3': 'e',
-    '1': 'i', '!': 'i', '|': 'i',
-    '0': 'o',
-    '$': 's', '5': 's',
-    '7': 't', '+': 't',
-    'v': 'u'
+    '@': 'a', '4': 'a', '8': 'b', '3': 'e', '1': 'i', '!': 'i', '|': 'i',
+    '0': 'o', '$': 's', '5': 's', '7': 't', '+': 't', 'v': 'u'
   }
   text = text.replace(/[@4831!|0$57+]/g, char => leetMap[char] || char)
-
-  // 3. Remove punctuation separators designed to bypass tokenization (e.g., f.u.c.k, f-u-c-k)
   text = text.replace(/[\._\-*#~\s]/g, '')
-
-  // 4. Collapse character stuttering (e.g., "fuuuuck" -> "fuck")
   text = text.replace(/(.)\1+/g, '$1')
-
   return text
 }
 
 function evaluateHeuristics(content: string): { flagged: boolean; reason: string | null } {
-  // Check raw and normalized text
   const cleanString = normalizeText(content)
   const containsLink = /https?:\/\/[^\s]+/i.test(content)
 
   if (containsLink) {
-    return { flagged: true, reason: 'link_detected' }
+    return { flagged: true, reason: 'link' }
   }
 
   for (const root of PROFANITY_ROOTS) {
     const collapsedRoot = root.replace(/(.)\1+/g, '$1')
     if (cleanString.includes(collapsedRoot)) {
-      return { flagged: true, reason: 'profanity_heuristic' }
+      return { flagged: true, reason: 'profanity' }
     }
   }
 
   return { flagged: false, reason: null }
-}
-
-// -------------------------------------------------------------
-// TIER 2: OPTIONAL ASYNC AI AUDIT (OpenAI Free Moderation API)
-// -------------------------------------------------------------
-async function runAiModerationAudit(text: string): Promise<string | null> {
-  const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) return null
-
-  try {
-    const res = await fetch('https://api.openai.com/v1/moderations', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({ input: text })
-    })
-    const data = await res.json()
-    const result = data.results?.[0]
-    if (result?.flagged) {
-      // Find the primary flagged category
-      const categories = result.categories || {}
-      const activeCategory = Object.keys(categories).find(k => categories[k])
-      return activeCategory ? `ai_${activeCategory}` : 'ai_flagged'
-    }
-  } catch (err) {
-    console.warn('AI Moderation audit skipped:', err)
-  }
-  return null
 }
 
 const serialize = (data: unknown) =>
@@ -126,7 +77,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return null
   }
 
-  // 1. GET: Fetch public comments
+  // 1. GET: Fetch approved comments for public view
   if (req.method === 'GET') {
     const { pageId } = req.query
     try {
@@ -146,7 +97,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
-  // 2. POST: Ingest comment through moderation pipeline
+  // 2. POST: Ingest comment with feedback status flags
   if (req.method === 'POST') {
     const { content, nickname, pageId, pageTitle, parentId, metadata } = req.body
     if (!content || !pageId) return res.status(400).json({ error: 'content and pageId are required' })
@@ -158,12 +109,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const googleName = user?.user_metadata?.full_name || user?.user_metadata?.name
     const displayName = isHost ? "Adam - BDWD" : (googleName || nickname || 'Guest')
 
-    // Run Tier 1 Heuristics
-    const heuristicCheck = evaluateHeuristics(content)
+    // Run heuristics
+    const check = evaluateHeuristics(content)
     
-    // Auto-approval logic:
-    // Only verified readers/host get auto-approval, AND only if content cleared Tier 1
-    const shouldApprove = (isVerified || isHost) && !heuristicCheck.flagged
+    // Determine exact state:
+    // - 'flagged': contains offensive words or suspicious links
+    // - 'live': verified or host user with clean text
+    // - 'pending': guest with clean text awaiting moderation
+    let moderationStatus: 'live' | 'pending' | 'flagged' = 'pending'
+    let shouldApprove = false
+
+    if (check.flagged) {
+      moderationStatus = 'flagged'
+      shouldApprove = false
+    } else if (isVerified || isHost) {
+      moderationStatus = 'live'
+      shouldApprove = true
+    } else {
+      moderationStatus = 'pending'
+      shouldApprove = false
+    }
 
     try {
       let page = await prisma.page.findFirst({ where: { slug: pageId } })
@@ -191,39 +156,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           parentId: parentId ? String(parentId) : null,
           metadata: {
             ...(metadata || {}),
-            flaggedReason: heuristicCheck.reason,
-            moderationState: heuristicCheck.flagged ? 'quarantined' : (shouldApprove ? 'live' : 'pending_review')
+            flaggedReason: check.reason,
+            moderationState: moderationStatus
           }
         }
       })
 
-      // Non-blocking Tier 2 check (runs in background if API key configured)
-      if (process.env.OPENAI_API_KEY && !heuristicCheck.flagged) {
-        runAiModerationAudit(content).then(async (aiReason) => {
-          if (aiReason) {
-            await prisma.comment.update({
-              where: { id: newComment.id },
-              data: {
-                approved: false,
-                metadata: {
-                  ...(newComment.metadata as object || {}),
-                  flaggedReason: aiReason,
-                  moderationState: 'quarantined'
-                }
-              }
-            })
-          }
-        })
-      }
-
-      return res.status(201).json(serialize(newComment))
+      // Return both comment data and moderation feedback metadata to client
+      return res.status(201).json({
+        ...serialize(newComment),
+        moderationStatus,
+        flaggedReason: check.reason
+      })
     } catch (error) {
       console.error("Prisma Error:", error)
       return res.status(500).json({ error: 'Post failed' })
     }
   }
 
-  // 3. PATCH: Moderation & Likes
+  // 3. PATCH: Likes & Approvals
   if (req.method === 'PATCH') {
     const { id, action } = req.query
     const user = await getAuthenticatedUser()
