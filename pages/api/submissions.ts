@@ -15,8 +15,19 @@ const serialize = (data: unknown) =>
   )
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // CORS configuration matching your public-comments handler
-  res.setHeader('Access-Control-Allow-Origin', 'https://www.bestdayswithdad.com')
+  // CORS configuration handling root, www, and mobile preview domains
+  const origin = req.headers.origin || ''
+  const allowedOrigins = [
+    'https://www.bestdayswithdad.com',
+    'https://bestdayswithdad.com'
+  ]
+
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin)
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', 'https://www.bestdayswithdad.com')
+  }
+
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
   res.setHeader('Access-Control-Allow-Credentials', 'true')
@@ -33,20 +44,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         email,
         suburb,
         title,
+        details,
         ...restDetails
       } = body
 
-      if (!name || !email) {
-        return res.status(400).json({ error: 'Name and email are required fields.' })
+      if (!name || !title) {
+        return res.status(400).json({ error: 'Spot title and contributor name are required.' })
       }
 
-      const detailsPayload = restDetails ? JSON.parse(JSON.stringify(restDetails)) : {}
+      // Merge whether the frontend sends explicit `details: {...}` or flat additional properties
+      const resolvedDetails = {
+        ...(details && typeof details === 'object' ? details : {}),
+        ...restDetails
+      }
+
+      // Strip out internal envelope properties if present in restDetails
+      delete (resolvedDetails as any).projectId
+
+      const detailsPayload = JSON.parse(JSON.stringify(resolvedDetails))
 
       const newSubmission = await prisma.submission.create({
         data: {
           type: String(type),
           name: String(name).trim(),
-          email: String(email).trim(),
+          email: email ? String(email).trim() : 'anonymous@community.local',
           suburb: suburb ? String(suburb).trim() : null,
           title: title ? String(title).trim() : null,
           details: detailsPayload,
