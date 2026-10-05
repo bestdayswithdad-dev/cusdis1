@@ -4,7 +4,8 @@ import {
   Title, Text, Button, Stack, Container, Paper, 
   Center, Table, Badge, Group, ActionIcon, 
   Textarea, Modal, Box, SegmentedControl,
-  Loader, ScrollArea, CopyButton, TextInput, Select, Pagination, Tooltip
+  Loader, ScrollArea, CopyButton, TextInput, Select, Pagination, Tooltip,
+  SimpleGrid, Image, Card
 } from '@mantine/core'
 import { 
   AiOutlineCheck, AiOutlineDelete, AiOutlineMessage, 
@@ -78,11 +79,11 @@ export default function ModerationCenter() {
       const res = await fetch(`/api/submissions?status=${subFilter}`)
       const data = await res.json()
       setSubmissions(Array.isArray(data) ? data : [])
-    } catch (err) {
+    } catch (err) { 
       console.error("Fetch submissions failed", err)
       setSubmissions([])
-    } finally {
-      setSubLoading(false)
+    } finally { 
+      setSubLoading(false) 
     }
   }
 
@@ -264,7 +265,7 @@ export default function ModerationCenter() {
     }
   }
 
-  // BLOGGER POST GENERATOR HELPER
+  // BLOGGER POST GENERATOR HELPER WITH INBUILT DYNAMIC CAROUSEL
   const generateBloggerHtml = (item: any) => {
     if (!item) return ''
     const details = item.details || {}
@@ -286,10 +287,34 @@ export default function ModerationCenter() {
     const ratingDisplay = starMap[details.rating] || `${details.rating || '4.0'}/5.0`
     const verdict = details.verdict || ''
 
+    // Resolve photos: check image_urls array, then single image_url fallback
+    const rawPhotos: string[] = Array.isArray(details.image_urls) && details.image_urls.length > 0
+      ? details.image_urls
+      : details.image_url ? [details.image_url] : []
+
+    // If no uploaded photos, supply standard placeholder slots
+    const finalPhotos = rawPhotos.length > 0 ? rawPhotos : [
+      'https://via.placeholder.com/1200x800/1a202c/ffffff?text=Slide+1+(Drop+Image+URL+Here)',
+      'https://via.placeholder.com/1200x800/1a202c/ffffff?text=Slide+2+(Drop+Image+URL+Here)',
+      'https://via.placeholder.com/1200x800/1a202c/ffffff?text=Slide+3+(Drop+Image+URL+Here)'
+    ]
+
+    const slidesHtml = finalPhotos
+      .map(
+        (url, idx) => `            <div class="carousel-slide"><img src="${url}" alt="${title} Photo ${idx + 1}" onclick="openLightbox(${idx})"></div>`
+      )
+      .join('\n')
+
+    const indicatorsHtml = finalPhotos
+      .map(
+        (_, idx) => `            <div class="carousel-indicator ${idx === 0 ? 'active' : ''}"></div>`
+      )
+      .join('\n')
+
     const badgeIcons: Record<string, string> = {
-      'All Ages': '👨‍‍👩‍👧‍👦',
+      'All Ages': '👨‍👩‍👧‍👦',
       '1-3 Hours': '⏱️',
-      'Free Parking': '🅿',
+      'Free Parking': '🅿️',
       'Free Entry': '💰',
       'Toilets Onsite': '🚻',
       'Shaded Areas': '🌳',
@@ -379,6 +404,27 @@ body { background-color: #ffffff; font-family: 'Montserrat', sans-serif !importa
 .contributor-attribution i { color: #007bff; font-size: 14px; flex-shrink: 0; }
 .contributor-highlight { color: #0f172a; font-weight: 800; }
 
+/* IMAGES & CAROUSEL FUNCTION */
+.image-container { position: relative; display: block; width: 100%; box-shadow: 0 4px 15px rgba(0,0,0,0.4); border-radius: 25px; margin-bottom: 30px; overflow: hidden; background-color: #1a202c; }
+.carousel-container { position: relative; width: 100%; overflow: hidden; border-radius: 25px; height: 500px; display: flex; align-items: center; }
+.carousel { display: flex; transition: transform 0.5s ease-in-out; width: 100%; height: 100%; }
+.carousel-slide { min-width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
+.carousel-slide img { width: 100%; height: 100%; object-fit: cover; display: block; cursor: zoom-in; }
+
+.carousel-btn { position: absolute; top: 0; bottom: 0; background-color: rgba(0, 0, 0, 0); color: white; border: none; width: 10%; cursor: pointer; z-index: 2; font-size: 24px; transition: background-color 0.2s; }
+.carousel-btn:hover { background-color: rgba(0, 0, 0, 0.2); }
+.carousel-btn-prev { left: 0; }
+.carousel-btn-next { right: 0; }
+.carousel-indicators { position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; z-index: 5; }
+.carousel-indicator { width: 10px; height: 10px; border-radius: 50%; background-color: rgba(255, 255, 255, 0.7); cursor: pointer; transition: all 0.2s; }
+.carousel-indicator.active { background-color: #007bff; width: 22px; border-radius: 10px; }
+
+/* LIGHTBOX */
+.lightbox { display: none; position: fixed; z-index: 9999; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.95); justify-content: center; align-items: center; }
+.lightbox-content { max-width: 90%; max-height: 90%; object-fit: contain; border-radius: 8px; }
+.lightbox-close { position: absolute; top: 20px; right: 30px; color: white; font-size: 50px; cursor: pointer; }
+
+/* SUMMARY & BADGES */
 .glance-header { text-align: center !important; font-size: 16px !important; text-transform: uppercase !important; letter-spacing: 4px !important; color: #94a3b8 !important; margin: 40px 0 30px 0 !important; display: flex !important; justify-content: center !important; gap: 10px !important; font-weight: 800 !important; }
 .summary-grid { display: grid !important; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)) !important; gap: 12px !important; margin: 0 10px 40px 10px; }
 .summary-item {
@@ -392,16 +438,19 @@ body { background-color: #ffffff; font-family: 'Montserrat', sans-serif !importa
 .summary-icon { font-size: 1.8rem !important; margin-bottom: 8px; display: block; }
 .summary-text { font-size: 11px !important; font-weight: 700 !important; text-transform: uppercase; color: #64748b; line-height: 1.2; word-break: break-word; }
 
+/* VERDICT */
 .best-day-verdict { background: linear-gradient(135deg, #fffdf5 0%, #ffffff 100%) !important; border-radius: 0 15px 15px 0 !important; border: 1px solid #fef3c7 !important; border-left: 8px solid #c7af76 !important; padding: 30px 20px !important; margin: 10px 10px 30px 10px !important; box-shadow: 0 4px 15px rgba(199, 175, 118, 0.1); }
 .verdict-header { color: #c7af76 !important; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; font-size: 13px; }
 .verdict-summary { color: #1e293b !important; font-size: 1.2rem !important; font-weight: 600; line-height: 1.3; margin-top: 10px; }
 
+/* META BOX */
 .meta-box { border-top: 1px solid #f1f5f9; padding: 40px 15px !important; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px; align-items: start; }
 .meta-label, .hours-title { color: #94a3b8 !important; font-weight: 700; font-size: 14px !important; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; display: block; }
 .meta-value a { font-size: 16px; color: #1a202c !important; font-weight: 700; text-decoration: none; border-bottom: 2px solid rgba(0, 123, 255, 0.1); transition: all 0.3s ease; display: inline-block; word-break: break-word; }
 .hours-grid { display: flex; flex-direction: column; gap: 8px; width: 100%; }
 .hours-day { display: flex; justify-content: space-between; padding: 10px 15px; background: #f8fafc; border: 1px solid #edf2f7; border-radius: 8px; font-size: 0.85rem; font-weight: 600; gap: 8px; }
 
+/* CONTENT & CALLOUTS */
 .post-content p { font-size: 18px !important; line-height: 1.8; color: #334155 !important; margin: 0 15px 30px 15px; }
 .callout-box { background: #ffffff !important; border: 3px solid #f1f5f9 !important; border-left: 6px solid #007bff !important; padding: 25px !important; border-radius: 4px 15px 15px 4px !important; margin: 30px 15px !important; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); }
 .callout-header { margin-bottom: 8px; font-size: 15px; color: #007bff; text-transform: uppercase; letter-spacing: 1px; }
@@ -411,6 +460,7 @@ body { background-color: #ffffff; font-family: 'Montserrat', sans-serif !importa
 
 @media (max-width: 850px) {
   .container { width: 100% !important; padding: 0 !important; }
+  .image-container, .carousel-container { height: 260px !important; border-radius: 0 !important; margin-bottom: 20px; }
   .meta-box { grid-template-columns: minmax(0, 1fr); gap: 28px; padding: 25px 10px !important; }
   .post-title { font-size: 1.8rem !important; margin: 10px 10px !important; }
   .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; margin: 0 8px; }
@@ -431,6 +481,20 @@ body { background-color: #ffffff; font-family: 'Montserrat', sans-serif !importa
         <span>Contributed by <span class="contributor-highlight">${contributorName}${suburb}</span></span>
       </div>
     </header>
+
+    <!-- CAROUSEL SECTION -->
+    <div class="image-container">
+      <div class="carousel-container">
+        <div class="carousel">
+${slidesHtml}
+        </div>
+        <button class="carousel-btn carousel-btn-prev" aria-label="Previous Slide">❮</button>
+        <button class="carousel-btn carousel-btn-next" aria-label="Next Slide">❯</button>
+        <div class="carousel-indicators">
+${indicatorsHtml}
+        </div>
+      </div>
+    </div>
 
     <div class="quick-summary">
       <h3 class="glance-header">📋 At a Glance</h3>
@@ -480,9 +544,75 @@ ${bodyParagraphs}
       </div>
 
       <h3 class="glance-header" style="margin-top: 50px;">Community Reviews:</h3>
+      <div id="custom-comment-section"></div>
     </div>
   </article>
 </div>
+
+<div id="bdwd-lightbox" class="lightbox">
+  <span class="lightbox-close" onclick="closeLightbox()">&times;</span>
+  <img class="lightbox-content" id="lightbox-img" alt="Enlarged view">
+</div>
+
+<script>
+  let currentLbIndex = 0;
+  let lbImages = [];
+
+  function openLightbox(index) {
+    const images = document.querySelectorAll('.carousel-slide img');
+    lbImages = Array.from(images).map(img => img.src);
+    currentLbIndex = index;
+    const lightbox = document.getElementById('bdwd-lightbox');
+    if (lightbox) {
+      document.getElementById('lightbox-img').src = lbImages[currentLbIndex];
+      lightbox.style.display = 'flex';
+      document.body.style.overflow = 'hidden';
+    }
+  }
+
+  function closeLightbox() {
+    const lightbox = document.getElementById('bdwd-lightbox');
+    if (lightbox) {
+      lightbox.style.display = 'none';
+      document.body.style.overflow = 'auto';
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    const carousel = document.querySelector('.carousel');
+    const indicators = document.querySelectorAll('.carousel-indicator');
+    const slides = document.querySelectorAll('.carousel-slide');
+    let currentIndex = 0;
+    const total = slides.length;
+
+    function update() {
+      if (!carousel) return;
+      carousel.style.transform = \`translateX(-\${currentIndex * 100}%)\`;
+      indicators.forEach((ind, i) => ind.classList.toggle('active', i === currentIndex));
+    }
+
+    const nextBtn = document.querySelector('.carousel-btn-next');
+    const prevBtn = document.querySelector('.carousel-btn-prev');
+
+    if (nextBtn) nextBtn.addEventListener('click', () => { currentIndex = (currentIndex + 1) % total; update(); });
+    if (prevBtn) prevBtn.addEventListener('click', () => { currentIndex = (currentIndex - 1 + total) % total; update(); });
+    indicators.forEach((ind, i) => ind.addEventListener('click', () => { currentIndex = i; update(); }));
+
+    // Touch Swipe Support for Mobile
+    let startX = 0;
+    const carouselContainer = document.querySelector('.carousel-container');
+    if (carouselContainer) {
+      carouselContainer.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; }, { passive: true });
+      carouselContainer.addEventListener('touchend', (e) => {
+        const diff = startX - e.changedTouches[0].clientX;
+        if (Math.abs(diff) > 40) {
+          currentIndex = diff > 0 ? (currentIndex + 1) % total : (currentIndex - 1 + total) % total;
+          update();
+        }
+      }, { passive: true });
+    }
+  });
+</script>
 
 <script type="application/ld+json">
 {
@@ -826,7 +956,7 @@ ${bodyParagraphs}
                             <Button 
                               size="xs" 
                               variant="light" 
-                              leftIcon={<AiOutlineEye />}
+                              leftIcon={<AiOutlineEye />} 
                               onClick={() => setActiveSub(sub)}
                             >
                               Inspect &amp; Export
@@ -915,7 +1045,7 @@ ${bodyParagraphs}
                             <Button 
                               size="xs" 
                               variant="light" 
-                              leftIcon={<AiOutlineEye />}
+                              leftIcon={<AiOutlineEye />} 
                               onClick={() => setActiveSub(sub)}
                             >
                               Read Message
@@ -974,10 +1104,30 @@ ${bodyParagraphs}
                 </a>
               </Text>
 
+              {/* VISUAL IMAGE THUMBNAIL STRIP FOR SPOT REVIEWS */}
+              {activeSub.type === 'spot' && (
+                <Box>
+                  <Text size="xs" weight={700} color="dimmed" transform="uppercase" mb={6}>
+                    Submitted Photos ({Array.isArray(activeSub.details?.image_urls) ? activeSub.details.image_urls.length : (activeSub.details?.image_url ? 1 : 0)} / 6)
+                  </Text>
+                  {(Array.isArray(activeSub.details?.image_urls) && activeSub.details.image_urls.length > 0) || activeSub.details?.image_url ? (
+                    <SimpleGrid cols={6} spacing="xs">
+                      {(activeSub.details?.image_urls || [activeSub.details.image_url]).map((imgUrl: string, idx: number) => (
+                        <Card key={idx} p={2} withBorder radius="sm">
+                          <Image src={imgUrl} height={70} fit="cover" alt={`Photo ${idx + 1}`} />
+                        </Card>
+                      ))}
+                    </SimpleGrid>
+                  ) : (
+                    <Text size="xs" color="dimmed" fs="italic">No photos attached by contributor.</Text>
+                  )}
+                </Box>
+              )}
+
               {activeSub.type === 'spot' && (
                 <>
                   <Group position="apart">
-                    <Text weight={600} size="sm">Ready-To-Publish Blogger HTML:</Text>
+                    <Text weight={600} size="sm">Ready-To-Publish Blogger HTML (Carousel Included):</Text>
                     <CopyButton value={generateBloggerHtml(activeSub)} timeout={2000}>
                       {({ copied, copy }) => (
                         <Button color={copied ? 'teal' : 'blue'} size="xs" leftIcon={<AiOutlineCopy />} onClick={copy}>
