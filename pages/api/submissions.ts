@@ -15,7 +15,6 @@ const serialize = (data: unknown) =>
   )
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // CORS configuration handling root, www, and mobile preview domains
   const origin = req.headers.origin || ''
   const allowedOrigins = [
     'https://www.bestdayswithdad.com',
@@ -34,7 +33,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'OPTIONS') return res.status(200).end()
 
-  // 1. POST: Handle incoming spot recommendations and contact messages
   if (req.method === 'POST') {
     try {
       const body = req.body || {}
@@ -44,24 +42,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         email,
         suburb,
         title,
-        details,
-        ...restDetails
+        details = {}
       } = body
 
       if (!name || !title) {
-        return res.status(400).json({ error: 'Spot title and contributor name are required.' })
+        return res.status(400).json({ error: 'Spot title and your name are required.' })
       }
 
-      // Merge whether the frontend sends explicit `details: {...}` or flat additional properties
-      const resolvedDetails = {
-        ...(details && typeof details === 'object' ? details : {}),
-        ...restDetails
+      // Ensure details is never double nested
+      let cleanDetails = details
+      if (cleanDetails && typeof cleanDetails === 'object' && cleanDetails.details) {
+        cleanDetails = cleanDetails.details
       }
-
-      // Strip out internal envelope properties if present in restDetails
-      delete (resolvedDetails as any).projectId
-
-      const detailsPayload = JSON.parse(JSON.stringify(resolvedDetails))
 
       const newSubmission = await prisma.submission.create({
         data: {
@@ -70,7 +62,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           email: email ? String(email).trim() : 'anonymous@community.local',
           suburb: suburb ? String(suburb).trim() : null,
           title: title ? String(title).trim() : null,
-          details: detailsPayload,
+          details: cleanDetails || {},
           status: 'pending',
           projectId: PROJECT_ID
         }
@@ -85,7 +77,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
-  // 2. GET: Retrieve submissions for the Moderator Dashboard
   if (req.method === 'GET') {
     try {
       const { status } = req.query
@@ -114,7 +105,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
-  // 3. PATCH: Update submission status (e.g., reviewed or pending)
   if (req.method === 'PATCH') {
     try {
       const { id, status } = req.body || {}
