@@ -5,13 +5,14 @@ import {
   Center, Table, Badge, Group, ActionIcon, 
   Textarea, Modal, Box, SegmentedControl,
   Loader, ScrollArea, CopyButton, TextInput, Select, Pagination, Tooltip,
-  SimpleGrid, Image, Card
+  SimpleGrid, Image, Card, Anchor
 } from '@mantine/core'
 import { 
   AiOutlineCheck, AiOutlineDelete, AiOutlineMessage, 
   AiOutlineClockCircle, AiOutlineGlobal, AiOutlineLock, 
   AiOutlineEnvironment, AiOutlineEye, AiOutlineCopy, 
-  AiOutlineSearch, AiOutlineCheckCircle, AiOutlineWarning
+  AiOutlineSearch, AiOutlineCheckCircle, AiOutlineWarning,
+  AiOutlineFlag, AiOutlineExternalLink, AiOutlineCloseCircle
 } from 'react-icons/ai'
 
 const ADMIN_EMAIL = 'bestdayswithdad@gmail.com'
@@ -36,12 +37,22 @@ function checkProfanity(text: string): boolean {
   return pattern.test(text)
 }
 
+interface PostFlagItem {
+  id: string
+  page_slug: string
+  user_email: string
+  flag_type: string
+  notes: string
+  status: string
+  created_at: string
+}
+
 export default function ModerationCenter() {
   const supabase = createClientComponentClient()
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
-  // MAIN WORKSPACE SECTION: 'comments' | 'spots' | 'contact'
+  // MAIN WORKSPACE SECTION: 'comments' | 'spots' | 'contact' | 'flags'
   const [activeSection, setActiveSection] = useState('comments')
 
   // COMMENTS STATE
@@ -56,6 +67,11 @@ export default function ModerationCenter() {
   const [subFilter, setSubFilter] = useState('pending')
   const [subLoading, setSubLoading] = useState(false)
   const [activeSub, setActiveSub] = useState<any>(null)
+
+  // POST FLAGS STATE
+  const [flags, setFlags] = useState<PostFlagItem[]>([])
+  const [flagFilter, setFlagFilter] = useState('pending')
+  const [flagLoading, setFlagLoading] = useState(false)
   
   // REPLY MODAL STATE
   const [replyModal, setReplyModal] = useState({ opened: false, parentId: '', pageId: '', pageTitle: '', nickname: '' })
@@ -87,6 +103,24 @@ export default function ModerationCenter() {
     }
   }
 
+  const fetchFlags = async () => {
+    setFlagLoading(true)
+    try {
+      let query = supabase.from('post_flags').select('*').order('created_at', { ascending: false })
+      if (flagFilter !== 'all') {
+        query = query.eq('status', flagFilter)
+      }
+      const { data, error } = await query
+      if (error) throw error
+      setFlags((data as PostFlagItem[]) || [])
+    } catch (err) {
+      console.error("Fetch flags failed", err)
+      setFlags([])
+    } finally {
+      setFlagLoading(false)
+    }
+  }
+
   useEffect(() => {
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession()
@@ -94,6 +128,7 @@ export default function ModerationCenter() {
       if (session?.user?.email === ADMIN_EMAIL) {
         fetchComments()
         fetchSubmissions()
+        fetchFlags()
       }
       setLoading(false)
     }
@@ -105,6 +140,12 @@ export default function ModerationCenter() {
       fetchSubmissions()
     }
   }, [subFilter])
+
+  useEffect(() => {
+    if (user?.email === ADMIN_EMAIL) {
+      fetchFlags()
+    }
+  }, [flagFilter])
 
   // Split submissions into spots and contact messages
   const spotSubmissions = useMemo(() => {
@@ -265,6 +306,55 @@ export default function ModerationCenter() {
     }
   }
 
+  // UPDATE FLAG STATUS
+  const updateFlagStatus = async (id: string, status: string) => {
+    try {
+      const { error } = await supabase
+        .from('post_flags')
+        .update({ status })
+        .eq('id', id)
+
+      if (error) throw error
+      fetchFlags()
+    } catch (err) {
+      console.error("Failed to update flag status", err)
+      alert("Failed to update update flag status.")
+    }
+  }
+
+  // DELETE FLAG PERMANENTLY
+  const deleteFlag = async (id: string) => {
+    if (!window.confirm("Permanently delete this report?")) return
+    try {
+      const { error } = await supabase
+        .from('post_flags')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+      fetchFlags()
+    } catch (err) {
+      console.error("Failed to delete flag", err)
+      alert("Failed to delete flag.")
+    }
+  }
+
+  // FLAG CATEGORY BADGE COLOR MAPPING
+  const getFlagBadgeColor = (type: string) => {
+    switch (type) {
+      case 'permanently_closed':
+        return 'red'
+      case 'equipment':
+        return 'orange'
+      case 'hours':
+        return 'blue'
+      case 'pricing':
+        return 'yellow'
+      default:
+        return 'gray'
+    }
+  }
+
   // BLOGGER POST GENERATOR HELPER WITH INBUILT DYNAMIC CAROUSEL
   const generateBloggerHtml = (item: any) => {
     if (!item) return ''
@@ -273,7 +363,7 @@ export default function ModerationCenter() {
     const contributorName = item.name || 'Anonymous'
     const suburb = item.suburb ? ` (${item.suburb})` : ''
     const address = details.address || ''
-    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${title} ${address}`.trim())}`
+    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${title}${address}`.trim())}`
     const website = details.website || ''
     const placeType = details.place_type || 'Place'
 
@@ -717,6 +807,10 @@ ${bodyParagraphs}
               { 
                 label: `Contact Inquiries (${contactSubmissions.filter(s => s.status === 'pending').length})`, 
                 value: 'contact' 
+              },
+              { 
+                label: `Flagged Updates (${flags.filter(f => f.status === 'pending').length})`, 
+                value: 'flags' 
               }
             ]}
           />
@@ -1070,6 +1164,134 @@ ${bodyParagraphs}
                                 Reopen
                               </Button>
                             )}
+                          </Group>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              </ScrollArea>
+            )}
+          </Paper>
+        )}
+
+        {/* SECTION 4: FLAGGED SPOT UPDATES */}
+        {activeSection === 'flags' && (
+          <Paper withBorder p="lg" radius="md">
+            <Group position="apart" mb="md">
+              <div>
+                <Title order={3}>Community Spot Update Flags</Title>
+                <Text size="sm" color="dimmed">
+                  User-reported updates, repairs, price changes, and gate hour alerts.
+                </Text>
+              </div>
+              <SegmentedControl
+                value={flagFilter}
+                onChange={setFlagFilter}
+                data={[
+                  { label: 'Pending', value: 'pending' },
+                  { label: 'Resolved', value: 'resolved' },
+                  { label: 'Dismissed', value: 'dismissed' },
+                  { label: 'All', value: 'all' }
+                ]}
+              />
+            </Group>
+
+            {flagLoading ? (
+              <Center p="xl"><Loader /></Center>
+            ) : flags.length === 0 ? (
+              <Text color="dimmed" align="center" py="xl">
+                No {flagFilter} update flags found.
+              </Text>
+            ) : (
+              <ScrollArea>
+                <Table verticalSpacing="sm" highlightOnHover>
+                  <thead>
+                    <tr>
+                      <th style={{ width: '22%' }}>Spot / Slug</th>
+                      <th style={{ width: '15%' }}>Category</th>
+                      <th style={{ width: '35%' }}>Reported Details</th>
+                      <th style={{ width: '13%' }}>Reporter</th>
+                      <th style={{ width: '15%', textAlign: 'right' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {flags.map((flag) => (
+                      <tr key={flag.id}>
+                        <td>
+                          <Group spacing={6}>
+                            <Text weight={700} size="sm">{flag.page_slug}</Text>
+                            <Anchor
+                              href={`https://www.bestdayswithdad.com/${flag.page_slug}.html`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <ActionIcon size="xs" variant="transparent" color="blue">
+                                <AiOutlineExternalLink size="1rem" />
+                              </ActionIcon>
+                            </Anchor>
+                          </Group>
+                          <Text size="xs" color="dimmed">{new Date(flag.created_at).toLocaleDateString()}</Text>
+                        </td>
+                        <td>
+                          <Badge color={getFlagBadgeColor(flag.flag_type)} variant="light">
+                            {flag.flag_type.replace(/_/g, ' ')}
+                          </Badge>
+                        </td>
+                        <td>
+                          <Text size="sm" style={{ whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
+                            {flag.notes}
+                          </Text>
+                        </td>
+                        <td>
+                          <Text size="xs" color="dimmed">{flag.user_email || 'Anonymous'}</Text>
+                        </td>
+                        <td>
+                          <Group spacing="xs" position="right">
+                            {flag.status === 'pending' && (
+                              <>
+                                <Tooltip label="Mark Resolved" withArrow>
+                                  <ActionIcon
+                                    size="md"
+                                    color="green"
+                                    variant="light"
+                                    onClick={() => updateFlagStatus(flag.id, 'resolved')}
+                                  >
+                                    <AiOutlineCheck size="1.1rem" />
+                                  </ActionIcon>
+                                </Tooltip>
+                                <Tooltip label="Dismiss Note" withArrow>
+                                  <ActionIcon
+                                    size="md"
+                                    color="gray"
+                                    variant="subtle"
+                                    onClick={() => updateFlagStatus(flag.id, 'dismissed')}
+                                  >
+                                    <AiOutlineCloseCircle size="1.1rem" />
+                                  </ActionIcon>
+                                </Tooltip>
+                              </>
+                            )}
+                            {flag.status !== 'pending' && (
+                              <Button
+                                size="xs"
+                                color="gray"
+                                variant="subtle"
+                                onClick={() => updateFlagStatus(flag.id, 'pending')}
+                              >
+                                Reopen
+                              </Button>
+                            )}
+                            <Tooltip label="Delete Permanently" withArrow>
+                              <ActionIcon
+                                size="md"
+                                color="red"
+                                variant="subtle"
+                                onClick={() => deleteFlag(flag.id)}
+                              >
+                                <AiOutlineDelete size="1.1rem" />
+                              </ActionIcon>
+                            </Tooltip>
                           </Group>
                         </td>
                       </tr>
