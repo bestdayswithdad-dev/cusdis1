@@ -5,79 +5,48 @@ import {
   Center, Table, Badge, Group, ActionIcon, 
   Textarea, Modal, Box, SegmentedControl,
   Loader, ScrollArea, CopyButton, TextInput, Select, Pagination, Tooltip,
-  SimpleGrid, Image, Card, Anchor, Chip
+  SimpleGrid, Image, Card, Anchor, Checkbox
 } from '@mantine/core'
 import { 
   AiOutlineCheck, AiOutlineDelete, AiOutlineMessage, 
   AiOutlineClockCircle, AiOutlineGlobal, AiOutlineLock, 
   AiOutlineEnvironment, AiOutlineEye, AiOutlineCopy, 
   AiOutlineSearch, AiOutlineCheckCircle, AiOutlineWarning,
-  AiOutlineFlag, AiOutlineExport, AiOutlineCloseCircle,
-  AiOutlinePlus, AiOutlineTag
+  AiOutlineFlag, AiOutlineExport, AiOutlineCloseCircle
 } from 'react-icons/ai'
 
 const ADMIN_EMAIL = 'bestdayswithdad@gmail.com'
 const ITEMS_PER_PAGE = 15
 
-// CORE LOGISTICAL DECIDERS FOR PARENTS
+// RESEARCH-BACKED CORE PARENT ESSENTIALS (NOW WITH ACCESSIBILITY)
 export const CORE_PARENT_ESSENTIALS = [
-  'Fully Fenced',
-  'Toilets Onsite',
-  'Baby Change',
-  'Shaded Areas',
-  'Free Parking',
-  'Coffee / Food',
-  'Pram Friendly',
-  'BBQ Facilities',
-  'Water Fountain',
-  'Dog Friendly'
+  { label: 'Fully Fenced', icon: '🚪' },
+  { label: 'Toilets Onsite', icon: '🚻' },
+  { label: 'Baby Change', icon: '🚼' },
+  { label: 'Wheelchair Accessible', icon: '♿' },
+  { label: 'Shaded Areas', icon: '🌳' },
+  { label: 'Free Parking', icon: '🅿️' },
+  { label: 'Coffee / Food Nearby', icon: '☕' },
+  { label: 'Pram Friendly Paths', icon: '👶' },
+  { label: 'BBQ Facilities', icon: '🥩' },
+  { label: 'Water Fountain', icon: '🚰' },
+  { label: 'Dog Friendly', icon: '🐶' }
 ]
 
-// POPULAR ACTIVITY & VENUE SEARCH TAGS
-export const POPULAR_ACTIVITY_TAGS = [
-  'Disc Golf',
-  'Playground',
-  'Nature Play',
-  'Water Play',
-  'Climbing Walls',
-  'Skate Park',
-  'Pump Track',
-  'BMX Track',
-  'Basketball Court',
-  'Footy Oval',
-  'Walking Trails',
-  'Indoor Venue',
-  'National Park',
-  'Free Entry'
-]
-
-// BADGE EMOJI DICTIONARY
+// EMOJI MAP
 export const AMENITY_ICONS: Record<string, string> = {
   'Fully Fenced': '🚪',
-  'Fenced Playground': '🚪',
   'Toilets Onsite': '🚻',
-  'Public Toilet': '🚻',
   'Baby Change': '🚼',
+  'Wheelchair Accessible': '♿',
   'Shaded Areas': '🌳',
-  'Shaded Seating': '⛱️',
   'Free Parking': '🅿️',
-  'Coffee / Food': '☕',
-  'Pram Friendly': '👶',
+  'Coffee / Food Nearby': '☕',
+  'Pram Friendly Paths': '👶',
   'BBQ Facilities': '🥩',
   'Water Fountain': '🚰',
   'Dog Friendly': '🐶',
-  'All Ages': '👨‍👩‍👧‍👦',
-  'Disc Golf': '🥏',
-  'Playground': '🛝',
-  'Climbing Walls': '🧗',
-  'Skate Park': '🛹',
-  'Basketball Court': '🏀',
-  'Free Entry': '💰',
-  'Indoor Venue': '🏠'
-}
-
-function getBadgeIcon(badge: string): string {
-  return AMENITY_ICONS[badge] || '✔'
+  'All Ages': '👨‍👩‍👧‍👦'
 }
 
 // Profanity detector for client-side display badge and filtering
@@ -130,10 +99,8 @@ export default function ModerationCenter() {
   const [subLoading, setSubLoading] = useState(false)
   const [activeSub, setActiveSub] = useState<any>(null)
 
-  // ACTIVE SUBMISSION MOD EDITING (BADGES & TAGS)
+  // ACTIVE SPOT LOGISTICAL BADGES (CHECKBOX STATE)
   const [modSelectedBadges, setModSelectedBadges] = useState<string[]>([])
-  const [modSearchTags, setModSearchTags] = useState<string[]>([])
-  const [customTagInput, setCustomTagInput] = useState('')
 
   // POST FLAGS STATE
   const [flags, setFlags] = useState<PostFlagItem[]>([])
@@ -299,55 +266,29 @@ export default function ModerationCenter() {
     })
   }
 
-  // Populate active spot modal & auto-detect search tags
+  // Open spot inspection modal and map user's submitted checkboxes directly to the core list
   const openSpotInspection = (sub: any) => {
     setActiveSub(sub)
-    const existingBadges = Array.isArray(sub.details?.badges) ? sub.details.badges : []
-    setModSelectedBadges(existingBadges)
+    const submitted = Array.isArray(sub.details?.badges) ? sub.details.badges : []
 
-    // Auto-detect activity tags from title, suburb, and review body
-    const textBlob = `${sub.title || ''} ${sub.suburb || ''} ${sub.details?.review_body || ''}`.toLowerCase()
-    const detected = new Set<string>()
+    // Match only core parent essentials that the contributor selected
+    const initialChecked = CORE_PARENT_ESSENTIALS
+      .map(item => item.label)
+      .filter(coreLabel => {
+        const cLower = coreLabel.toLowerCase()
+        return submitted.some((s: string) => {
+          const sLower = s.toLowerCase()
+          return sLower.includes(cLower) || cLower.includes(sLower)
+        })
+      })
 
-    if (sub.suburb) detected.add(sub.suburb.trim())
-    if (textBlob.includes('disc golf')) detected.add('Disc Golf')
-    if (textBlob.includes('skate') || textBlob.includes('scooter')) detected.add('Skate Park')
-    if (textBlob.includes('pump track')) detected.add('Pump Track')
-    if (textBlob.includes('bmx') || textBlob.includes('bike')) detected.add('BMX Track')
-    if (textBlob.includes('climb')) detected.add('Climbing Walls')
-    if (textBlob.includes('basket')) detected.add('Basketball Court')
-    if (textBlob.includes('nature play') || textBlob.includes('creek')) detected.add('Nature Play')
-    if (textBlob.includes('water play') || textBlob.includes('splash')) detected.add('Water Play')
-    if (textBlob.includes('free')) detected.add('Free Entry')
-    if (textBlob.includes('indoor') || textBlob.includes('cafe')) detected.add('Indoor Venue')
-    if (textBlob.includes('national park') || textBlob.includes('reserve')) detected.add('National Park')
-
-    // Include existing user badges as search tags as well
-    existingBadges.forEach((b: string) => detected.add(b))
-
-    setModSearchTags(Array.from(detected))
-    setCustomTagInput('')
+    setModSelectedBadges(initialChecked)
   }
 
-  const toggleBadge = (badge: string) => {
+  const toggleCoreBadge = (label: string) => {
     setModSelectedBadges(prev => 
-      prev.includes(badge) ? prev.filter(b => b !== badge) : [...prev, badge]
+      prev.includes(label) ? prev.filter(b => b !== label) : [...prev, label]
     )
-  }
-
-  const toggleSearchTag = (tag: string) => {
-    setModSearchTags(prev => 
-      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
-    )
-  }
-
-  const handleAddCustomTag = () => {
-    const val = customTagInput.trim()
-    if (!val) return
-    if (!modSearchTags.includes(val)) {
-      setModSearchTags(prev => [...prev, val])
-    }
-    setCustomTagInput('')
   }
 
   // BULK APPROVE ONLY CLEAN PENDING (EXCLUDES FLAGGED/PROFANITY)
@@ -473,8 +414,8 @@ export default function ModerationCenter() {
     }
   }
 
-  // MASTER v5.6 POST GENERATOR (With Smart Core Logistics & Redundancy Suppression)
-  const generateBloggerHtml = (item: any, selectedBadges: string[], searchLabels: string[]) => {
+  // MASTER v5.6 POST GENERATOR (STRICT CORE AT A GLANCE ONLY)
+  const generateBloggerHtml = (item: any, selectedCoreBadges: string[]) => {
     if (!item) return ''
     const details = item.details || {}
     const title = item.title || 'Spot Name'
@@ -549,20 +490,11 @@ ${indicatorsHtml}
       </div>`
     }
 
-    // Filter Out Redundant Badges from the Visual Grid if already in Title
-    const titleLower = title.toLowerCase()
-    const visualBadges = selectedBadges.filter(badge => {
-      const bLower = badge.toLowerCase()
-      if (bLower.includes('disc golf') && titleLower.includes('disc golf')) return false
-      if (bLower.includes('climbing') && titleLower.includes('climbing')) return false
-      if (bLower.includes('skate') && titleLower.includes('skate')) return false
-      return true
-    })
-
-    const finalGridBadges = visualBadges.length > 0 ? visualBadges : ['All Ages', 'Free Parking', 'Shaded Areas']
+    // Strictly Core Parent Badges
+    const finalBadges = selectedCoreBadges.length > 0 ? selectedCoreBadges : ['Free Parking', 'Shaded Areas']
     let badgesHtml = ''
-    finalGridBadges.forEach((b: string) => {
-      const icon = getBadgeIcon(b)
+    finalBadges.forEach((b: string) => {
+      const icon = AMENITY_ICONS[b] || '✔'
       badgesHtml += `          <div class="summary-item"><span class="summary-icon">${icon}</span><span class="summary-text">${b}</span></div>\n`
     })
 
@@ -630,9 +562,9 @@ ${indicatorsHtml}
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 10px !important;
+  gap: 8px !important;
   background: #f8fafc !important;
-  border: 1.5px solid #cbd5e1 !important;
+  border: 1px solid #e2e8f0 !important;
   border-radius: 30px !important;
   padding: 8px 18px !important;
   font-size: 12px !important;
@@ -640,24 +572,19 @@ ${indicatorsHtml}
   color: #475569 !important;
   text-transform: uppercase !important;
   letter-spacing: 0.5px !important;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.04) !important;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.03) !important;
   max-width: 100% !important;
   box-sizing: border-box !important;
 }
 
-.contributor-badge {
-  background: #2e5984 !important;
-  color: #ffffff !important;
-  padding: 3px 8px !important;
-  border-radius: 12px !important;
-  font-size: 10px !important;
-  font-weight: 900 !important;
-  letter-spacing: 0.5px !important;
+.contributor-attribution i {
+  color: #2e5984 !important;
+  font-size: 14px !important;
 }
 
 .contributor-highlight { 
   color: #0f172a !important; 
-  font-weight: 900 !important; 
+  font-weight: 800 !important; 
 }
 
 /* IMAGES & CAROUSEL FUNCTION */
@@ -807,10 +734,10 @@ ${indicatorsHtml}
       <div class="title-accent"></div>
     </header>
 
-    <!-- PROMINENT CONTRIBUTOR ATTRIBUTION -->
+    <!-- COMMUNITY CONTRIBUTOR ATTRIBUTION -->
     <div class="contributor-box-wrapper">
       <div class="contributor-attribution">
-        <span class="contributor-badge">COMMUNITY REVIEW</span>
+        <i class="fa fa-user-check"></i>
         <span>Contributed by <span class="contributor-highlight">${contributorName}${suburbDisplay}</span></span>
       </div>
     </div>
@@ -1249,7 +1176,7 @@ ${isMultiPhoto ? `
             <Group position="apart" mb="md">
               <div>
                 <Title order={3}>Community Spot Recommendations</Title>
-                <Text size="sm" color="dimmed">Review submissions and export ready-to-publish Blogger HTML.</Text>
+                <Text size="sm" color="dimmed">Review submissions, select core amenities, and copy standard Blogger HTML.</Text>
               </div>
               <SegmentedControl
                 value={subFilter}
@@ -1570,7 +1497,7 @@ ${isMultiPhoto ? `
         <Modal
           opened={!!activeSub}
           onClose={() => setActiveSub(null)}
-          title={<Text weight={700}>{activeSub?.type === 'spot' ? 'Review & Publish Spot Submission' : 'Contact Message'}</Text>}
+          title={<Text weight={700}>{activeSub?.type === 'spot' ? 'Review & Export Spot Submission' : 'Contact Message'}</Text>}
           size="xl"
         >
           {activeSub && (() => {
@@ -1599,7 +1526,7 @@ ${isMultiPhoto ? `
                   </a>
                 </Text>
 
-                {/* VISUAL IMAGE THUMBNAIL STRIP FOR SPOT REVIEWS */}
+                {/* VISUAL IMAGE THUMBNAIL STRIP */}
                 {activeSub.type === 'spot' && (
                   <Box>
                     <Text size="xs" weight={700} color="dimmed" transform="uppercase" mb={6}>
@@ -1619,89 +1546,31 @@ ${isMultiPhoto ? `
                   </Box>
                 )}
 
-                {/* MODERATOR AMENITIES & SEARCH TAG TUNING */}
+                {/* PARENT ESSENTIALS CHECKBOXES (WITH WHEELCHAIR ACCESSIBLE) */}
                 {activeSub.type === 'spot' && (
                   <Paper withBorder p="md" radius="md" bg="#f8fafc">
                     <Stack spacing="xs">
                       <div>
-                        <Text size="xs" weight={800} color="dimmed" transform="uppercase">
-                          1. Core Parent Essentials (Displayed in Visual Grid)
+                        <Text size="xs" weight={800} color="#2e5984" transform="uppercase">
+                          Core Parent Essentials (At A Glance Checklist)
                         </Text>
-                        <Text size="xs" color="dimmed" mb={8}>
-                          Toggle the logistical features to display on the post's "At a Glance" section:
+                        <Text size="xs" color="dimmed" mb={10}>
+                          Check the logistical features present at this venue to render in the post:
                         </Text>
-                        <Group spacing={6}>
-                          {CORE_PARENT_ESSENTIALS.map((badge) => {
-                            const isChecked = modSelectedBadges.includes(badge)
+                        <SimpleGrid cols={2} spacing="xs">
+                          {CORE_PARENT_ESSENTIALS.map((item) => {
+                            const isChecked = modSelectedBadges.includes(item.label)
                             return (
-                              <Chip
-                                key={badge}
-                                size="xs"
+                              <Checkbox
+                                key={item.label}
+                                label={`${item.icon} ${item.label}`}
                                 checked={isChecked}
-                                onChange={() => toggleBadge(badge)}
-                                variant="outline"
-                              >
-                                {AMENITY_ICONS[badge]} {badge}
-                              </Chip>
+                                onChange={() => toggleCoreBadge(item.label)}
+                                size="sm"
+                              />
                             )
                           })}
-                        </Group>
-                      </div>
-
-                      <div style={{ marginTop: 8 }}>
-                        <Text size="xs" weight={800} color="dimmed" transform="uppercase">
-                          2. Search Match Tags (Attached to Blogger Labels &amp; Match Engine)
-                        </Text>
-                        <Text size="xs" color="dimmed" mb={8}>
-                          Activities, features, and location tags that boost match scores in the Adelaide search engine:
-                        </Text>
-                        <Group spacing={6} mb={8}>
-                          {POPULAR_ACTIVITY_TAGS.map((tag) => {
-                            const isChecked = modSearchTags.includes(tag)
-                            return (
-                              <Chip
-                                key={tag}
-                                size="xs"
-                                color="blue"
-                                checked={isChecked}
-                                onChange={() => toggleSearchTag(tag)}
-                                variant="filled"
-                              >
-                                {tag}
-                              </Chip>
-                            )
-                          })}
-                        </Group>
-
-                        {/* CUSTOM TAG ADDER */}
-                        <Group spacing="xs" mt={4}>
-                          <TextInput
-                            placeholder="Add custom search tag (e.g. Marion Council, Free Entry)..."
-                            size="xs"
-                            value={customTagInput}
-                            onChange={(e) => setCustomTagInput(e.currentTarget.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault()
-                                handleAddCustomTag()
-                              }
-                            }}
-                            style={{ flex: 1 }}
-                          />
-                          <Button size="xs" variant="light" color="blue" onClick={handleAddCustomTag} leftIcon={<AiOutlinePlus />}>
-                            Add Tag
-                          </Button>
-                        </Group>
-
-                        {/* ACTIVE TAGS DISPLAY */}
-                        <Group spacing={4} mt={6}>
-                          <Text size="xs" weight={700} color="dimmed">Final Labels:</Text>
-                          {modSearchTags.map(tag => (
-                            <Badge key={tag} size="xs" variant="dot" color="blue" style={{ cursor: 'pointer' }} onClick={() => toggleSearchTag(tag)}>
-                              {tag} ✕
-                            </Badge>
-                          ))}
-                        </Group>
+                        </SimpleGrid>
                       </div>
                     </Stack>
                   </Paper>
@@ -1712,7 +1581,7 @@ ${isMultiPhoto ? `
                   <>
                     <Group position="apart">
                       <Text weight={600} size="sm">Ready-To-Publish Blogger HTML (Master v5.6 Standard):</Text>
-                      <CopyButton value={generateBloggerHtml(activeSub, modSelectedBadges, modSearchTags)} timeout={2000}>
+                      <CopyButton value={generateBloggerHtml(activeSub, modSelectedBadges)} timeout={2000}>
                         {({ copied, copy }) => (
                           <Button color={copied ? 'teal' : 'blue'} size="xs" leftIcon={<AiOutlineCopy />} onClick={copy}>
                             {copied ? 'Copied to Clipboard!' : 'Copy Blogger HTML'}
@@ -1722,7 +1591,7 @@ ${isMultiPhoto ? `
                     </Group>
 
                     <Textarea
-                      value={generateBloggerHtml(activeSub, modSelectedBadges, modSearchTags)}
+                      value={generateBloggerHtml(activeSub, modSelectedBadges)}
                       readOnly
                       minRows={10}
                       maxRows={16}
