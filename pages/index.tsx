@@ -355,207 +355,288 @@ export default function ModerationCenter() {
     }
   }
 
-  // BLOGGER POST GENERATOR HELPER WITH INBUILT DYNAMIC CAROUSEL
+  // MASTER v5.6 POST GENERATOR (Exact Spec for Funtopia & Southbank)
   const generateBloggerHtml = (item: any) => {
     if (!item) return ''
     const details = item.details || {}
     const title = item.title || 'Spot Name'
-    const contributorName = item.name || 'Anonymous'
-    const suburb = item.suburb ? ` (${item.suburb})` : ''
-    const address = details.address || ''
+    const address = details.address || (item.suburb ? `${item.suburb} SA` : 'Adelaide SA')
     const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${title}${address}`.trim())}`
     const website = details.website || ''
-    const placeType = details.place_type || 'Place'
+    const placeType = details.place_type || 'Park'
 
+    // Star Rating Display
     const starMap: Record<string, string> = {
-      '5.0': '⭐⭐⭐⭐⭐ 5.0/5.0',
-      '4.5': '⭐⭐⭐⭐½ 4.5/5.0',
-      '4.0': '⭐⭐⭐⭐ 4.0/5.0',
-      '3.5': '⭐⭐⭐½ 3.5/5.0',
-      '3.0': '⭐⭐⭐ 3.0/5.0'
+      '5.0': '⭐⭐⭐⭐⭐ 5.0 / 5.0',
+      '4.5': '⭐⭐⭐⭐½ 4.5 / 5.0',
+      '4.0': '⭐⭐⭐⭐ 4.0 / 5.0',
+      '3.5': '⭐⭐⭐½ 3.5 / 5.0',
+      '3.0': '⭐⭐⭐ 3.0 / 5.0',
+      '2.5': '⭐⭐½ 2.5 / 5.0',
+      '2.0': '⭐⭐ 2.0 / 5.0'
     }
-    const ratingDisplay = starMap[details.rating] || `${details.rating || '4.0'}/5.0`
-    const verdict = details.verdict || ''
+    const ratingDisplay = starMap[details.rating] || `⭐⭐⭐⭐ ${details.rating || '4.0'} / 5.0`
+    const verdict = details.verdict || 'A great Adelaide spot for the whole family to explore.'
 
-    // Resolve photos: check image_urls array, then single image_url fallback
-    const rawPhotos: string[] = Array.isArray(details.image_urls) && details.image_urls.length > 0
+    // Image Handling: Support 1 Hero Photo OR Full Carousel
+    const photos: string[] = Array.isArray(details.image_urls) && details.image_urls.length > 0
       ? details.image_urls
       : details.image_url ? [details.image_url] : []
 
-    // If no uploaded photos, supply standard placeholder slots
-    const finalPhotos = rawPhotos.length > 0 ? rawPhotos : [
-      'https://via.placeholder.com/1200x800/1a202c/ffffff?text=Slide+1+(Drop+Image+URL+Here)',
-      'https://via.placeholder.com/1200x800/1a202c/ffffff?text=Slide+2+(Drop+Image+URL+Here)',
-      'https://via.placeholder.com/1200x800/1a202c/ffffff?text=Slide+3+(Drop+Image+URL+Here)'
-    ]
+    const isMultiPhoto = photos.length > 1
+    let mediaBlock = ''
 
-    const slidesHtml = finalPhotos
-      .map(
-        (url, idx) => `            <div class="carousel-slide"><img src="${url}" alt="${title} Photo ${idx + 1}" onclick="openLightbox(${idx})"></div>`
-      )
-      .join('\n')
+    if (isMultiPhoto) {
+      const slidesHtml = photos
+        .map((url, idx) => `            <div class="carousel-slide"><img src="${url}" alt="${title} Photo ${idx + 1}" onclick="openLightbox(${idx})"></div>`)
+        .join('\n')
 
-    const indicatorsHtml = finalPhotos
-      .map(
-        (_, idx) => `            <div class="carousel-indicator ${idx === 0 ? 'active' : ''}"></div>`
-      )
-      .join('\n')
+      const indicatorsHtml = photos
+        .map((_, idx) => `            <div class="carousel-indicator ${idx === 0 ? 'active' : ''}"></div>`)
+        .join('\n')
 
+      mediaBlock = `      <div class="image-container">
+        <div class="carousel-container">
+          <div class="carousel">
+${slidesHtml}
+          </div>
+          <button class="carousel-btn carousel-btn-prev" aria-label="Previous image">❮</button>
+          <button class="carousel-btn carousel-btn-next" aria-label="Next image">❯</button>
+          <div class="carousel-indicators">
+${indicatorsHtml}
+          </div>
+        </div>
+      </div>`
+    } else {
+      const singleImg = photos[0] || 'https://via.placeholder.com/1200x600/0f172a/ffffff?text=Add+Photo'
+      mediaBlock = `      <div class="single-image-container">
+        <div class="single-image-wrapper">
+          <img src="${singleImg}" alt="${title}">
+        </div>
+      </div>`
+    }
+
+    // Summary Grid Badges
     const badgeIcons: Record<string, string> = {
       'All Ages': '👨‍👩‍👧‍👦',
       '1-3 Hours': '⏱️',
       'Free Parking': '🅿️',
       'Free Entry': '💰',
       'Toilets Onsite': '🚻',
-      'Shaded Areas': '🌳',
-      'Fully Fenced': '🚪',
+      'Public Toilet': '🚻',
+      'Pristine Toilets': '🚻',
+      'Shaded Areas': '⛱️',
+      'Shaded Seating': '⛱️',
+      'Fully Fenced': '🛝',
+      'Fenced Playground': '🛝',
+      'Play Playground': '🛝',
+      'Playground': '🛝',
       'Accessible': '♿',
       'Coffee / Food': '☕',
-      'Playground': '🛝',
-      'BBQ Facilities': '🥩',
+      'Full Service Café': '☕',
+      'BBQ Facilities': '🍖',
       'Dog Friendly': '🐶',
       'Toddler Friendly': '👶',
-      'Indoor Venue': '🏠'
+      'Toddler Zone': '👶',
+      'Indoor Venue': '🏠',
+      'Climbing Walls': '🧗',
+      'Basketball Court': '🏀',
+      'Water Fountain': '🚰',
+      'Party Packages': '🎂'
     }
 
     let badgesHtml = ''
-    const badgesArray = Array.isArray(details.badges) ? details.badges : []
-    if (badgesArray.length > 0) {
-      badgesArray.forEach((b: string) => {
-        const icon = badgeIcons[b] || '✔'
-        badgesHtml += `        <div class="summary-item"><span class="summary-icon">${icon}</span><span class="summary-text">${b}</span></div>\n`
-      })
-    } else {
-      badgesHtml = `        <div class="summary-item"><span class="summary-icon">👨‍👩‍👧‍👦</span><span class="summary-text">All Ages</span></div>\n`
+    const badgesArray = Array.isArray(details.badges) && details.badges.length > 0
+      ? details.badges
+      : ['All Ages', 'Play Playground', 'Free Parking', 'Shaded Seating']
+
+    badgesArray.forEach((b: string) => {
+      const icon = badgeIcons[b] || '✔'
+      badgesHtml += `          <div class="summary-item"><span class="summary-icon">${icon}</span><span class="summary-text">${b}</span></div>\n`
+    })
+
+    // Operating Hours (Rendered if populated)
+    const hours = details.hours || {}
+    const hasHours = hours.mon_fri || hours.mon_thu || hours.sat_sun || hours.sat
+    let hoursBlock = ''
+
+    if (hasHours) {
+      const monFri = hours.mon_fri || hours.mon_thu || '9:00 AM - 5:00 PM'
+      const satSun = hours.sat_sun || hours.sat || '9:00 AM - 6:00 PM'
+      hoursBlock = `
+        <div class="meta-item-right">
+          <span class="hours-title">Standard Operating Hours</span>
+          <div class="hours-grid">
+            <div class="hours-day"><span>Mon - Fri:</span><span>${monFri}</span></div>
+            <div class="hours-day"><span>Sat - Sun:</span><span>${satSun}</span></div>
+          </div>
+          <div style="font-size: 11px; color: #64748b; font-style: italic; margin-top: 10px; line-height: 1.4;">
+            *Hours extend during South Australian school holidays.
+          </div>
+        </div>`
     }
 
-    const hours = details.hours || {}
-    const monThu = hours.mon_thu || '10:00 AM - 9:00 PM'
-    const fri = hours.fri || '10:00 AM - 10:00 PM'
-    const sat = hours.sat || '9:00 AM - 10:00 PM'
-    const sun = hours.sun || '9:00 AM - 8:00 PM'
-
+    // Review Body Paragraphs
     const rawBody = details.review_body || ''
     const bodyParagraphs = rawBody
-      .split(/\n\s*\n/)
-      .map((p: string) => `        <p>${p.trim()}</p>`)
-      .join('\n')
+      ? rawBody.split(/\n\s*\n/).map((p: string) => `        <p>${p.trim()}</p>`).join('\n')
+      : `        <p>${title} is a fantastic family-friendly destination offering great amenities and space for children to play and explore.</p>`
 
-    const proTip = details.pro_tip || ''
-
-    let webMarkup = ''
-    if (website) {
-      const cleanWeb = website.replace(/^https?:\/\//, '').replace(/\/$/, '')
-      webMarkup = `
-          <div>
-            <span class="meta-label" style="color:#007bff !important; font-size:9px;">Official Website</span>
-            <span class="meta-value">
-              <a href="${website}" target="_blank">
-                <i class="fa fa-globe" style="margin-right: 8px; color: #007bff;"></i>
-                ${cleanWeb}
-              </a>
-            </span>
-          </div>`
-    }
+    const proTip = details.pro_tip || 'Aim to arrive early on weekends to secure shaded seating and easy parking.'
 
     return `<style>
 /* ============================================
-   BEST DAYS WITH DAD - UNIFIED POST TEMPLATE
+   MASTER v5.6: MOBILE-OPTIMISED OUTING STANDARD
    ============================================ */
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap');
 .post-title-container, .post-header-line-1, .post-header { display: none !important; }
-body { background-color: #ffffff; font-family: 'Montserrat', sans-serif !important; }
-.container { max-width: 1000px; margin: 0 auto; padding: 0; width: 100%; box-sizing: border-box; }
+.container { max-width: 1000px; margin: 0 auto; padding: 0; width: 100%; }
 
-.post-subtitle { display: block; text-align: center; font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 5px; color: #007bff; margin-top: 40px; }
-.post-title { font-size: 3.2rem !important; font-weight: 900 !important; color: #1a202c !important; text-align: center; margin: 10px 10px !important; letter-spacing: -2px !important; text-transform: uppercase !important; line-height: 1; word-break: break-word; }
-.title-accent { width: 60px !important; height: 4px !important; background: #c7af76 !important; margin: 15px auto 20px auto !important; border-radius: 2px !important; }
-
-.contributor-attribution {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 30px;
-  padding: 8px 18px;
-  width: fit-content;
-  max-width: 90%;
-  margin: 0 auto 35px auto;
-  font-size: 12px;
-  font-weight: 700;
-  color: #475569;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.03);
-  text-align: center;
+.post-subtitle { 
+  display: block; text-align: center; font-size: 15px; font-weight: 800; 
+  text-transform: uppercase; letter-spacing: 4px; color: #2e5984; margin-top: 40px; 
 }
-.contributor-attribution i { color: #007bff; font-size: 14px; flex-shrink: 0; }
-.contributor-highlight { color: #0f172a; font-weight: 800; }
+.post-title { 
+  font-size: 2.5rem !important; font-weight: 900 !important; color: #1e293b !important; 
+  text-align: center; margin: 10px 15px !important; letter-spacing: -1.5px !important; 
+  text-transform: uppercase !important; line-height: 1.1; 
+}
+.title-accent { 
+  width: 60px !important; height: 4px !important; background: #c7af76 !important; 
+  margin: 15px auto 35px auto !important; border-radius: 2px !important; 
+}
 
 /* IMAGES & CAROUSEL FUNCTION */
-.image-container { position: relative; display: block; width: 100%; box-shadow: 0 4px 15px rgba(0,0,0,0.4); border-radius: 25px; margin-bottom: 30px; overflow: hidden; background-color: #1a202c; }
-.carousel-container { position: relative; width: 100%; overflow: hidden; border-radius: 25px; height: 500px; display: flex; align-items: center; }
-.carousel { display: flex; transition: transform 0.5s ease-in-out; width: 100%; height: 100%; }
-.carousel-slide { min-width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
-.carousel-slide img { width: 100%; height: 100%; object-fit: cover; display: block; cursor: zoom-in; }
+.single-image-container { 
+  position: relative; display: block; width: 100%; box-shadow: 0 4px 15px rgba(0,0,0,0.15); 
+  border-radius: 20px; margin-bottom: 30px; overflow: hidden; background: #0f172a; line-height: 0; 
+}
+.single-image-wrapper { position: relative; width: 100%; overflow: hidden; line-height: 0; }
+.single-image-wrapper img { width: 100%; height: auto; max-height: 480px; object-fit: cover; display: block; }
 
-.carousel-btn { position: absolute; top: 0; bottom: 0; background-color: rgba(0, 0, 0, 0); color: white; border: none; width: 10%; cursor: pointer; z-index: 2; font-size: 24px; transition: background-color 0.2s; }
-.carousel-btn:hover { background-color: rgba(0, 0, 0, 0.2); }
+.image-container { 
+  position: relative; display: block; width: 100%; box-shadow: 0 4px 15px rgba(0,0,0,0.15); 
+  border-radius: 20px; margin-bottom: 30px; overflow: hidden; background-color: #0f172a; 
+}
+.carousel-container { 
+  position: relative; width: 100%; overflow: hidden; border-radius: 20px; height: 500px; 
+  display: flex; align-items: center; 
+}
+.carousel { display: flex; transition: transform 0.45s ease-in-out; width: 100%; height: 100%; }
+.carousel-slide { 
+  min-width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; background-color: #0f172a; 
+}
+.carousel-slide img { width: 100%; height: 100%; object-fit: cover; display: block; cursor: zoom-in; }
+.carousel-btn { 
+  position: absolute; top: 0; bottom: 0; background: rgba(15, 23, 42, 0.25); color: white; 
+  border: none; width: 50px; cursor: pointer; z-index: 2; font-size: 20px; display: flex; 
+  align-items: center; justify-content: center; transition: background 0.2s ease; 
+}
+.carousel-btn:hover { background: rgba(15, 23, 42, 0.65); }
 .carousel-btn-prev { left: 0; }
 .carousel-btn-next { right: 0; }
-.carousel-indicators { position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; z-index: 5; }
-.carousel-indicator { width: 10px; height: 10px; border-radius: 50%; background-color: rgba(255, 255, 255, 0.7); cursor: pointer; transition: all 0.2s; }
-.carousel-indicator.active { background-color: #007bff; width: 22px; border-radius: 10px; }
+.carousel-indicators { 
+  position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; z-index: 5; 
+}
+.carousel-indicator { 
+  width: 9px; height: 9px; border-radius: 50%; background-color: rgba(255, 255, 255, 0.5); 
+  cursor: pointer; transition: all 0.2s ease; 
+}
+.carousel-indicator.active { background-color: #2e5984; transform: scale(1.3); }
+
+/* AT A GLANCE */
+.glance-header { 
+  text-align: center !important; font-size: 15px !important; text-transform: uppercase !important; 
+  letter-spacing: 3px !important; color: #64748b !important; margin: 45px 0 25px 0 !important; 
+  display: flex !important; justify-content: center !important; gap: 10px !important; font-weight: 800 !important; 
+}
+.summary-grid { 
+  display: grid !important; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)) !important; 
+  gap: 12px !important; margin: 0 15px 35px 15px !important; 
+}
+.summary-item { 
+  background: #ffffff !important; border: 1px solid #e2e8f0 !important; border-radius: 12px !important; 
+  padding: 16px 8px !important; text-align: center; transition: all 0.3s ease; 
+  box-shadow: 0 2px 6px rgba(0,0,0,0.03); display: flex; flex-direction: column; align-items: center; justify-content: center; 
+}
+.summary-item:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0,0,0,0.06); border-color: #2e5984 !important; }
+.summary-icon { font-size: 1.8rem !important; margin-bottom: 8px; display: block; }
+.summary-text { font-size: 11px !important; font-weight: 800 !important; text-transform: uppercase; color: #475569; letter-spacing: 0.5px; line-height: 1.3; }
+
+/* THE GOLD VERDICT BOX */
+.best-day-verdict { 
+  background: linear-gradient(135deg, #fffdf5 0%, #ffffff 100%) !important; border-radius: 12px !important; 
+  border: 1px solid #fef3c7 !important; border-left: 6px solid #c7af76 !important; padding: 20px 22px !important; 
+  margin: 20px 15px 35px 15px !important; box-shadow: 0 4px 15px rgba(199, 175, 118, 0.08); 
+}
+.verdict-header { color: #b45309 !important; font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; font-size: 12px; display: block; }
+.verdict-summary { 
+  color: #1e293b !important; font-size: 1.15rem !important; font-weight: 700; line-height: 1.35; 
+  margin: 8px 0 0 0 !important; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; 
+  overflow: hidden; text-overflow: ellipsis; 
+}
+
+/* DATA SECTION */
+.meta-box { 
+  border-top: 1px solid #e2e8f0; padding: 35px 20px !important; display: flex; justify-content: space-between; 
+  flex-wrap: wrap; gap: 30px; background: #f8fafc; border-radius: 16px; margin: 0 15px 40px 15px; border: 1px solid #e2e8f0; 
+}
+.meta-label, .hours-title { color: #64748b !important; font-weight: 800; font-size: 12px !important; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; display: block; }
+.meta-value a { 
+  font-size: 15px; color: #1e293b !important; font-weight: 700; text-decoration: none; 
+  border-bottom: 2px solid rgba(46, 89, 132, 0.2); transition: all 0.2s ease; display: inline-block; 
+}
+.meta-value a:hover { color: #2e5984 !important; border-bottom-color: #2e5984; }
+
+.hours-grid { display: grid; gap: 8px; margin-top: 5px; width: 100%; }
+.hours-day { display: flex; justify-content: space-between; padding: 10px 14px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem; font-weight: 600; color: #334155; }
+
+/* CALLOUTS */
+.callout-box { 
+  background: #ffffff !important; border: 1px solid #e2e8f0 !important; border-left: 5px solid #2e5984 !important; 
+  padding: 22px 24px !important; border-radius: 12px !important; margin: 30px 15px !important; box-shadow: 0 4px 12px rgba(0,0,0,0.03); 
+}
+.callout-box.tip { border-left-color: #10b981 !important; }
+.callout-header { 
+  display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 13px !important; 
+  text-transform: uppercase; letter-spacing: 1px; color: #2e5984; margin-bottom: 8px; 
+}
+.callout-box.tip .callout-header { color: #059669; }
+.callout-content { font-size: 16px; line-height: 1.6; color: #334155; }
+
+.post-content p { font-size: 17px !important; line-height: 1.8; color: #334155 !important; margin: 0 15px 24px 15px; font-weight: 400; }
 
 /* LIGHTBOX */
-.lightbox { display: none; position: fixed; z-index: 9999; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.95); justify-content: center; align-items: center; }
-.lightbox-content { max-width: 90%; max-height: 90%; object-fit: contain; border-radius: 8px; }
-.lightbox-close { position: absolute; top: 20px; right: 30px; color: white; font-size: 50px; cursor: pointer; }
-
-/* SUMMARY & BADGES */
-.glance-header { text-align: center !important; font-size: 16px !important; text-transform: uppercase !important; letter-spacing: 4px !important; color: #94a3b8 !important; margin: 40px 0 30px 0 !important; display: flex !important; justify-content: center !important; gap: 10px !important; font-weight: 800 !important; }
-.summary-grid { display: grid !important; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)) !important; gap: 12px !important; margin: 0 10px 40px 10px; }
-.summary-item {
-  background: #ffffff !important; border: 1px solid #f1f5f9 !important; border-radius: 12px !important;
-  padding: 20px 5px !important; text-align: center; transition: all 0.4s ease;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  min-width: 0;
+.lightbox { 
+  display: none; position: fixed; z-index: 999999; top: 0; left: 0; width: 100%; height: 100%; 
+  background-color: rgba(15, 23, 42, 0.95); backdrop-filter: blur(8px); justify-content: center; 
+  align-items: center; padding: 20px; box-sizing: border-box; 
 }
-.summary-item:hover { transform: translateY(-2px); box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1); border-color: #007bff !important; }
-.summary-icon { font-size: 1.8rem !important; margin-bottom: 8px; display: block; }
-.summary-text { font-size: 11px !important; font-weight: 700 !important; text-transform: uppercase; color: #64748b; line-height: 1.2; word-break: break-word; }
+.lightbox-content { max-width: 92%; max-height: 88vh; object-fit: contain; border-radius: 8px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
+.lightbox-close { 
+  position: absolute; top: 20px; right: 25px; color: #e2e8f0; font-size: 40px; font-weight: 300; 
+  cursor: pointer; line-height: 1; transition: color 0.2s; 
+}
+.lightbox-close:hover { color: #ffffff; }
 
-/* VERDICT */
-.best-day-verdict { background: linear-gradient(135deg, #fffdf5 0%, #ffffff 100%) !important; border-radius: 0 15px 15px 0 !important; border: 1px solid #fef3c7 !important; border-left: 8px solid #c7af76 !important; padding: 30px 20px !important; margin: 10px 10px 30px 10px !important; box-shadow: 0 4px 15px rgba(199, 175, 118, 0.1); }
-.verdict-header { color: #c7af76 !important; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; font-size: 13px; }
-.verdict-summary { color: #1e293b !important; font-size: 1.2rem !important; font-weight: 600; line-height: 1.3; margin-top: 10px; }
-
-/* META BOX */
-.meta-box { border-top: 1px solid #f1f5f9; padding: 40px 15px !important; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px; align-items: start; }
-.meta-label, .hours-title { color: #94a3b8 !important; font-weight: 700; font-size: 14px !important; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; display: block; }
-.meta-value a { font-size: 16px; color: #1a202c !important; font-weight: 700; text-decoration: none; border-bottom: 2px solid rgba(0, 123, 255, 0.1); transition: all 0.3s ease; display: inline-block; word-break: break-word; }
-.hours-grid { display: flex; flex-direction: column; gap: 8px; width: 100%; }
-.hours-day { display: flex; justify-content: space-between; padding: 10px 15px; background: #f8fafc; border: 1px solid #edf2f7; border-radius: 8px; font-size: 0.85rem; font-weight: 600; gap: 8px; }
-
-/* CONTENT & CALLOUTS */
-.post-content p { font-size: 18px !important; line-height: 1.8; color: #334155 !important; margin: 0 15px 30px 15px; }
-.callout-box { background: #ffffff !important; border: 3px solid #f1f5f9 !important; border-left: 6px solid #007bff !important; padding: 25px !important; border-radius: 4px 15px 15px 4px !important; margin: 30px 15px !important; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); }
-.callout-header { margin-bottom: 8px; font-size: 15px; color: #007bff; text-transform: uppercase; letter-spacing: 1px; }
-.callout-content { font-size: 16px; color: #334155; line-height: 1.6; }
-
+#custom-comment-section { 
+  width: 100% !important; max-width: 100% !important; box-sizing: border-box !important; 
+  display: block !important; margin-top: 15px !important; margin-bottom: 40px !important; clear: both !important; 
+}
 .comment-disclaimer { margin-top: -35px !important; }
 
-@media (max-width: 850px) {
-  .container { width: 100% !important; padding: 0 !important; }
-  .image-container, .carousel-container { height: 260px !important; border-radius: 0 !important; margin-bottom: 20px; }
-  .meta-box { grid-template-columns: minmax(0, 1fr); gap: 28px; padding: 25px 10px !important; }
-  .post-title { font-size: 1.8rem !important; margin: 10px 10px !important; }
-  .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; margin: 0 8px; }
-  .post-subtitle { font-size: 12px !important; }
-  .contributor-attribution { font-size: 11px; padding: 6px 14px; }
+@media (max-width: 768px) {
+  .container { width: 100% !important; max-width: 100% !important; padding: 0 !important; }
+  .single-image-container { border-radius: 0 !important; margin-bottom: 25px; box-shadow: none; background: transparent; }
+  .single-image-wrapper img { height: 250px !important; object-fit: cover !important; border-radius: 0 !important; }
+  .image-container, .carousel-container { height: 260px !important; border-radius: 0 !important; margin-bottom: 25px; box-shadow: none; }
+  .post-title { font-size: 1.5rem !important; margin: 10px !important; }
+  .post-subtitle { font-size: 12px !important; letter-spacing: 2px; }
+  .summary-grid { grid-template-columns: repeat(2, 1fr) !important; margin: 0 12px 30px 12px !important; gap: 10px !important; }
+  .best-day-verdict { margin: 10px 12px 30px 12px !important; padding: 18px 16px !important; border-radius: 8px !important; }
+  .verdict-summary { font-size: 1.05rem !important; line-height: 1.35 !important; }
+  .meta-box { flex-direction: column; gap: 20px; padding: 24px 16px !important; margin: 0 12px 30px 12px !important; }
+  .callout-box { margin: 25px 0 !important; border-radius: 0 !important; border-left-width: 6px !important; border-right: none !important; padding: 20px 18px !important; box-shadow: none !important; }
+  .post-content p { margin: 0 14px 22px 14px; font-size: 16px !important; }
 }
 </style>
 
@@ -565,26 +646,9 @@ body { background-color: #ffffff; font-family: 'Montserrat', sans-serif !importa
       <span class="post-subtitle">Best Days With Dad - No Nonsense Review</span>
       <h1 class="post-title">${title}</h1>
       <div class="title-accent"></div>
-
-      <div class="contributor-attribution">
-        <i class="fa fa-user-check"></i>
-        <span>Contributed by <span class="contributor-highlight">${contributorName}${suburb}</span></span>
-      </div>
     </header>
 
-    <!-- CAROUSEL SECTION -->
-    <div class="image-container">
-      <div class="carousel-container">
-        <div class="carousel">
-${slidesHtml}
-        </div>
-        <button class="carousel-btn carousel-btn-prev" aria-label="Previous Slide">❮</button>
-        <button class="carousel-btn carousel-btn-next" aria-label="Next Slide">❯</button>
-        <div class="carousel-indicators">
-${indicatorsHtml}
-        </div>
-      </div>
-    </div>
+${mediaBlock}
 
     <div class="quick-summary">
       <h3 class="glance-header">📋 At a Glance</h3>
@@ -598,50 +662,51 @@ ${badgesHtml}      </div>
     </div>
 
     <div class="meta-box">
-      <div class="meta-item-left">
-        <span class="meta-label">Visit Details</span>
-        <div style="margin-bottom: 25px;">
-          <span class="meta-label" style="color:#007bff !important; font-size:9px;">Location</span>
-          <span class="meta-value">
-            <a href="${mapsUrl}" target="_blank">
-              <i class="fa fa-map-marker" style="margin-right: 8px; color: #007bff;"></i>
-              ${address}
-            </a>
-          </span>
-        </div>${webMarkup}
+      <div class="meta-item">
+        <span class="meta-label">Location Visited</span>
+        <span class="meta-value">
+          <a href="${mapsUrl}" target="_blank" rel="noopener">
+            📍 ${address}
+          </a>
+        </span>
       </div>
-
-      <div class="meta-item-right">
-        <span class="hours-title">Hours / Schedule</span>
-        <div class="hours-grid">
-          <div class="hours-day"><span>Mon - Thu:</span><span>${monThu}</span></div>
-          <div class="hours-day"><span>Friday:</span><span>${fri}</span></div>
-          <div class="hours-day"><span>Saturday:</span><span>${sat}</span></div>
-          <div class="hours-day"><span>Sunday:</span><span>${sun}</span></div>
-        </div>
-        <div style="font-size: 11px; color: black; font-style: italic; margin-top: 10px; line-height: 1.4;">
-          *Opening hours are correct at time of publication but are subject to change.
-        </div>
-      </div>
+      ${website ? `
+      <div class="meta-item">
+        <span class="meta-label">Direct Bookings</span>
+        <span class="meta-value">
+          <a href="${website}" target="_blank" rel="noopener">
+            🌐 ${website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+          </a>
+        </span>
+      </div>` : ''}
+${hoursBlock}
     </div>
 
     <div class="post-content">
 ${bodyParagraphs}
 
       <div class="callout-box tip">
-        <div class="callout-header"><span>💡 <b>Pro Tip</b></span></div>
-        <div class="callout-content">${proTip}</div>
+        <div class="callout-header">
+          <span>🎯</span>
+          <span><b>Pro Tip for Parents</b></span>
+        </div>
+        <div class="callout-content">
+          ${proTip}
+        </div>
       </div>
-
-      <h3 class="glance-header" style="margin-top: 50px;">Community Reviews:</h3>
-      <div id="custom-comment-section"></div>
     </div>
+
+    <h3 class="glance-header" style="margin-top: 50px;">💬 Community Reviews</h3>
+    <p style="text-align:center; color:#64748b; font-size:15px; margin-bottom: 25px;">Been down to ${title}? Share your thoughts below.</p>
+
+    <div id="custom-comment-section"></div>
   </article>
 </div>
 
-<div id="bdwd-lightbox" class="lightbox">
+${isMultiPhoto ? `
+<div id="bdwd-lightbox" class="lightbox" onclick="closeLightbox()">
   <span class="lightbox-close" onclick="closeLightbox()">&times;</span>
-  <img class="lightbox-content" id="lightbox-img" alt="Enlarged view">
+  <img class="lightbox-content" id="lightbox-img" alt="Enlarged Park View" onclick="event.stopPropagation()">
 </div>
 
 <script>
@@ -668,40 +733,69 @@ ${bodyParagraphs}
     }
   }
 
+  document.addEventListener('keydown', function(e) {
+    const lightbox = document.getElementById('bdwd-lightbox');
+    if (lightbox && lightbox.style.display === 'flex') {
+      if (e.key === 'Escape') closeLightbox();
+      if (e.key === 'ArrowRight') {
+        currentLbIndex = (currentLbIndex + 1) % lbImages.length;
+        document.getElementById('lightbox-img').src = lbImages[currentLbIndex];
+      }
+      if (e.key === 'ArrowLeft') {
+        currentLbIndex = (currentLbIndex - 1 + lbImages.length) % lbImages.length;
+        document.getElementById('lightbox-img').src = lbImages[currentLbIndex];
+      }
+    }
+  });
+
   document.addEventListener('DOMContentLoaded', function() {
     const carousel = document.querySelector('.carousel');
     const indicators = document.querySelectorAll('.carousel-indicator');
-    const slides = document.querySelectorAll('.carousel-slide');
+    if (!carousel || indicators.length === 0) return;
+
     let currentIndex = 0;
-    const total = slides.length;
+    const total = indicators.length;
 
     function update() {
-      if (!carousel) return;
-      carousel.style.transform = \`translateX(-\${currentIndex * 100}%)\`;
+      carousel.style.transform = 'translateX(-' + (currentIndex * 100) + '%)';
       indicators.forEach((ind, i) => ind.classList.toggle('active', i === currentIndex));
     }
 
     const nextBtn = document.querySelector('.carousel-btn-next');
     const prevBtn = document.querySelector('.carousel-btn-prev');
 
-    if (nextBtn) nextBtn.addEventListener('click', () => { currentIndex = (currentIndex + 1) % total; update(); });
-    if (prevBtn) prevBtn.addEventListener('click', () => { currentIndex = (currentIndex - 1 + total) % total; update(); });
-    indicators.forEach((ind, i) => ind.addEventListener('click', () => { currentIndex = i; update(); }));
-
-    // Touch Swipe Support for Mobile
-    let startX = 0;
-    const carouselContainer = document.querySelector('.carousel-container');
-    if (carouselContainer) {
-      carouselContainer.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; }, { passive: true });
-      carouselContainer.addEventListener('touchend', (e) => {
-        const diff = startX - e.changedTouches[0].clientX;
-        if (Math.abs(diff) > 40) {
-          currentIndex = diff > 0 ? (currentIndex + 1) % total : (currentIndex - 1 + total) % total;
-          update();
-        }
-      }, { passive: true });
+    if (nextBtn) {
+      nextBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        currentIndex = (currentIndex + 1) % total;
+        update();
+      });
     }
+
+    if (prevBtn) {
+      prevBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        currentIndex = (currentIndex - 1 + total) % total;
+        update();
+      });
+    }
+
+    indicators.forEach((ind, i) => {
+      ind.addEventListener('click', (e) => {
+        e.stopPropagation();
+        currentIndex = i;
+        update();
+      });
+    });
   });
+</script>` : ''}
+
+<script 
+  src="https://cusdis-jet-one.vercel.app/js/comment-loader.js" 
+  data-app-id="cbcd61ec-f2ef-425c-a952-30034c2de4e1" 
+  data-host="https://cusdis-jet-one.vercel.app" 
+  async 
+  defer>
 </script>
 
 <script type="application/ld+json">
@@ -714,14 +808,9 @@ ${bodyParagraphs}
     "streetAddress": "${address}",
     "addressCountry": "AU"
   },
-  "url": "${website || mapsUrl}",
-  "hasMap": "${mapsUrl}",
-  "author": {
-    "@type": "Person",
-    "name": "${contributorName}"
-  }
+  "hasMap": "${mapsUrl}"
 }
-<\/script>`
+</script>`
   }
 
   // REPLY LOGIC
@@ -820,7 +909,6 @@ ${bodyParagraphs}
         {activeSection === 'comments' && (
           <Paper withBorder p="lg" radius="md">
             <Stack spacing="md">
-              {/* STATUS FILTER & PROTECTED BULK APPROVE */}
               <Group position="apart">
                 <SegmentedControl
                   value={commentSubFilter}
@@ -849,7 +937,6 @@ ${bodyParagraphs}
                 )}
               </Group>
 
-              {/* SEARCH & POST FILTER CONTROLS */}
               <Group grow>
                 <TextInput
                   placeholder="Search comments by keyword, nickname, email, or IP..."
@@ -873,7 +960,6 @@ ${bodyParagraphs}
                 />
               </Group>
 
-              {/* COMMENTS TABLE */}
               {filteredComments.length === 0 ? (
                 <Text color="dimmed" align="center" py="xl">
                   No comments match your active filters.
@@ -971,7 +1057,6 @@ ${bodyParagraphs}
                     </Table>
                   </ScrollArea>
 
-                  {/* PAGINATION BAR */}
                   <Group position="apart" pt="md">
                     <Text size="xs" color="dimmed">
                       Showing {(commentPage - 1) * ITEMS_PER_PAGE + 1} to {Math.min(commentPage * ITEMS_PER_PAGE, filteredComments.length)} of {filteredComments.length} comments
@@ -1349,7 +1434,7 @@ ${bodyParagraphs}
               {activeSub.type === 'spot' && (
                 <>
                   <Group position="apart">
-                    <Text weight={600} size="sm">Ready-To-Publish Blogger HTML (Carousel Included):</Text>
+                    <Text weight={600} size="sm">Ready-To-Publish Blogger HTML (Master v5.6 Standard):</Text>
                     <CopyButton value={generateBloggerHtml(activeSub)} timeout={2000}>
                       {({ copied, copy }) => (
                         <Button color={copied ? 'teal' : 'blue'} size="xs" leftIcon={<AiOutlineCopy />} onClick={copy}>
