@@ -116,8 +116,8 @@ export default function ModerationCenter() {
     } catch (err) {
       console.error("Fetch flags failed", err)
       setFlags([])
-    } finally {
-      setFlagLoading(false)
+    } finally { 
+      setFlagLoading(false) 
     }
   }
 
@@ -355,14 +355,27 @@ export default function ModerationCenter() {
     }
   }
 
-  // MASTER v5.6 POST GENERATOR (With Community Contributor Attribution)
+  // MASTER v5.6 POST GENERATOR (With Prominent Community Contributor Card)
   const generateBloggerHtml = (item: any) => {
     if (!item) return ''
     const details = item.details || {}
     const title = item.title || 'Spot Name'
-    const contributorName = item.name || 'Anonymous Community Scout'
-    const suburb = item.suburb ? ` (${item.suburb})` : ''
-    const address = details.address || (item.suburb ? `${item.suburb} SA` : 'Adelaide SA')
+    
+    // Robust search for author name
+    const contributorName = (
+      item.name || 
+      details.author_name || 
+      details.name || 
+      details.contributor_name || 
+      details.user_name || 
+      (item.email ? item.email.split('@')[0] : '') || 
+      'Community Scout'
+    ).trim()
+
+    const rawSuburb = (item.suburb || details.suburb || details.suburb_name || '').trim()
+    const suburbDisplay = rawSuburb ? ` (${rawSuburb})` : ''
+
+    const address = details.address || (rawSuburb ? `${rawSuburb} SA` : 'Adelaide SA')
     const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${title}${address}`.trim())}`
     const website = details.website || ''
     const placeType = details.place_type || 'Park'
@@ -457,7 +470,7 @@ ${indicatorsHtml}
       badgesHtml += `          <div class="summary-item"><span class="summary-icon">${icon}</span><span class="summary-text">${b}</span></div>\n`
     })
 
-    // Operating Hours (Rendered if populated)
+    // Operating Hours
     const hours = details.hours || {}
     const hasHours = hours.mon_fri || hours.mon_thu || hours.sat_sun || hours.sat
     let hoursBlock = ''
@@ -478,7 +491,7 @@ ${indicatorsHtml}
         </div>`
     }
 
-    // Review Body Paragraphs
+    // Review Paragraphs
     const rawBody = details.review_body || ''
     const bodyParagraphs = rawBody
       ? rawBody.split(/\n\s*\n/).map((p: string) => `        <p>${p.trim()}</p>`).join('\n')
@@ -507,29 +520,49 @@ ${indicatorsHtml}
   margin: 15px auto 20px auto !important; border-radius: 2px !important; 
 }
 
-/* COMMUNITY CONTRIBUTOR BADGE */
-.contributor-attribution {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 30px;
-  padding: 8px 18px;
-  width: fit-content;
-  max-width: 90%;
-  margin: 0 auto 35px auto;
-  font-size: 12px;
-  font-weight: 700;
-  color: #475569;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.03);
-  text-align: center;
+/* COMMUNITY CONTRIBUTOR BANNER */
+.contributor-box-wrapper {
+  display: flex !important;
+  justify-content: center !important;
+  width: 100% !important;
+  margin: 0 0 25px 0 !important;
+  padding: 0 10px !important;
+  box-sizing: border-box !important;
 }
-.contributor-attribution i { color: #2e5984; font-size: 14px; flex-shrink: 0; }
-.contributor-highlight { color: #0f172a; font-weight: 800; }
+
+.contributor-attribution {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  background: #f8fafc !important;
+  border: 1.5px solid #cbd5e1 !important;
+  border-radius: 30px !important;
+  padding: 8px 18px !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  color: #475569 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.04) !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.contributor-badge {
+  background: #2e5984 !important;
+  color: #ffffff !important;
+  padding: 3px 8px !important;
+  border-radius: 12px !important;
+  font-size: 10px !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.5px !important;
+}
+
+.contributor-highlight { 
+  color: #0f172a !important; 
+  font-weight: 900 !important; 
+}
 
 /* IMAGES & CAROUSEL FUNCTION */
 .single-image-container { 
@@ -657,7 +690,7 @@ ${indicatorsHtml}
   .image-container, .carousel-container { height: 260px !important; border-radius: 0 !important; margin-bottom: 25px; box-shadow: none; }
   .post-title { font-size: 1.5rem !important; margin: 10px !important; }
   .post-subtitle { font-size: 12px !important; letter-spacing: 2px; }
-  .contributor-attribution { font-size: 11px; padding: 6px 14px; margin-bottom: 25px; }
+  .contributor-attribution { font-size: 11px !important; padding: 6px 12px !important; }
 
   .summary-grid { 
     grid-template-columns: repeat(2, 1fr) !important; margin: 0 12px 30px 12px !important; gap: 10px !important; 
@@ -676,12 +709,15 @@ ${indicatorsHtml}
       <span class="post-subtitle">Best Days With Dad - No Nonsense Review</span>
       <h1 class="post-title">${title}</h1>
       <div class="title-accent"></div>
-
-      <div class="contributor-attribution">
-        <i class="fa fa-user-check"></i>
-        <span>Contributed by <span class="contributor-highlight">${contributorName}${suburb}</span></span>
-      </div>
     </header>
+
+    <!-- PROMINENT CONTRIBUTOR ATTRIBUTION -->
+    <div class="contributor-box-wrapper">
+      <div class="contributor-attribution">
+        <span class="contributor-badge">COMMUNITY REVIEW</span>
+        <span>Contributed by <span class="contributor-highlight">${contributorName}${suburbDisplay}</span></span>
+      </div>
+    </div>
 
 ${mediaBlock}
 
@@ -1149,56 +1185,67 @@ ${isMultiPhoto ? `
                     </tr>
                   </thead>
                   <tbody>
-                    {spotSubmissions.map((sub) => (
-                      <tr key={sub.id}>
-                        <td><Text weight={700}>{sub.title || 'Untitled'}</Text></td>
-                        <td>
-                          {sub.name} {sub.suburb && <Text size="xs" color="dimmed">({sub.suburb})</Text>}
-                        </td>
-                        <td><Text size="sm">{sub.email}</Text></td>
-                        <td>
-                          <Badge color="yellow">{sub.details?.rating ? `${sub.details.rating}/5.0` : 'N/A'}</Badge>
-                        </td>
-                        <td><Text size="xs">{new Date(sub.created_at).toLocaleDateString()}</Text></td>
-                        <td>
-                          <Badge color={sub.status === 'pending' ? 'yellow' : 'green'}>
-                            {sub.status}
-                          </Badge>
-                        </td>
-                        <td>
-                          <Group spacing="xs" position="right">
-                            <Button 
-                              size="xs" 
-                              variant="light" 
-                              leftIcon={<AiOutlineEye />} 
-                              onClick={() => setActiveSub(sub)}
-                            >
-                              Inspect &amp; Export
-                            </Button>
-                            {sub.status === 'pending' ? (
-                              <ActionIcon
-                                size="md"
-                                color="green"
-                                variant="subtle"
-                                title="Mark as Reviewed"
-                                onClick={() => updateSubmissionStatus(sub.id, 'reviewed')}
+                    {spotSubmissions.map((sub) => {
+                      const contributor = 
+                        sub.name || 
+                        sub.details?.author_name || 
+                        sub.details?.name || 
+                        sub.details?.contributor_name || 
+                        'Anonymous'
+
+                      const suburb = sub.suburb || sub.details?.suburb || ''
+
+                      return (
+                        <tr key={sub.id}>
+                          <td><Text weight={700}>{sub.title || 'Untitled'}</Text></td>
+                          <td>
+                            {contributor} {suburb && <Text size="xs" color="dimmed">({suburb})</Text>}
+                          </td>
+                          <td><Text size="sm">{sub.email}</Text></td>
+                          <td>
+                            <Badge color="yellow">{sub.details?.rating ? `${sub.details.rating}/5.0` : 'N/A'}</Badge>
+                          </td>
+                          <td><Text size="xs">{new Date(sub.created_at).toLocaleDateString()}</Text></td>
+                          <td>
+                            <Badge color={sub.status === 'pending' ? 'yellow' : 'green'}>
+                              {sub.status}
+                            </Badge>
+                          </td>
+                          <td>
+                            <Group spacing="xs" position="right">
+                              <Button 
+                                size="xs" 
+                                variant="light" 
+                                leftIcon={<AiOutlineEye />} 
+                                onClick={() => setActiveSub(sub)}
                               >
-                                <AiOutlineCheck size="1.2rem" />
-                              </ActionIcon>
-                            ) : (
-                              <Button
-                                size="xs"
-                                color="gray"
-                                variant="subtle"
-                                onClick={() => updateSubmissionStatus(sub.id, 'pending')}
-                              >
-                                Reopen
+                                Inspect &amp; Export
                               </Button>
-                            )}
-                          </Group>
-                        </td>
-                      </tr>
-                    ))}
+                              {sub.status === 'pending' ? (
+                                <ActionIcon
+                                  size="md"
+                                  color="green"
+                                  variant="subtle"
+                                  title="Mark as Reviewed"
+                                  onClick={() => updateSubmissionStatus(sub.id, 'reviewed')}
+                                >
+                                  <AiOutlineCheck size="1.2rem" />
+                                </ActionIcon>
+                              ) : (
+                                <Button
+                                  size="xs"
+                                  color="gray"
+                                  variant="subtle"
+                                  onClick={() => updateSubmissionStatus(sub.id, 'pending')}
+                                >
+                                  Reopen
+                                </Button>
+                              )}
+                            </Group>
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </Table>
               </ScrollArea>
@@ -1430,90 +1477,101 @@ ${isMultiPhoto ? `
           title={<Text weight={700}>{activeSub?.type === 'spot' ? 'Spot Submission Details' : 'Contact Message'}</Text>}
           size="xl"
         >
-          {activeSub && (
-            <Stack spacing="md">
-              <Group position="apart">
-                <Text weight={700} size="lg">{activeSub.title || 'Untitled'}</Text>
-                <Badge color={activeSub.type === 'spot' ? 'blue' : 'teal'}>
-                  {activeSub.type === 'spot' ? 'Add a Spot' : 'Contact Us'}
-                </Badge>
-              </Group>
+          {activeSub && (() => {
+            const author = 
+              activeSub.name || 
+              activeSub.details?.author_name || 
+              activeSub.details?.name || 
+              activeSub.details?.contributor_name || 
+              'Community Scout'
 
-              <Text size="sm">
-                <b>From:</b> {activeSub.name} {activeSub.suburb && `(${activeSub.suburb})`} &bull; <b>Email:</b>{' '}
-                <a href={`mailto:${activeSub.email}`} style={{ color: '#007bff' }}>
-                  {activeSub.email}
-                </a>
-              </Text>
+            const suburbText = activeSub.suburb || activeSub.details?.suburb || ''
 
-              {/* VISUAL IMAGE THUMBNAIL STRIP FOR SPOT REVIEWS */}
-              {activeSub.type === 'spot' && (
-                <Box>
-                  <Text size="xs" weight={700} color="dimmed" transform="uppercase" mb={6}>
-                    Submitted Photos ({Array.isArray(activeSub.details?.image_urls) ? activeSub.details.image_urls.length : (activeSub.details?.image_url ? 1 : 0)} / 6)
-                  </Text>
-                  {(Array.isArray(activeSub.details?.image_urls) && activeSub.details.image_urls.length > 0) || activeSub.details?.image_url ? (
-                    <SimpleGrid cols={6} spacing="xs">
-                      {(activeSub.details?.image_urls || [activeSub.details.image_url]).map((imgUrl: string, idx: number) => (
-                        <Card key={idx} p={2} withBorder radius="sm">
-                          <Image src={imgUrl} height={70} fit="cover" alt={`Photo ${idx + 1}`} />
-                        </Card>
-                      ))}
-                    </SimpleGrid>
-                  ) : (
-                    <Text size="xs" color="dimmed" fs="italic">No photos attached by contributor.</Text>
-                  )}
-                </Box>
-              )}
+            return (
+              <Stack spacing="md">
+                <Group position="apart">
+                  <Text weight={700} size="lg">{activeSub.title || 'Untitled'}</Text>
+                  <Badge color={activeSub.type === 'spot' ? 'blue' : 'teal'}>
+                    {activeSub.type === 'spot' ? 'Add a Spot' : 'Contact Us'}
+                  </Badge>
+                </Group>
 
-              {activeSub.type === 'spot' && (
-                <>
-                  <Group position="apart">
-                    <Text weight={600} size="sm">Ready-To-Publish Blogger HTML (Master v5.6 Standard):</Text>
-                    <CopyButton value={generateBloggerHtml(activeSub)} timeout={2000}>
-                      {({ copied, copy }) => (
-                        <Button color={copied ? 'teal' : 'blue'} size="xs" leftIcon={<AiOutlineCopy />} onClick={copy}>
-                          {copied ? 'Copied to Clipboard!' : 'Copy Blogger HTML'}
-                        </Button>
-                      )}
-                    </CopyButton>
-                  </Group>
+                <Text size="sm">
+                  <b>From:</b> {author} {suburbText && `(${suburbText})`} &bull; <b>Email:</b>{' '}
+                  <a href={`mailto:${activeSub.email}`} style={{ color: '#007bff' }}>
+                    {activeSub.email}
+                  </a>
+                </Text>
 
-                  <Textarea
-                    value={generateBloggerHtml(activeSub)}
-                    readOnly
-                    minRows={10}
-                    maxRows={16}
-                    styles={{ input: { fontFamily: 'monospace', fontSize: '11px' } }}
-                  />
-                </>
-              )}
-
-              {activeSub.type === 'contact' && (
-                <Paper p="md" withBorder bg="#f8fafc">
-                  <Text weight={700} size="xs" color="dimmed" transform="uppercase" mb={6}>Message Content</Text>
-                  <Text size="sm" style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
-                    {activeSub.details?.message || 'No message provided.'}
-                  </Text>
-                </Paper>
-              )}
-
-              <Group position="right" mt="md">
-                <Button variant="default" onClick={() => setActiveSub(null)}>
-                  Close
-                </Button>
-                {activeSub.status === 'pending' ? (
-                  <Button color="green" onClick={() => updateSubmissionStatus(activeSub.id, 'reviewed')}>
-                    Mark as Done
-                  </Button>
-                ) : (
-                  <Button color="gray" variant="light" onClick={() => updateSubmissionStatus(activeSub.id, 'pending')}>
-                    Reopen
-                  </Button>
+                {/* VISUAL IMAGE THUMBNAIL STRIP FOR SPOT REVIEWS */}
+                {activeSub.type === 'spot' && (
+                  <Box>
+                    <Text size="xs" weight={700} color="dimmed" transform="uppercase" mb={6}>
+                      Submitted Photos ({Array.isArray(activeSub.details?.image_urls) ? activeSub.details.image_urls.length : (activeSub.details?.image_url ? 1 : 0)} / 6)
+                    </Text>
+                    {(Array.isArray(activeSub.details?.image_urls) && activeSub.details.image_urls.length > 0) || activeSub.details?.image_url ? (
+                      <SimpleGrid cols={6} spacing="xs">
+                        {(activeSub.details?.image_urls || [activeSub.details.image_url]).map((imgUrl: string, idx: number) => (
+                          <Card key={idx} p={2} withBorder radius="sm">
+                            <Image src={imgUrl} height={70} fit="cover" alt={`Photo ${idx + 1}`} />
+                          </Card>
+                        ))}
+                      </SimpleGrid>
+                    ) : (
+                      <Text size="xs" color="dimmed" fs="italic">No photos attached by contributor.</Text>
+                    )}
+                  </Box>
                 )}
-              </Group>
-            </Stack>
-          )}
+
+                {activeSub.type === 'spot' && (
+                  <>
+                    <Group position="apart">
+                      <Text weight={600} size="sm">Ready-To-Publish Blogger HTML (Master v5.6 Standard):</Text>
+                      <CopyButton value={generateBloggerHtml(activeSub)} timeout={2000}>
+                        {({ copied, copy }) => (
+                          <Button color={copied ? 'teal' : 'blue'} size="xs" leftIcon={<AiOutlineCopy />} onClick={copy}>
+                            {copied ? 'Copied to Clipboard!' : 'Copy Blogger HTML'}
+                          </Button>
+                        )}
+                      </CopyButton>
+                    </Group>
+
+                    <Textarea
+                      value={generateBloggerHtml(activeSub)}
+                      readOnly
+                      minRows={10}
+                      maxRows={16}
+                      styles={{ input: { fontFamily: 'monospace', fontSize: '11px' } }}
+                    />
+                  </>
+                )}
+
+                {activeSub.type === 'contact' && (
+                  <Paper p="md" withBorder bg="#f8fafc">
+                    <Text weight={700} size="xs" color="dimmed" transform="uppercase" mb={6}>Message Content</Text>
+                    <Text size="sm" style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+                      {activeSub.details?.message || 'No message provided.'}
+                    </Text>
+                  </Paper>
+                )}
+
+                <Group position="right" mt="md">
+                  <Button variant="default" onClick={() => setActiveSub(null)}>
+                    Close
+                  </Button>
+                  {activeSub.status === 'pending' ? (
+                    <Button color="green" onClick={() => updateSubmissionStatus(activeSub.id, 'reviewed')}>
+                      Mark as Done
+                    </Button>
+                  ) : (
+                    <Button color="gray" variant="light" onClick={() => updateSubmissionStatus(activeSub.id, 'pending')}>
+                      Reopen
+                    </Button>
+                  )}
+                </Group>
+              </Stack>
+            )
+          })()}
         </Modal>
 
         {/* COMMENT REPLY MODAL */}
