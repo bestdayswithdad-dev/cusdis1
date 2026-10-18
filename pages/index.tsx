@@ -5,18 +5,80 @@ import {
   Center, Table, Badge, Group, ActionIcon, 
   Textarea, Modal, Box, SegmentedControl,
   Loader, ScrollArea, CopyButton, TextInput, Select, Pagination, Tooltip,
-  SimpleGrid, Image, Card, Anchor
+  SimpleGrid, Image, Card, Anchor, Chip
 } from '@mantine/core'
 import { 
   AiOutlineCheck, AiOutlineDelete, AiOutlineMessage, 
   AiOutlineClockCircle, AiOutlineGlobal, AiOutlineLock, 
   AiOutlineEnvironment, AiOutlineEye, AiOutlineCopy, 
   AiOutlineSearch, AiOutlineCheckCircle, AiOutlineWarning,
-  AiOutlineFlag, AiOutlineExport, AiOutlineCloseCircle
+  AiOutlineFlag, AiOutlineExport, AiOutlineCloseCircle,
+  AiOutlinePlus, AiOutlineTag
 } from 'react-icons/ai'
 
 const ADMIN_EMAIL = 'bestdayswithdad@gmail.com'
 const ITEMS_PER_PAGE = 15
+
+// CORE LOGISTICAL DECIDERS FOR PARENTS
+export const CORE_PARENT_ESSENTIALS = [
+  'Fully Fenced',
+  'Toilets Onsite',
+  'Baby Change',
+  'Shaded Areas',
+  'Free Parking',
+  'Coffee / Food',
+  'Pram Friendly',
+  'BBQ Facilities',
+  'Water Fountain',
+  'Dog Friendly'
+]
+
+// POPULAR ACTIVITY & VENUE SEARCH TAGS
+export const POPULAR_ACTIVITY_TAGS = [
+  'Disc Golf',
+  'Playground',
+  'Nature Play',
+  'Water Play',
+  'Climbing Walls',
+  'Skate Park',
+  'Pump Track',
+  'BMX Track',
+  'Basketball Court',
+  'Footy Oval',
+  'Walking Trails',
+  'Indoor Venue',
+  'National Park',
+  'Free Entry'
+]
+
+// BADGE EMOJI DICTIONARY
+export const AMENITY_ICONS: Record<string, string> = {
+  'Fully Fenced': '🚪',
+  'Fenced Playground': '🚪',
+  'Toilets Onsite': '🚻',
+  'Public Toilet': '🚻',
+  'Baby Change': '🚼',
+  'Shaded Areas': '🌳',
+  'Shaded Seating': '⛱️',
+  'Free Parking': '🅿️',
+  'Coffee / Food': '☕',
+  'Pram Friendly': '👶',
+  'BBQ Facilities': '🥩',
+  'Water Fountain': '🚰',
+  'Dog Friendly': '🐶',
+  'All Ages': '👨‍👩‍👧‍👦',
+  'Disc Golf': '🥏',
+  'Playground': '🛝',
+  'Climbing Walls': '🧗',
+  'Skate Park': '🛹',
+  'Basketball Court': '🏀',
+  'Free Entry': '💰',
+  'Indoor Venue': '🏠'
+}
+
+function getBadgeIcon(badge: string): string {
+  return AMENITY_ICONS[badge] || '✔'
+}
 
 // Profanity detector for client-side display badge and filtering
 const PROFANITY_WORDS = [
@@ -68,6 +130,11 @@ export default function ModerationCenter() {
   const [subLoading, setSubLoading] = useState(false)
   const [activeSub, setActiveSub] = useState<any>(null)
 
+  // ACTIVE SUBMISSION MOD EDITING (BADGES & TAGS)
+  const [modSelectedBadges, setModSelectedBadges] = useState<string[]>([])
+  const [modSearchTags, setModSearchTags] = useState<string[]>([])
+  const [customTagInput, setCustomTagInput] = useState('')
+
   // POST FLAGS STATE
   const [flags, setFlags] = useState<PostFlagItem[]>([])
   const [flagFilter, setFlagFilter] = useState('pending')
@@ -116,8 +183,8 @@ export default function ModerationCenter() {
     } catch (err) {
       console.error("Fetch flags failed", err)
       setFlags([])
-    } finally { 
-      setFlagLoading(false) 
+    } finally {
+      setFlagLoading(false)
     }
   }
 
@@ -230,6 +297,57 @@ export default function ModerationCenter() {
       provider: 'google',
       options: { redirectTo: window.location.origin }
     })
+  }
+
+  // Populate active spot modal & auto-detect search tags
+  const openSpotInspection = (sub: any) => {
+    setActiveSub(sub)
+    const existingBadges = Array.isArray(sub.details?.badges) ? sub.details.badges : []
+    setModSelectedBadges(existingBadges)
+
+    // Auto-detect activity tags from title, suburb, and review body
+    const textBlob = `${sub.title || ''} ${sub.suburb || ''} ${sub.details?.review_body || ''}`.toLowerCase()
+    const detected = new Set<string>()
+
+    if (sub.suburb) detected.add(sub.suburb.trim())
+    if (textBlob.includes('disc golf')) detected.add('Disc Golf')
+    if (textBlob.includes('skate') || textBlob.includes('scooter')) detected.add('Skate Park')
+    if (textBlob.includes('pump track')) detected.add('Pump Track')
+    if (textBlob.includes('bmx') || textBlob.includes('bike')) detected.add('BMX Track')
+    if (textBlob.includes('climb')) detected.add('Climbing Walls')
+    if (textBlob.includes('basket')) detected.add('Basketball Court')
+    if (textBlob.includes('nature play') || textBlob.includes('creek')) detected.add('Nature Play')
+    if (textBlob.includes('water play') || textBlob.includes('splash')) detected.add('Water Play')
+    if (textBlob.includes('free')) detected.add('Free Entry')
+    if (textBlob.includes('indoor') || textBlob.includes('cafe')) detected.add('Indoor Venue')
+    if (textBlob.includes('national park') || textBlob.includes('reserve')) detected.add('National Park')
+
+    // Include existing user badges as search tags as well
+    existingBadges.forEach((b: string) => detected.add(b))
+
+    setModSearchTags(Array.from(detected))
+    setCustomTagInput('')
+  }
+
+  const toggleBadge = (badge: string) => {
+    setModSelectedBadges(prev => 
+      prev.includes(badge) ? prev.filter(b => b !== badge) : [...prev, badge]
+    )
+  }
+
+  const toggleSearchTag = (tag: string) => {
+    setModSearchTags(prev => 
+      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+    )
+  }
+
+  const handleAddCustomTag = () => {
+    const val = customTagInput.trim()
+    if (!val) return
+    if (!modSearchTags.includes(val)) {
+      setModSearchTags(prev => [...prev, val])
+    }
+    setCustomTagInput('')
   }
 
   // BULK APPROVE ONLY CLEAN PENDING (EXCLUDES FLAGGED/PROFANITY)
@@ -355,13 +473,13 @@ export default function ModerationCenter() {
     }
   }
 
-  // MASTER v5.6 POST GENERATOR (With Prominent Community Contributor Card)
-  const generateBloggerHtml = (item: any) => {
+  // MASTER v5.6 POST GENERATOR (With Smart Core Logistics & Redundancy Suppression)
+  const generateBloggerHtml = (item: any, selectedBadges: string[], searchLabels: string[]) => {
     if (!item) return ''
     const details = item.details || {}
     const title = item.title || 'Spot Name'
     
-    // Robust search for author name
+    // Contributor Name & Suburb
     const contributorName = (
       item.name || 
       details.author_name || 
@@ -431,42 +549,20 @@ ${indicatorsHtml}
       </div>`
     }
 
-    // Summary Grid Badges
-    const badgeIcons: Record<string, string> = {
-      'All Ages': '👨‍👩‍👧‍👦',
-      '1-3 Hours': '⏱️',
-      'Free Parking': '🅿️',
-      'Free Entry': '💰',
-      'Toilets Onsite': '🚻',
-      'Public Toilet': '🚻',
-      'Pristine Toilets': '🚻',
-      'Shaded Areas': '⛱️',
-      'Shaded Seating': '⛱️',
-      'Fully Fenced': '🛝',
-      'Fenced Playground': '🛝',
-      'Play Playground': '🛝',
-      'Playground': '🛝',
-      'Accessible': '♿',
-      'Coffee / Food': '☕',
-      'Full Service Café': '☕',
-      'BBQ Facilities': '🍖',
-      'Dog Friendly': '🐶',
-      'Toddler Friendly': '👶',
-      'Toddler Zone': '👶',
-      'Indoor Venue': '🏠',
-      'Climbing Walls': '🧗',
-      'Basketball Court': '🏀',
-      'Water Fountain': '🚰',
-      'Party Packages': '🎂'
-    }
+    // Filter Out Redundant Badges from the Visual Grid if already in Title
+    const titleLower = title.toLowerCase()
+    const visualBadges = selectedBadges.filter(badge => {
+      const bLower = badge.toLowerCase()
+      if (bLower.includes('disc golf') && titleLower.includes('disc golf')) return false
+      if (bLower.includes('climbing') && titleLower.includes('climbing')) return false
+      if (bLower.includes('skate') && titleLower.includes('skate')) return false
+      return true
+    })
 
+    const finalGridBadges = visualBadges.length > 0 ? visualBadges : ['All Ages', 'Free Parking', 'Shaded Areas']
     let badgesHtml = ''
-    const badgesArray = Array.isArray(details.badges) && details.badges.length > 0
-      ? details.badges
-      : ['All Ages', 'Play Playground', 'Free Parking', 'Shaded Seating']
-
-    badgesArray.forEach((b: string) => {
-      const icon = badgeIcons[b] || '✔'
+    finalGridBadges.forEach((b: string) => {
+      const icon = getBadgeIcon(b)
       badgesHtml += `          <div class="summary-item"><span class="summary-icon">${icon}</span><span class="summary-text">${b}</span></div>\n`
     })
 
@@ -1217,7 +1313,7 @@ ${isMultiPhoto ? `
                                 size="xs" 
                                 variant="light" 
                                 leftIcon={<AiOutlineEye />} 
-                                onClick={() => setActiveSub(sub)}
+                                onClick={() => openSpotInspection(sub)}
                               >
                                 Inspect &amp; Export
                               </Button>
@@ -1470,11 +1566,11 @@ ${isMultiPhoto ? `
           </Paper>
         )}
 
-        {/* SUBMISSION INSPECTION MODAL */}
+        {/* SUBMISSION INSPECTION & MODERATION MODAL */}
         <Modal
           opened={!!activeSub}
           onClose={() => setActiveSub(null)}
-          title={<Text weight={700}>{activeSub?.type === 'spot' ? 'Spot Submission Details' : 'Contact Message'}</Text>}
+          title={<Text weight={700}>{activeSub?.type === 'spot' ? 'Review & Publish Spot Submission' : 'Contact Message'}</Text>}
           size="xl"
         >
           {activeSub && (() => {
@@ -1523,11 +1619,100 @@ ${isMultiPhoto ? `
                   </Box>
                 )}
 
+                {/* MODERATOR AMENITIES & SEARCH TAG TUNING */}
+                {activeSub.type === 'spot' && (
+                  <Paper withBorder p="md" radius="md" bg="#f8fafc">
+                    <Stack spacing="xs">
+                      <div>
+                        <Text size="xs" weight={800} color="dimmed" transform="uppercase">
+                          1. Core Parent Essentials (Displayed in Visual Grid)
+                        </Text>
+                        <Text size="xs" color="dimmed" mb={8}>
+                          Toggle the logistical features to display on the post's "At a Glance" section:
+                        </Text>
+                        <Group spacing={6}>
+                          {CORE_PARENT_ESSENTIALS.map((badge) => {
+                            const isChecked = modSelectedBadges.includes(badge)
+                            return (
+                              <Chip
+                                key={badge}
+                                size="xs"
+                                checked={isChecked}
+                                onChange={() => toggleBadge(badge)}
+                                variant="outline"
+                              >
+                                {AMENITY_ICONS[badge]} {badge}
+                              </Chip>
+                            )
+                          })}
+                        </Group>
+                      </div>
+
+                      <div style={{ marginTop: 8 }}>
+                        <Text size="xs" weight={800} color="dimmed" transform="uppercase">
+                          2. Search Match Tags (Attached to Blogger Labels &amp; Match Engine)
+                        </Text>
+                        <Text size="xs" color="dimmed" mb={8}>
+                          Activities, features, and location tags that boost match scores in the Adelaide search engine:
+                        </Text>
+                        <Group spacing={6} mb={8}>
+                          {POPULAR_ACTIVITY_TAGS.map((tag) => {
+                            const isChecked = modSearchTags.includes(tag)
+                            return (
+                              <Chip
+                                key={tag}
+                                size="xs"
+                                color="blue"
+                                checked={isChecked}
+                                onChange={() => toggleSearchTag(tag)}
+                                variant="filled"
+                              >
+                                {tag}
+                              </Chip>
+                            )
+                          })}
+                        </Group>
+
+                        {/* CUSTOM TAG ADDER */}
+                        <Group spacing="xs" mt={4}>
+                          <TextInput
+                            placeholder="Add custom search tag (e.g. Marion Council, Free Entry)..."
+                            size="xs"
+                            value={customTagInput}
+                            onChange={(e) => setCustomTagInput(e.currentTarget.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                handleAddCustomTag()
+                              }
+                            }}
+                            style={{ flex: 1 }}
+                          />
+                          <Button size="xs" variant="light" color="blue" onClick={handleAddCustomTag} leftIcon={<AiOutlinePlus />}>
+                            Add Tag
+                          </Button>
+                        </Group>
+
+                        {/* ACTIVE TAGS DISPLAY */}
+                        <Group spacing={4} mt={6}>
+                          <Text size="xs" weight={700} color="dimmed">Final Labels:</Text>
+                          {modSearchTags.map(tag => (
+                            <Badge key={tag} size="xs" variant="dot" color="blue" style={{ cursor: 'pointer' }} onClick={() => toggleSearchTag(tag)}>
+                              {tag} ✕
+                            </Badge>
+                          ))}
+                        </Group>
+                      </div>
+                    </Stack>
+                  </Paper>
+                )}
+
+                {/* HTML EXPORT BLOCK */}
                 {activeSub.type === 'spot' && (
                   <>
                     <Group position="apart">
                       <Text weight={600} size="sm">Ready-To-Publish Blogger HTML (Master v5.6 Standard):</Text>
-                      <CopyButton value={generateBloggerHtml(activeSub)} timeout={2000}>
+                      <CopyButton value={generateBloggerHtml(activeSub, modSelectedBadges, modSearchTags)} timeout={2000}>
                         {({ copied, copy }) => (
                           <Button color={copied ? 'teal' : 'blue'} size="xs" leftIcon={<AiOutlineCopy />} onClick={copy}>
                             {copied ? 'Copied to Clipboard!' : 'Copy Blogger HTML'}
@@ -1537,7 +1722,7 @@ ${isMultiPhoto ? `
                     </Group>
 
                     <Textarea
-                      value={generateBloggerHtml(activeSub)}
+                      value={generateBloggerHtml(activeSub, modSelectedBadges, modSearchTags)}
                       readOnly
                       minRows={10}
                       maxRows={16}
