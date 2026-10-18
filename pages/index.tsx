@@ -355,11 +355,13 @@ export default function ModerationCenter() {
     }
   }
 
-  // MASTER v5.6 POST GENERATOR (Exact Spec for Funtopia & Southbank)
+  // MASTER v5.6 POST GENERATOR (With Community Contributor Attribution)
   const generateBloggerHtml = (item: any) => {
     if (!item) return ''
     const details = item.details || {}
     const title = item.title || 'Spot Name'
+    const contributorName = item.name || 'Anonymous Community Scout'
+    const suburb = item.suburb ? ` (${item.suburb})` : ''
     const address = details.address || (item.suburb ? `${item.suburb} SA` : 'Adelaide SA')
     const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${title}${address}`.trim())}`
     const website = details.website || ''
@@ -502,8 +504,32 @@ ${indicatorsHtml}
 }
 .title-accent { 
   width: 60px !important; height: 4px !important; background: #c7af76 !important; 
-  margin: 15px auto 35px auto !important; border-radius: 2px !important; 
+  margin: 15px auto 20px auto !important; border-radius: 2px !important; 
 }
+
+/* COMMUNITY CONTRIBUTOR BADGE */
+.contributor-attribution {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 30px;
+  padding: 8px 18px;
+  width: fit-content;
+  max-width: 90%;
+  margin: 0 auto 35px auto;
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+  text-align: center;
+}
+.contributor-attribution i { color: #2e5984; font-size: 14px; flex-shrink: 0; }
+.contributor-highlight { color: #0f172a; font-weight: 800; }
 
 /* IMAGES & CAROUSEL FUNCTION */
 .single-image-container { 
@@ -631,7 +657,11 @@ ${indicatorsHtml}
   .image-container, .carousel-container { height: 260px !important; border-radius: 0 !important; margin-bottom: 25px; box-shadow: none; }
   .post-title { font-size: 1.5rem !important; margin: 10px !important; }
   .post-subtitle { font-size: 12px !important; letter-spacing: 2px; }
-  .summary-grid { grid-template-columns: repeat(2, 1fr) !important; margin: 0 12px 30px 12px !important; gap: 10px !important; }
+  .contributor-attribution { font-size: 11px; padding: 6px 14px; margin-bottom: 25px; }
+
+  .summary-grid { 
+    grid-template-columns: repeat(2, 1fr) !important; margin: 0 12px 30px 12px !important; gap: 10px !important; 
+  }
   .best-day-verdict { margin: 10px 12px 30px 12px !important; padding: 18px 16px !important; border-radius: 8px !important; }
   .verdict-summary { font-size: 1.05rem !important; line-height: 1.35 !important; }
   .meta-box { flex-direction: column; gap: 20px; padding: 24px 16px !important; margin: 0 12px 30px 12px !important; }
@@ -646,6 +676,11 @@ ${indicatorsHtml}
       <span class="post-subtitle">Best Days With Dad - No Nonsense Review</span>
       <h1 class="post-title">${title}</h1>
       <div class="title-accent"></div>
+
+      <div class="contributor-attribution">
+        <i class="fa fa-user-check"></i>
+        <span>Contributed by <span class="contributor-highlight">${contributorName}${suburb}</span></span>
+      </div>
     </header>
 
 ${mediaBlock}
