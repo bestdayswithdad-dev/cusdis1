@@ -12,7 +12,7 @@ import {
   AiOutlineClockCircle, AiOutlineGlobal, AiOutlineLock, 
   AiOutlineEnvironment, AiOutlineEye, AiOutlineCopy, 
   AiOutlineSearch, AiOutlineCheckCircle, AiOutlineWarning,
-  AiOutlineFlag, AiOutlineExternalLink, AiOutlineCloseCircle
+  AiOutlineFlag, AiOutlineExport, AiOutlineCloseCircle
 } from 'react-icons/ai'
 
 const ADMIN_EMAIL = 'bestdayswithdad@gmail.com'
@@ -318,7 +318,7 @@ export default function ModerationCenter() {
       fetchFlags()
     } catch (err) {
       console.error("Failed to update flag status", err)
-      alert("Failed to update update flag status.")
+      alert("Failed to update flag status.")
     }
   }
 
@@ -1227,7 +1227,7 @@ ${bodyParagraphs}
                               rel="noopener noreferrer"
                             >
                               <ActionIcon size="xs" variant="transparent" color="blue">
-                                <AiOutlineExternalLink size="1rem" />
+                                <AiOutlineExport size="1rem" />
                               </ActionIcon>
                             </Anchor>
                           </Group>
