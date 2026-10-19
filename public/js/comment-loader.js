@@ -1,8 +1,9 @@
 (function() {
-    // Persistent local storage for likes so they survive refreshes
     let userLikes = new Set(JSON.parse(localStorage.getItem('bdwd_likes') || '[]'));
     let currentUser = null;
     const PROJECT_ID = 'cbcd61ec-f2ef-425c-a952-30034c2de4e1';
+
+    const userTierCache = new Map();
 
     const getCleanUrl = () => window.location.href.split('?')[0].split('#')[0].replace(/\/$/, "");
 
@@ -65,7 +66,6 @@
             padding-right: 10px;
         }
 
-        /* NOTIFICATION TOAST / BANNER (CENTRED WITH CLOSE BUTTON) */
         .bdwd-notice-banner {
             position: relative;
             border-radius: 14px;
@@ -104,7 +104,6 @@
             text-align: center;
         }
 
-        /* TOP-RIGHT CLOSE (X) BUTTON */
         .bdwd-notice-close-btn {
             position: absolute;
             top: 10px;
@@ -124,7 +123,6 @@
             transform: scale(1.15);
         }
 
-        /* SAFE & POLISHED GOOGLE SIGN-IN BUTTON */
         .bdwd-google-cta-btn {
             display: inline-flex;
             align-items: center;
@@ -245,10 +243,30 @@
         }
         .comment-main { flex: 1; }
         .executive-btn { background: none; border: none; font-family: 'Montserrat'; font-size: 11px; font-weight: 800; cursor: pointer; color: #94a3b8; text-transform: uppercase; margin-right: 15px; padding: 0; }
-        .casual-adventurer-badge { color: #3b82f6 !important; font-size: 11px; font-weight: 800; text-transform: uppercase; margin-left: 8px; }
-        .park-scout-badge { color: #10b981 !important; font-size: 11px; font-weight: 800; text-transform: uppercase; margin-left: 8px; }
-        .mod-badge-text { color: #f59e0b !important; font-size: 11px; font-weight: 800; text-transform: uppercase; margin-left: 8px; }
         .reply-item-container { margin-left: 10px; border-left: 2px solid #f1f5f9; padding-left: 15px; margin-top: 15px; }
+
+        /* CLEAN TYPOGRAPHIC PILL BADGES */
+        .bdwd-tier-badge {
+            font-size: 10px !important;
+            font-weight: 900 !important;
+            text-transform: uppercase !important;
+            padding: 3px 9px !important;
+            border-radius: 6px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            letter-spacing: 0.8px !important;
+            border: 1px solid transparent !important;
+            margin-left: 8px !important;
+            vertical-align: middle !important;
+            line-height: 1.2 !important;
+        }
+
+        .tier-host { background: #fef3c7 !important; color: #92400e !important; border-color: #fcd34d !important; }
+        .tier-legend { background: #fee2e2 !important; color: #991b1b !important; border-color: #fca5a5 !important; }
+        .tier-top { background: #ede9fe !important; color: #5b21b6 !important; border-color: #c4b5fd !important; }
+        .tier-spot { background: #dcfce7 !important; color: #166534 !important; border-color: #86efac !important; }
+        .tier-verified { background: #e0f2fe !important; color: #075985 !important; border-color: #7dd3fc !important; }
+        .tier-guest { background: #f1f5f9 !important; color: #475569 !important; border-color: #cbd5e1 !important; }
 
         @keyframes bdwdFade {
             from { opacity: 0; transform: translateY(-4px); }
@@ -256,19 +274,74 @@
         }
     </style>`;
 
+    const resolveBadgeHtml = (email) => {
+        if (!email || email === 'guest@example.com') {
+            return `<span class="bdwd-tier-badge tier-guest">Guest</span>`;
+        }
+
+        const cleanEmail = email.trim().toLowerCase();
+        if (cleanEmail === 'bestdayswithdad@gmail.com') {
+            return `<span class="bdwd-tier-badge tier-host">Host</span>`;
+        }
+
+        const cached = userTierCache.get(cleanEmail);
+        if (cached) {
+            return `<span class="bdwd-tier-badge ${cached.class}" style="color:${cached.color}; border-color:${cached.color}50;">${cached.tier}</span>`;
+        }
+
+        return `<span class="bdwd-tier-badge tier-verified" data-hydrate-tier="${cleanEmail}">Verified Reader</span>`;
+    };
+
+    const fetchMissingTiers = async (emails) => {
+        const missing = emails.filter(e => e && e.includes('@') && !userTierCache.has(e.toLowerCase()));
+        if (!missing.length) return;
+
+        try {
+            const res = await fetch(`https://cusdis-jet-one.vercel.app/api/user-tier?emails=${encodeURIComponent(missing.join(','))}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            
+            Object.entries(data).forEach(([email, tierData]) => {
+                userTierCache.set(email.toLowerCase(), tierData);
+            });
+
+            document.querySelectorAll('[data-hydrate-tier]').forEach((el) => {
+                const targetEmail = el.getAttribute('data-hydrate-tier')?.toLowerCase();
+                const resolved = userTierCache.get(targetEmail);
+                if (resolved) {
+                    el.className = `bdwd-tier-badge ${resolved.class}`;
+                    el.style.color = resolved.color;
+                    el.style.borderColor = `${resolved.color}50`;
+                    el.textContent = resolved.tier;
+                    el.removeAttribute('data-hydrate-tier');
+                }
+            });
+
+            const contributorBadge = document.querySelector('[data-contributor-tier-target]');
+            if (contributorBadge) {
+                const cEmail = contributorBadge.getAttribute('data-contributor-tier-target')?.toLowerCase();
+                const resolved = userTierCache.get(cEmail);
+                if (resolved) {
+                    contributorBadge.className = `bdwd-tier-badge ${resolved.class}`;
+                    contributorBadge.style.color = resolved.color;
+                    contributorBadge.style.borderColor = `${resolved.color}50`;
+                    contributorBadge.textContent = resolved.tier;
+                    contributorBadge.removeAttribute('data-contributor-tier-target');
+                }
+            }
+        } catch (e) {
+            console.warn('Could not hydrate user tiers:', e);
+        }
+    };
+
     const createCommentHtml = (comment) => {
         const isLiked = userLikes.has(String(comment.id));
         const voteCount = comment.votes_count || 0;
-        const isGuest = !comment.by_email || comment.by_email === 'guest@example.com';
-        const isHost = comment.by_email === 'bestdayswithdad@gmail.com';
-
-        // Ownership checks for self-delete
-        const isOwner = currentUser?.user?.email === comment.by_email;
+        
+        const isOwner = currentUser?.user?.email && currentUser.user.email === comment.by_email;
         const isAdmin = currentUser?.user?.email === 'bestdayswithdad@gmail.com';
 
-        let badgeHtml = isHost ? '<span class="mod-badge-text">MOD</span>' : 
-                    (isGuest ? '<span class="casual-adventurer-badge">Casual Adventurer</span>' : 
-                    '<span class="park-scout-badge">Park Scout</span>');
+        const badgeHtml = resolveBadgeHtml(comment.by_email);
 
         const avatarUrl = comment.metadata?.avatar_url || null;
         const avatarImg = avatarUrl ? `<img src="${avatarUrl}" class="user-avatar-img">` : `<span style="font-size:18px;">👤</span>`;
@@ -277,9 +350,8 @@
             <div class="comment-card">
                 <div class="comment-avatar">${avatarImg}</div>
                 <div class="comment-main">
-                    <div style="display:flex; align-items:center; margin-bottom:6px;">
-                        <span style="font-weight:800; font-size:14px; color:#1e293b;">${comment.by_nickname}</span>
-                        ${badgeHtml}
+                    <div style="display:flex; align-items:center; margin-bottom:6px; flex-wrap:wrap;">
+                        <span style="font-weight:800; font-size:14px; color:#1e293b;">${comment.by_nickname}</span>${badgeHtml}
                     </div>
                     <p style="line-height:1.5; color:#475569; font-size:15px; margin-bottom:10px; margin-top:0;">${comment.content}</p>
                     <div class="comment-actions">
@@ -340,12 +412,11 @@
                 </div>
 
                 <div class="input-wrapper">
-                    <!-- INLINE STATUS FEEDBACK BOX -->
                     <div id="bdwd-notice-box" class="bdwd-notice-banner"></div>
 
                     <div class="nickname-label-bar">
                         <span style="font-size: 10px; font-weight: 800; color: #cbd5e1;">POSTING AS:</span>
-                        <input type="text" id="nickname" value="${currentUser?.user?.user_metadata?.full_name || 'Guest Explorer'}" />
+                        <input type="text" id="nickname" value="${currentUser?.user?.user_metadata?.full_name || 'Guest'}" />
                         
                         ${currentUser?.user ? `
                             <label class="avatar-choice-label">
@@ -374,6 +445,16 @@
                 </div>`;
             
             window.autoExpand = autoExpand;
+
+            const postEmails = comments.map(c => c.by_email).filter(Boolean);
+            const contributorAttr = document.querySelector('[data-contributor-tier-target]');
+            if (contributorAttr) {
+                const ce = contributorAttr.getAttribute('data-contributor-tier-target');
+                if (ce) postEmails.push(ce);
+            }
+            if (postEmails.length > 0) {
+                fetchMissingTiers(postEmails);
+            }
         } catch (e) { container.innerHTML = `<p>Syncing discussion...</p>`; }
     };
 
@@ -428,7 +509,6 @@
                 document.getElementById('parent-id').value = ""; 
                 body.placeholder = "Message Best Days With Dad..."; 
 
-                // CONTEXTUAL MODERATION FEEDBACK WITH CLOSE (X) BUTTON
                 if (noticeBox) {
                     if (data.moderationStatus === 'live') {
                         noticeBox.className = 'bdwd-notice-banner success';
@@ -478,7 +558,6 @@
     };
 
     window.handleLikeAction = async (id) => {
-        // --- AUTH CHECK FOR LIKES ---
         const freshLocker = getBadgeFromLocker();
         if (!freshLocker?.user) {
             return alert("Please sign in with Google to like comments!");
