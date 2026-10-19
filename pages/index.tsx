@@ -449,7 +449,7 @@ export default function ModerationCenter() {
     }
   }
 
-  // MASTER v5.6 POST GENERATOR (STANDARDIZED MATURE TIERS)
+  // MASTER v5.6 POST GENERATOR (STANDARDIZED MATURE TIERS + BRAND SLOGAN)
   const generateBloggerHtml = (
     item: any, 
     selectedCoreBadges: string[],
@@ -784,7 +784,7 @@ ${indicatorsHtml}
 <div class="container">
   <article class="post">
     <header class="hero-header">
-      <span class="post-subtitle">Best Days With Dad &bull; ${spotSuburb.toUpperCase()}</span>
+      <span class="post-subtitle">Best Days With Dad - No Nonsense Review</span>
       <h1 class="post-title">${title}</h1>
       <div class="title-accent"></div>
     </header>
