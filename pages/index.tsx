@@ -19,7 +19,6 @@ import {
 const ADMIN_EMAIL = 'bestdayswithdad@gmail.com'
 const ITEMS_PER_PAGE = 15
 
-// RESEARCH-BACKED CORE PARENT ESSENTIALS
 export const CORE_PARENT_ESSENTIALS = [
   { label: 'Fully Fenced', icon: '🚪' },
   { label: 'Toilets Onsite', icon: '🚻' },
@@ -34,7 +33,6 @@ export const CORE_PARENT_ESSENTIALS = [
   { label: 'Dog Friendly', icon: '🐶' }
 ]
 
-// EMOJI MAP
 export const AMENITY_ICONS: Record<string, string> = {
   'Fully Fenced': '🚪',
   'Toilets Onsite': '🚻',
@@ -50,7 +48,6 @@ export const AMENITY_ICONS: Record<string, string> = {
   'All Ages': '👨‍👩‍👧‍👦'
 }
 
-// Profanity detector for client-side display badge and filtering
 const PROFANITY_WORDS = [
   'fuck', 'fucking', 'fucked', 'fucker',
   'shit', 'shitty', 'bullshit',
@@ -84,7 +81,6 @@ export default function ModerationCenter() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
-  // MAIN WORKSPACE SECTION: 'comments' | 'spots' | 'contact' | 'flags'
   const [activeSection, setActiveSection] = useState('comments')
 
   // COMMENTS STATE
@@ -102,6 +98,11 @@ export default function ModerationCenter() {
   const [modSelectedBadges, setModSelectedBadges] = useState<string[]>([])
   const [drafting, setDrafting] = useState(false)
   const [draftUrl, setDraftUrl] = useState<string | null>(null)
+
+  // EDITABLE MODERATION FIELDS
+  const [editTitle, setEditTitle] = useState('')
+  const [editSuburb, setEditSuburb] = useState('')
+  const [editAddress, setEditAddress] = useState('')
 
   // POST FLAGS STATE
   const [flags, setFlags] = useState<PostFlagItem[]>([])
@@ -263,8 +264,18 @@ export default function ModerationCenter() {
   const openSpotInspection = (sub: any) => {
     setActiveSub(sub)
     setDraftUrl(null)
-    const submitted = Array.isArray(sub.details?.badges) ? sub.details.badges : []
 
+    const initialTitle = sub.title || 'Untitled Spot'
+    const initialSuburb = sub.suburb || sub.details?.suburb || 'Adelaide'
+    const initialAddress = sub.details?.address && sub.details.address !== initialSuburb
+      ? sub.details.address
+      : `${initialTitle}, ${initialSuburb} SA`
+
+    setEditTitle(initialTitle)
+    setEditSuburb(initialSuburb)
+    setEditAddress(initialAddress)
+
+    const submitted = Array.isArray(sub.details?.badges) ? sub.details.badges : []
     const initialChecked = CORE_PARENT_ESSENTIALS
       .map(item => item.label)
       .filter(coreLabel => {
@@ -293,7 +304,7 @@ export default function ModerationCenter() {
 
     if (!cleanPending.length) return
 
-    if (!window.confirm(`Approve all ${cleanPending.length} clean pending comments? (Profanity & link flags are excluded)`)) return
+    if (!window.confirm(`Approve all ${cleanPending.length} clean pending comments?`)) return
 
     const { data: { session } } = await supabase.auth.getSession()
     await Promise.all(
@@ -357,7 +368,6 @@ export default function ModerationCenter() {
     }
   }
 
-  // PUSH DRAFT DIRECTLY TO BLOGGER
   const handleCreateBloggerDraft = async () => {
     if (!activeSub) return
     setDrafting(true)
@@ -365,10 +375,10 @@ export default function ModerationCenter() {
 
     try {
       const { data: { session } } = await supabase.auth.getSession()
-      const htmlContent = generateBloggerHtml(activeSub, modSelectedBadges)
+      const htmlContent = generateBloggerHtml(activeSub, modSelectedBadges, editTitle, editSuburb, editAddress)
       
       const labels = [
-        activeSub.suburb,
+        editSuburb,
         ...modSelectedBadges
       ].filter(Boolean)
 
@@ -379,7 +389,7 @@ export default function ModerationCenter() {
           'Authorization': `Bearer ${session?.access_token}`
         },
         body: JSON.stringify({
-          title: activeSub.title || 'Spot Recommendation',
+          title: editTitle || 'Spot Recommendation',
           content: htmlContent,
           labels,
         }),
@@ -389,7 +399,6 @@ export default function ModerationCenter() {
       if (!res.ok) throw new Error(data.error || 'Failed to create draft in Blogger')
 
       setDraftUrl(data.draftUrl)
-      // Automatically flag as reviewed upon draft creation
       await updateSubmissionStatus(activeSub.id, 'reviewed')
     } catch (err: any) {
       console.error('Blogger draft error:', err)
@@ -432,24 +441,25 @@ export default function ModerationCenter() {
 
   const getFlagBadgeColor = (type: string) => {
     switch (type) {
-      case 'permanently_closed':
-        return 'red'
-      case 'equipment':
-        return 'orange'
-      case 'hours':
-        return 'blue'
-      case 'pricing':
-        return 'yellow'
-      default:
-        return 'gray'
+      case 'permanently_closed': return 'red'
+      case 'equipment': return 'orange'
+      case 'hours': return 'blue'
+      case 'pricing': return 'yellow'
+      default: return 'gray'
     }
   }
 
-  // MASTER v5.6 POST GENERATOR
-  const generateBloggerHtml = (item: any, selectedCoreBadges: string[]) => {
+  // MASTER v5.6 POST GENERATOR (STANDARDIZED MATURE TIERS)
+  const generateBloggerHtml = (
+    item: any, 
+    selectedCoreBadges: string[],
+    spotTitle: string,
+    spotSuburb: string,
+    spotAddress: string
+  ) => {
     if (!item) return ''
     const details = item.details || {}
-    const title = item.title || 'Spot Name'
+    const title = spotTitle || item.title || 'Spot Name'
     
     const contributorName = (
       item.name || 
@@ -461,11 +471,11 @@ export default function ModerationCenter() {
       'Community Scout'
     ).trim()
 
-    const rawSuburb = (item.suburb || details.suburb || details.suburb_name || '').trim()
-    const suburbDisplay = rawSuburb ? ` (${rawSuburb})` : ''
-
-    const address = details.address || (rawSuburb ? `${rawSuburb} SA` : 'Adelaide SA')
-    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${title}${address}`.trim())}`
+    const contributorEmail = item.email || ''
+    
+    const finalAddress = spotAddress.trim() || `${title}, ${spotSuburb || 'Adelaide'} SA`
+    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(finalAddress)}`
+    
     const website = details.website || ''
     const placeType = details.place_type || 'Park'
 
@@ -553,9 +563,7 @@ ${indicatorsHtml}
     const proTip = details.pro_tip || 'Aim to arrive early on weekends to secure shaded seating and easy parking.'
 
     return `<style>
-/* ============================================
-   MASTER v5.6: MOBILE-OPTIMISED OUTING STANDARD
-   ============================================ */
+/* MASTER v5.6: MOBILE-OPTIMISED OUTING STANDARD */
 .post-title-container, .post-header-line-1, .post-header { display: none !important; }
 .container { max-width: 1000px; margin: 0 auto; padding: 0; width: 100%; }
 
@@ -612,7 +620,29 @@ ${indicatorsHtml}
   font-weight: 800 !important; 
 }
 
-/* IMAGES & CAROUSEL FUNCTION */
+/* MATURE TYPOGRAPHIC TIER BADGES */
+.bdwd-tier-badge {
+  font-size: 10px !important;
+  font-weight: 900 !important;
+  text-transform: uppercase !important;
+  padding: 3px 9px !important;
+  border-radius: 6px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  letter-spacing: 0.8px !important;
+  border: 1px solid transparent !important;
+  margin-left: 8px !important;
+  vertical-align: middle !important;
+  line-height: 1.2 !important;
+}
+
+.tier-host { background: #fef3c7 !important; color: #92400e !important; border-color: #fcd34d !important; }
+.tier-legend { background: #fee2e2 !important; color: #991b1b !important; border-color: #fca5a5 !important; }
+.tier-top { background: #ede9fe !important; color: #5b21b6 !important; border-color: #c4b5fd !important; }
+.tier-spot { background: #dcfce7 !important; color: #166534 !important; border-color: #86efac !important; }
+.tier-verified { background: #e0f2fe !important; color: #075985 !important; border-color: #7dd3fc !important; }
+.tier-guest { background: #f1f5f9 !important; color: #475569 !important; border-color: #cbd5e1 !important; }
+
 .single-image-container { 
   position: relative; display: block; width: 100%; box-shadow: 0 4px 15px rgba(0,0,0,0.15); 
   border-radius: 20px; margin-bottom: 30px; overflow: hidden; background: #0f172a; line-height: 0; 
@@ -669,7 +699,7 @@ ${indicatorsHtml}
 .summary-icon { font-size: 1.8rem !important; margin-bottom: 8px; display: block; }
 .summary-text { font-size: 11px !important; font-weight: 800 !important; text-transform: uppercase; color: #475569; letter-spacing: 0.5px; line-height: 1.3; }
 
-/* THE GOLD VERDICT BOX */
+/* GOLD VERDICT BOX */
 .best-day-verdict { 
   background: linear-gradient(135deg, #fffdf5 0%, #ffffff 100%) !important; border-radius: 12px !important; 
   border: 1px solid #fef3c7 !important; border-left: 6px solid #c7af76 !important; padding: 20px 22px !important; 
@@ -754,7 +784,7 @@ ${indicatorsHtml}
 <div class="container">
   <article class="post">
     <header class="hero-header">
-      <span class="post-subtitle">Best Days With Dad - No Nonsense Review</span>
+      <span class="post-subtitle">Best Days With Dad &bull; ${spotSuburb.toUpperCase()}</span>
       <h1 class="post-title">${title}</h1>
       <div class="title-accent"></div>
     </header>
@@ -763,7 +793,10 @@ ${indicatorsHtml}
     <div class="contributor-box-wrapper">
       <div class="contributor-attribution">
         <i class="fa fa-user-check"></i>
-        <span>Contributed by <span class="contributor-highlight">${contributorName}${suburbDisplay}</span></span>
+        <span>Contributed by <span class="contributor-highlight">${contributorName}</span></span>
+        <span class="bdwd-tier-badge tier-spot" data-contributor-tier-target="${contributorEmail}">
+          Spot Contributor
+        </span>
       </div>
     </div>
 
@@ -785,7 +818,7 @@ ${badgesHtml}      </div>
         <span class="meta-label">Location Visited</span>
         <span class="meta-value">
           <a href="${mapsUrl}" target="_blank" rel="noopener">
-            📍 ${address}
+            📍 ${finalAddress}
           </a>
         </span>
       </div>
@@ -924,7 +957,7 @@ ${isMultiPhoto ? `
   "name": "${title}",
   "address": {
     "@type": "PostalAddress",
-    "streetAddress": "${address}",
+    "streetAddress": "${finalAddress}",
     "addressCountry": "AU"
   },
   "hasMap": "${mapsUrl}"
@@ -1199,7 +1232,7 @@ ${isMultiPhoto ? `
             <Group position="apart" mb="md">
               <div>
                 <Title order={3}>Community Spot Recommendations</Title>
-                <Text size="sm" color="dimmed">Review submissions, select core amenities, and copy standard Blogger HTML.</Text>
+                <Text size="sm" color="dimmed">Review submissions, customize precise location metadata, and create drafts.</Text>
               </div>
               <SegmentedControl
                 value={subFilter}
@@ -1222,8 +1255,8 @@ ${isMultiPhoto ? `
                   <thead>
                     <tr>
                       <th>Spot Name</th>
+                      <th>Suburb</th>
                       <th>Contributor</th>
-                      <th>Email</th>
                       <th>Rating</th>
                       <th>Date</th>
                       <th>Status</th>
@@ -1239,15 +1272,16 @@ ${isMultiPhoto ? `
                         sub.details?.contributor_name || 
                         'Anonymous'
 
-                      const suburb = sub.suburb || sub.details?.suburb || ''
+                      const suburb = sub.suburb || sub.details?.suburb || 'Adelaide'
 
                       return (
                         <tr key={sub.id}>
                           <td><Text weight={700}>{sub.title || 'Untitled'}</Text></td>
+                          <td><Badge color="blue" variant="light">{suburb}</Badge></td>
                           <td>
-                            {contributor} {suburb && <Text size="xs" color="dimmed">({suburb})</Text>}
+                            <Text size="sm" weight={600}>{contributor}</Text>
+                            <Text size="xs" color="dimmed">{sub.email}</Text>
                           </td>
-                          <td><Text size="sm">{sub.email}</Text></td>
                           <td>
                             <Badge color="yellow">{sub.details?.rating ? `${sub.details.rating}/5.0` : 'N/A'}</Badge>
                           </td>
@@ -1265,7 +1299,7 @@ ${isMultiPhoto ? `
                                 leftIcon={<AiOutlineEye />} 
                                 onClick={() => openSpotInspection(sub)}
                               >
-                                Inspect &amp; Export
+                                Inspect &amp; Publish
                               </Button>
                               {sub.status === 'pending' ? (
                                 <ActionIcon
@@ -1523,7 +1557,7 @@ ${isMultiPhoto ? `
             setActiveSub(null)
             setDraftUrl(null)
           }}
-          title={<Text weight={700}>{activeSub?.type === 'spot' ? 'Review & Export Spot Submission' : 'Contact Message'}</Text>}
+          title={<Text weight={700}>{activeSub?.type === 'spot' ? 'Review & Format Spot for Blogger' : 'Contact Message'}</Text>}
           size="xl"
         >
           {activeSub && (() => {
@@ -1534,25 +1568,63 @@ ${isMultiPhoto ? `
               activeSub.details?.contributor_name || 
               'Community Scout'
 
-            const suburbText = activeSub.suburb || activeSub.details?.suburb || ''
-
             return (
               <Stack spacing="md">
-                <Group position="apart">
-                  <Text weight={700} size="lg">{activeSub.title || 'Untitled'}</Text>
-                  <Badge color={activeSub.type === 'spot' ? 'blue' : 'teal'}>
-                    {activeSub.type === 'spot' ? 'Add a Spot' : 'Contact Us'}
-                  </Badge>
-                </Group>
+                <Paper withBorder p="sm" radius="md" bg="#f8fafc">
+                  <Group position="apart">
+                    <Group spacing="xs">
+                      <Text size="sm"><b>Contributor:</b> {author}</Text>
+                      {activeSub.email && !activeSub.email.includes('anonymous@') && (
+                        <Badge size="xs" color="blue" variant="filled">Registered User</Badge>
+                      )}
+                    </Group>
+                    <Text size="xs" color="dimmed">{activeSub.email}</Text>
+                  </Group>
+                </Paper>
 
-                <Text size="sm">
-                  <b>From:</b> {author} {suburbText && `(${suburbText})`} &bull; <b>Email:</b>{' '}
-                  <a href={`mailto:${activeSub.email}`} style={{ color: '#007bff' }}>
-                    {activeSub.email}
-                  </a>
-                </Text>
+                {activeSub.type === 'spot' && (
+                  <Paper withBorder p="md" radius="md">
+                    <Text size="xs" weight={800} color="#2e5984" transform="uppercase" mb="xs">
+                      1. Confirm Location &amp; Maps Search Target
+                    </Text>
+                    <SimpleGrid cols={2} spacing="sm">
+                      <TextInput
+                        label="Spot Title"
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.currentTarget.value)}
+                        placeholder="e.g. Marshmallow Park"
+                        required
+                      />
+                      <TextInput
+                        label="Suburb / Council"
+                        value={editSuburb}
+                        onChange={(e) => setEditSuburb(e.currentTarget.value)}
+                        placeholder="e.g. Adelaide Park Lands"
+                        required
+                      />
+                    </SimpleGrid>
+                    <TextInput
+                      mt="xs"
+                      label="Exact Address / Google Maps Search Query"
+                      description="Parents clicking 'Location Visited' will open Google Maps directly to this exact spot."
+                      value={editAddress}
+                      onChange={(e) => setEditAddress(e.currentTarget.value)}
+                      placeholder="e.g. Marshmallow Park, Glen Osmond Rd, Adelaide SA 5000"
+                      rightSection={
+                        <Anchor 
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(editAddress)}`} 
+                          target="_blank" 
+                          rel="noopener"
+                        >
+                          <ActionIcon size="sm" color="blue" title="Test Google Maps Link">
+                            <AiOutlineEnvironment size="1rem" />
+                          </ActionIcon>
+                        </Anchor>
+                      }
+                    />
+                  </Paper>
+                )}
 
-                {/* VISUAL IMAGE THUMBNAIL STRIP */}
                 {activeSub.type === 'spot' && (
                   <Box>
                     <Text size="xs" weight={700} color="dimmed" transform="uppercase" mb={6}>
@@ -1572,16 +1644,15 @@ ${isMultiPhoto ? `
                   </Box>
                 )}
 
-                {/* PARENT ESSENTIALS CHECKBOXES */}
                 {activeSub.type === 'spot' && (
                   <Paper withBorder p="md" radius="md" bg="#f8fafc">
                     <Stack spacing="xs">
                       <div>
                         <Text size="xs" weight={800} color="#2e5984" transform="uppercase">
-                          Core Parent Essentials (At A Glance Checklist)
+                          2. Core Parent Essentials Checklist
                         </Text>
                         <Text size="xs" color="dimmed" mb={10}>
-                          Check the logistical features present at this venue to render in the post:
+                          Select logistical features to render in the post:
                         </Text>
                         <SimpleGrid cols={2} spacing="xs">
                           {CORE_PARENT_ESSENTIALS.map((item) => {
@@ -1602,13 +1673,12 @@ ${isMultiPhoto ? `
                   </Paper>
                 )}
 
-                {/* 1-CLICK DRAFT PUBLISHING ACTIONS */}
                 {activeSub.type === 'spot' && (
                   <Paper p="md" withBorder bg="#f0f7ff" radius="md">
                     <Group position="apart">
                       <div>
                         <Text size="sm" weight={700} color="#0056b3">Blogger Direct Publishing</Text>
-                        <Text size="xs" color="dimmed">Push this review straight into Blogger as a formatted draft.</Text>
+                        <Text size="xs" color="dimmed">Generates the draft with the precise address and verified badge.</Text>
                       </div>
 
                       <Group>
@@ -1633,12 +1703,11 @@ ${isMultiPhoto ? `
                   </Paper>
                 )}
 
-                {/* HTML EXPORT BLOCK */}
                 {activeSub.type === 'spot' && (
                   <>
                     <Group position="apart">
                       <Text weight={600} size="sm">Review HTML (Master v5.6 Standard):</Text>
-                      <CopyButton value={generateBloggerHtml(activeSub, modSelectedBadges)} timeout={2000}>
+                      <CopyButton value={generateBloggerHtml(activeSub, modSelectedBadges, editTitle, editSuburb, editAddress)} timeout={2000}>
                         {({ copied, copy }) => (
                           <Button color={copied ? 'teal' : 'blue'} size="xs" leftIcon={<AiOutlineCopy />} onClick={copy}>
                             {copied ? 'Copied to Clipboard!' : 'Copy Blogger HTML'}
@@ -1648,7 +1717,7 @@ ${isMultiPhoto ? `
                     </Group>
 
                     <Textarea
-                      value={generateBloggerHtml(activeSub, modSelectedBadges)}
+                      value={generateBloggerHtml(activeSub, modSelectedBadges, editTitle, editSuburb, editAddress)}
                       readOnly
                       minRows={10}
                       maxRows={16}
