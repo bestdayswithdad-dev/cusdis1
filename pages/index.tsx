@@ -12,13 +12,14 @@ import {
   AiOutlineClockCircle, AiOutlineGlobal, AiOutlineLock, 
   AiOutlineEnvironment, AiOutlineEye, AiOutlineCopy, 
   AiOutlineSearch, AiOutlineCheckCircle, AiOutlineWarning,
-  AiOutlineFlag, AiOutlineExport, AiOutlineCloseCircle
+  AiOutlineFlag, AiOutlineExport, AiOutlineCloseCircle,
+  AiOutlineCloudUpload
 } from 'react-icons/ai'
 
 const ADMIN_EMAIL = 'bestdayswithdad@gmail.com'
 const ITEMS_PER_PAGE = 15
 
-// RESEARCH-BACKED CORE PARENT ESSENTIALS (NOW WITH ACCESSIBILITY)
+// RESEARCH-BACKED CORE PARENT ESSENTIALS
 export const CORE_PARENT_ESSENTIALS = [
   { label: 'Fully Fenced', icon: '🚪' },
   { label: 'Toilets Onsite', icon: '🚻' },
@@ -98,9 +99,9 @@ export default function ModerationCenter() {
   const [subFilter, setSubFilter] = useState('pending')
   const [subLoading, setSubLoading] = useState(false)
   const [activeSub, setActiveSub] = useState<any>(null)
-
-  // ACTIVE SPOT LOGISTICAL BADGES (CHECKBOX STATE)
   const [modSelectedBadges, setModSelectedBadges] = useState<string[]>([])
+  const [drafting, setDrafting] = useState(false)
+  const [draftUrl, setDraftUrl] = useState<string | null>(null)
 
   // POST FLAGS STATE
   const [flags, setFlags] = useState<PostFlagItem[]>([])
@@ -150,8 +151,8 @@ export default function ModerationCenter() {
     } catch (err) {
       console.error("Fetch flags failed", err)
       setFlags([])
-    } finally {
-      setFlagLoading(false)
+    } finally { 
+      setFlagLoading(false) 
     }
   }
 
@@ -181,7 +182,6 @@ export default function ModerationCenter() {
     }
   }, [flagFilter])
 
-  // Split submissions into spots and contact messages
   const spotSubmissions = useMemo(() => {
     return submissions.filter(s => s.type === 'spot')
   }, [submissions])
@@ -190,7 +190,6 @@ export default function ModerationCenter() {
     return submissions.filter(s => s.type === 'contact')
   }, [submissions])
 
-  // Extract distinct posts for the filter dropdown
   const postOptions = useMemo(() => {
     const map = new Map<string, string>()
     comments.forEach(c => {
@@ -206,7 +205,6 @@ export default function ModerationCenter() {
     ]
   }, [comments])
 
-  // Process and filter comments cleanly
   const { filteredComments, pendingCount, flaggedCount } = useMemo(() => {
     let pending = 0
     let flagged = 0
@@ -219,18 +217,15 @@ export default function ModerationCenter() {
       if (!c.approved && !isFlagged) pending++
       if (isFlagged && !c.approved) flagged++
 
-      // Status Filter
       if (commentSubFilter === 'pending' && (c.approved || isFlagged)) return false
       if (commentSubFilter === 'approved' && !c.approved) return false
       if (commentSubFilter === 'flagged' && (!isFlagged || c.approved)) return false
 
-      // Post Filter
       if (selectedPostFilter && selectedPostFilter !== 'all') {
         const pageSlug = c.Page?.slug || c.Page?.title
         if (pageSlug !== selectedPostFilter) return false
       }
 
-      // Search Query
       if (commentSearch.trim()) {
         const q = commentSearch.toLowerCase()
         const textMatch = c.content?.toLowerCase().includes(q)
@@ -246,7 +241,6 @@ export default function ModerationCenter() {
     return { filteredComments: list, pendingCount: pending, flaggedCount: flagged }
   }, [comments, commentSubFilter, selectedPostFilter, commentSearch])
 
-  // Paginated comments slice
   const paginatedComments = useMemo(() => {
     const start = (commentPage - 1) * ITEMS_PER_PAGE
     return filteredComments.slice(start, start + ITEMS_PER_PAGE)
@@ -266,12 +260,11 @@ export default function ModerationCenter() {
     })
   }
 
-  // Open spot inspection modal and map user's submitted checkboxes directly to the core list
   const openSpotInspection = (sub: any) => {
     setActiveSub(sub)
+    setDraftUrl(null)
     const submitted = Array.isArray(sub.details?.badges) ? sub.details.badges : []
 
-    // Match only core parent essentials that the contributor selected
     const initialChecked = CORE_PARENT_ESSENTIALS
       .map(item => item.label)
       .filter(coreLabel => {
@@ -291,7 +284,6 @@ export default function ModerationCenter() {
     )
   }
 
-  // BULK APPROVE ONLY CLEAN PENDING (EXCLUDES FLAGGED/PROFANITY)
   const handleBulkApprove = async () => {
     const cleanPending = comments.filter(c => {
       const isProfane = checkProfanity(c.content)
@@ -365,7 +357,48 @@ export default function ModerationCenter() {
     }
   }
 
-  // UPDATE FLAG STATUS
+  // PUSH DRAFT DIRECTLY TO BLOGGER
+  const handleCreateBloggerDraft = async () => {
+    if (!activeSub) return
+    setDrafting(true)
+    setDraftUrl(null)
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const htmlContent = generateBloggerHtml(activeSub, modSelectedBadges)
+      
+      const labels = [
+        activeSub.suburb,
+        ...modSelectedBadges
+      ].filter(Boolean)
+
+      const res = await fetch('/api/blogger/create-draft', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
+        },
+        body: JSON.stringify({
+          title: activeSub.title || 'Spot Recommendation',
+          content: htmlContent,
+          labels,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to create draft in Blogger')
+
+      setDraftUrl(data.draftUrl)
+      // Automatically flag as reviewed upon draft creation
+      await updateSubmissionStatus(activeSub.id, 'reviewed')
+    } catch (err: any) {
+      console.error('Blogger draft error:', err)
+      alert(`Could not create draft: ${err.message}`)
+    } finally {
+      setDrafting(false)
+    }
+  }
+
   const updateFlagStatus = async (id: string, status: string) => {
     try {
       const { error } = await supabase
@@ -381,7 +414,6 @@ export default function ModerationCenter() {
     }
   }
 
-  // DELETE FLAG PERMANENTLY
   const deleteFlag = async (id: string) => {
     if (!window.confirm("Permanently delete this report?")) return
     try {
@@ -398,7 +430,6 @@ export default function ModerationCenter() {
     }
   }
 
-  // FLAG CATEGORY BADGE COLOR MAPPING
   const getFlagBadgeColor = (type: string) => {
     switch (type) {
       case 'permanently_closed':
@@ -414,13 +445,12 @@ export default function ModerationCenter() {
     }
   }
 
-  // MASTER v5.6 POST GENERATOR (STRICT CORE AT A GLANCE ONLY)
+  // MASTER v5.6 POST GENERATOR
   const generateBloggerHtml = (item: any, selectedCoreBadges: string[]) => {
     if (!item) return ''
     const details = item.details || {}
     const title = item.title || 'Spot Name'
     
-    // Contributor Name & Suburb
     const contributorName = (
       item.name || 
       details.author_name || 
@@ -439,7 +469,6 @@ export default function ModerationCenter() {
     const website = details.website || ''
     const placeType = details.place_type || 'Park'
 
-    // Star Rating Display
     const starMap: Record<string, string> = {
       '5.0': '⭐⭐⭐⭐⭐ 5.0 / 5.0',
       '4.5': '⭐⭐⭐⭐½ 4.5 / 5.0',
@@ -452,7 +481,6 @@ export default function ModerationCenter() {
     const ratingDisplay = starMap[details.rating] || `⭐⭐⭐⭐ ${details.rating || '4.0'} / 5.0`
     const verdict = details.verdict || 'A great Adelaide spot for the whole family to explore.'
 
-    // Image Handling: Support 1 Hero Photo OR Full Carousel
     const photos: string[] = Array.isArray(details.image_urls) && details.image_urls.length > 0
       ? details.image_urls
       : details.image_url ? [details.image_url] : []
@@ -490,7 +518,6 @@ ${indicatorsHtml}
       </div>`
     }
 
-    // Strictly Core Parent Badges
     const finalBadges = selectedCoreBadges.length > 0 ? selectedCoreBadges : ['Free Parking', 'Shaded Areas']
     let badgesHtml = ''
     finalBadges.forEach((b: string) => {
@@ -498,7 +525,6 @@ ${indicatorsHtml}
       badgesHtml += `          <div class="summary-item"><span class="summary-icon">${icon}</span><span class="summary-text">${b}</span></div>\n`
     })
 
-    // Operating Hours
     const hours = details.hours || {}
     const hasHours = hours.mon_fri || hours.mon_thu || hours.sat_sun || hours.sat
     let hoursBlock = ''
@@ -519,7 +545,6 @@ ${indicatorsHtml}
         </div>`
     }
 
-    // Review Paragraphs
     const rawBody = details.review_body || ''
     const bodyParagraphs = rawBody
       ? rawBody.split(/\n\s*\n/).map((p: string) => `        <p>${p.trim()}</p>`).join('\n')
@@ -907,7 +932,6 @@ ${isMultiPhoto ? `
 </script>`
   }
 
-  // REPLY LOGIC
   const submitDashboardReply = async () => {
     if (!replyContent.trim()) return
     const { data: { session } } = await supabase.auth.getSession()
@@ -971,7 +995,6 @@ ${isMultiPhoto ? `
           <Button variant="subtle" color="gray" onClick={handleLogout} size="xs">Log Out</Button>
         </Group>
 
-        {/* PRIMARY WORKSPACE SELECTOR */}
         <Paper withBorder p="xs" radius="md" bg="#f1f5f9">
           <SegmentedControl
             fullWidth
@@ -1496,7 +1519,10 @@ ${isMultiPhoto ? `
         {/* SUBMISSION INSPECTION & MODERATION MODAL */}
         <Modal
           opened={!!activeSub}
-          onClose={() => setActiveSub(null)}
+          onClose={() => {
+            setActiveSub(null)
+            setDraftUrl(null)
+          }}
           title={<Text weight={700}>{activeSub?.type === 'spot' ? 'Review & Export Spot Submission' : 'Contact Message'}</Text>}
           size="xl"
         >
@@ -1546,7 +1572,7 @@ ${isMultiPhoto ? `
                   </Box>
                 )}
 
-                {/* PARENT ESSENTIALS CHECKBOXES (WITH WHEELCHAIR ACCESSIBLE) */}
+                {/* PARENT ESSENTIALS CHECKBOXES */}
                 {activeSub.type === 'spot' && (
                   <Paper withBorder p="md" radius="md" bg="#f8fafc">
                     <Stack spacing="xs">
@@ -1576,11 +1602,42 @@ ${isMultiPhoto ? `
                   </Paper>
                 )}
 
+                {/* 1-CLICK DRAFT PUBLISHING ACTIONS */}
+                {activeSub.type === 'spot' && (
+                  <Paper p="md" withBorder bg="#f0f7ff" radius="md">
+                    <Group position="apart">
+                      <div>
+                        <Text size="sm" weight={700} color="#0056b3">Blogger Direct Publishing</Text>
+                        <Text size="xs" color="dimmed">Push this review straight into Blogger as a formatted draft.</Text>
+                      </div>
+
+                      <Group>
+                        <Button
+                          color="blue"
+                          loading={drafting}
+                          leftIcon={<AiOutlineCloudUpload size="1.2rem" />}
+                          onClick={handleCreateBloggerDraft}
+                        >
+                          Create Blogger Draft
+                        </Button>
+
+                        {draftUrl && (
+                          <Anchor href={draftUrl} target="_blank" rel="noopener noreferrer">
+                            <Button color="green" variant="light" leftIcon={<AiOutlineExport size="1rem" />}>
+                              Open Draft in Blogger
+                            </Button>
+                          </Anchor>
+                        )}
+                      </Group>
+                    </Group>
+                  </Paper>
+                )}
+
                 {/* HTML EXPORT BLOCK */}
                 {activeSub.type === 'spot' && (
                   <>
                     <Group position="apart">
-                      <Text weight={600} size="sm">Ready-To-Publish Blogger HTML (Master v5.6 Standard):</Text>
+                      <Text weight={600} size="sm">Review HTML (Master v5.6 Standard):</Text>
                       <CopyButton value={generateBloggerHtml(activeSub, modSelectedBadges)} timeout={2000}>
                         {({ copied, copy }) => (
                           <Button color={copied ? 'teal' : 'blue'} size="xs" leftIcon={<AiOutlineCopy />} onClick={copy}>
@@ -1610,7 +1667,10 @@ ${isMultiPhoto ? `
                 )}
 
                 <Group position="right" mt="md">
-                  <Button variant="default" onClick={() => setActiveSub(null)}>
+                  <Button variant="default" onClick={() => {
+                    setActiveSub(null)
+                    setDraftUrl(null)
+                  }}>
                     Close
                   </Button>
                   {activeSub.status === 'pending' ? (
