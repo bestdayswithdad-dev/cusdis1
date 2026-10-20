@@ -6,7 +6,34 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+const ALLOWED_ORIGINS = [
+  'https://www.bestdayswithdad.com.au',
+  'https://bestdayswithdad.com.au',
+  'https://www.bestdayswithdad.com',
+  'https://bestdayswithdad.com'
+];
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const origin = req.headers.origin;
+
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', 'https://www.bestdayswithdad.com.au');
+  }
+
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  if (req.method !== 'GET') {
+    res.setHeader('Allow', ['GET', 'OPTIONS']);
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
+
   const { emails } = req.query;
 
   if (!emails || typeof emails !== 'string') {
