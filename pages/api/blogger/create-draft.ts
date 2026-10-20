@@ -38,19 +38,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   // SECURITY GUARD 1: Verify Supabase Session
-  const supabase = createPagesServerClient({ req, res });
-  const { data: { session }, error: authError } = await supabase.auth.getSession();
+  try {
+    const supabase = createPagesServerClient({ req, res });
+    const { data: { session }, error: authError } = await supabase.auth.getSession();
 
-  if (authError || !session || !session.user) {
-    return res.status(401).json({ error: 'Unauthorized: Authentication required.' });
+    if (authError || !session || !session.user) {
+      return res.status(401).json({ error: 'Unauthorized: Authentication required.' });
+    }
+
+    // SECURITY GUARD 2: Explicit email lock to bestdayswithdad@gmail.com
+    if (session.user.email !== ADMIN_EMAIL) {
+      return res.status(403).json({ error: 'Forbidden: Admin access only.' });
+    }
+  } catch (authErr: any) {
+    console.error('Auth verification error:', authErr);
+    return res.status(401).json({ error: 'Unauthorized: Session verification failed.' });
   }
 
-  // SECURITY GUARD 2: Explicit email lock to bestdayswithdad@gmail.com
-  if (session.user.email !== ADMIN_EMAIL) {
-    return res.status(403).json({ error: 'Forbidden: Admin access only.' });
-  }
-
-  const { title, content, labels } = req.body;
+  const { title, content, labels } = req.body || {};
 
   if (!title || !content) {
     return res.status(400).json({ error: 'Post title and HTML content are required.' });
@@ -77,7 +82,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           kind: 'blogger#post',
           title: String(title).trim(),
           content: String(content),
-          labels: Array.isArray(labels) ? labels.map(l => String(l).trim()).filter(Boolean) : [],
+          labels: Array.isArray(labels) ? labels.map((l: any) => String(l).trim()).filter(Boolean) : [],
         }),
       }
     );
