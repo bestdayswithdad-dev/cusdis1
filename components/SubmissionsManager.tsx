@@ -17,20 +17,54 @@ import {
   Textarea
 } from '@mantine/core';
 
+interface SubmissionItem {
+  id: string | number;
+  type: 'spot' | 'contact' | string;
+  title?: string;
+  name?: string;
+  suburb?: string;
+  email?: string;
+  created_at: string;
+  status: 'pending' | 'reviewed' | string;
+  details?: {
+    address?: string;
+    website?: string;
+    place_type?: string;
+    rating?: string;
+    verdict?: string;
+    badges?: string[];
+    hours?: {
+      mon_thu?: string;
+      fri?: string;
+      sat?: string;
+      sun?: string;
+    };
+    review_body?: string;
+    pro_tip?: string;
+    message?: string;
+    [key: string]: any;
+  };
+}
+
 export default function SubmissionsManager() {
-  const [submissions, setSubmissions] = useState([]);
+  const [submissions, setSubmissions] = useState<SubmissionItem[]>([]);
   const [filter, setFilter] = useState('pending');
   const [loading, setLoading] = useState(true);
-  const [activeItem, setActiveItem] = useState(null);
+  const [activeItem, setActiveItem] = useState<SubmissionItem | null>(null);
 
   const fetchSubmissions = async () => {
     setLoading(true);
     try {
       const res = await fetch(`/api/submissions?status=${filter}`);
-      const data = await res.json();
-      setSubmissions(Array.isArray(data) ? data : []);
+      if (res.ok) {
+        const data = await res.json();
+        setSubmissions(Array.isArray(data) ? data : []);
+      } else {
+        setSubmissions([]);
+      }
     } catch (err) {
       console.error('Failed to load submissions', err);
+      setSubmissions([]);
     } finally {
       setLoading(false);
     }
@@ -40,24 +74,28 @@ export default function SubmissionsManager() {
     fetchSubmissions();
   }, [filter]);
 
-  const updateStatus = async (id, status) => {
+  const updateStatus = async (id: string | number, status: string) => {
     try {
-      await fetch('/api/submissions', {
+      const res = await fetch('/api/submissions', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, status })
       });
-      if (activeItem && activeItem.id === id) {
-        setActiveItem(null);
+      if (res.ok) {
+        if (activeItem && activeItem.id === id) {
+          setActiveItem(null);
+        }
+        fetchSubmissions();
+      } else {
+        console.error('Failed to update status, server returned:', res.status);
       }
-      fetchSubmissions();
     } catch (err) {
       console.error('Failed to update status', err);
     }
   };
 
   // Compiles submission data into standard Blogger HTML post template
-  const generateBloggerHtml = (item) => {
+  const generateBloggerHtml = (item: SubmissionItem | null) => {
     if (!item) return '';
     const details = item.details || {};
     const title = item.title || 'Spot Name';
@@ -68,18 +106,18 @@ export default function SubmissionsManager() {
     const website = details.website || '';
     const placeType = details.place_type || 'Place';
 
-    const starMap = {
+    const starMap: Record<string, string> = {
       '5.0': '⭐⭐⭐⭐⭐ 5.0/5.0',
       '4.5': '⭐⭐⭐⭐½ 4.5/5.0',
       '4.0': '⭐⭐⭐⭐ 4.0/5.0',
       '3.5': '⭐⭐⭐½ 3.5/5.0',
       '3.0': '⭐⭐⭐ 3.0/5.0'
     };
-    const ratingDisplay = starMap[details.rating] || `${details.rating || '4.0'}/5.0`;
+    const ratingDisplay = starMap[details.rating || ''] || `${details.rating || '4.0'}/5.0`;
     const verdict = details.verdict || '';
 
     // Badges grid
-    const badgeIcons = {
+    const badgeIcons: Record<string, string> = {
       'All Ages': '👨‍👩‍👧‍👦',
       '1-3 Hours': '⏱️',
       'Free Parking': '🅿',
