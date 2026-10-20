@@ -42,18 +42,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         email,
         suburb,
         title,
+        message,
+        content,
         details = {}
       } = body
 
-      if (!name || !title) {
-        return res.status(400).json({ error: 'Spot title and your name are required.' })
+      if (!name || (!title && !message && !content)) {
+        return res.status(400).json({ error: 'Name and a title or message are required.' })
       }
 
-      // Ensure details is never double nested
-      let cleanDetails = details
-      if (cleanDetails && typeof cleanDetails === 'object' && cleanDetails.details) {
+      // Ensure details is an object and never double nested
+      let cleanDetails = typeof details === 'object' && details !== null ? { ...details } : {}
+      if (cleanDetails.details && typeof cleanDetails.details === 'object') {
         cleanDetails = cleanDetails.details
       }
+
+      // Capture message text whether Blogger sent it at top-level or inside details
+      const incomingMessage = message || content || cleanDetails.message || cleanDetails.content || cleanDetails.body
+
+      if (incomingMessage) {
+        cleanDetails.message = String(incomingMessage).trim()
+      }
+
+      const finalTitle = title ? String(title).trim() : (type === 'contact' ? 'General Contact Inquiry' : 'Untitled Spot')
 
       const newSubmission = await prisma.submission.create({
         data: {
@@ -61,8 +72,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           name: String(name).trim(),
           email: email ? String(email).trim() : 'anonymous@community.local',
           suburb: suburb ? String(suburb).trim() : null,
-          title: title ? String(title).trim() : null,
-          details: cleanDetails || {},
+          title: finalTitle,
+          details: cleanDetails,
           status: 'pending',
           projectId: PROJECT_ID
         }
