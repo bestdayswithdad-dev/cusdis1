@@ -1,4 +1,4 @@
-import { NextApiRequest, NextApiResponse } from 'next'
+import type { NextApiRequest, NextApiResponse } from 'next'
 
 // Mandatory Serialize Helper for BigInt (Project Requirement)
 const serialize = (obj: any) => {
@@ -9,14 +9,30 @@ const serialize = (obj: any) => {
 
 let cachedFeed: any = null
 let lastFetchTime = 0
-const CACHE_DURATION = 600000 // 10 minutes to protect against the 429 block
+const CACHE_DURATION = 600000 // 10 minutes cache shield
+
+const ALLOWED_ORIGINS = [
+  'https://www.bestdayswithdad.com.au',
+  'https://bestdayswithdad.com.au',
+  'https://www.bestdayswithdad.com',
+  'https://bestdayswithdad.com'
+]
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  res.setHeader('Access-Control-Allow-Origin', 'https://www.bestdayswithdad.com')
+  const origin = req.headers.origin
+
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin)
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', 'https://www.bestdayswithdad.com.au')
+  }
+
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
-  
-  if (req.method === 'OPTIONS') return res.status(200).end()
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end()
+  }
 
   const now = Date.now()
 
@@ -26,26 +42,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const bloggerUrl = 'https://www.bestdayswithdad.com/feeds/posts/default?alt=json&max-results=100'
-    
-    // 2. Abort if Google takes more than 5 seconds
+    // 2. Fetch directly from the active .com.au domain
+    const bloggerUrl = 'https://www.bestdayswithdad.com.au/feeds/posts/default?alt=json&max-results=100'
+
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 5000)
+    const timeoutId = setTimeout(() => controller.abort(), 6000)
 
     const response = await fetch(bloggerUrl, { 
       signal: controller.signal,
-      headers: { 'User-Agent': 'Vercel-Fetch-Proxy' } 
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Vercel-Fetch-Proxy/1.0)' } 
     })
-    
+
     clearTimeout(timeoutId)
 
     if (!response.ok) {
       if (cachedFeed) return res.status(200).json(serialize(cachedFeed))
-      throw new Error(`Google Blocked Proxy: ${response.status}`)
+      throw new Error(`Google Feed Rejection: ${response.status}`)
     }
 
     const data = await response.json()
-    
+
     // 3. Update memory cache
     cachedFeed = data
     lastFetchTime = now
@@ -53,7 +69,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json(serialize(data))
   } catch (error: any) {
     console.error('[PROXY ERROR]', error.message)
-    // 4. Final Fallback to avoid 500 crash
+    // 4. Return cached fallback or safe empty feed to prevent frontend crashes
     if (cachedFeed) return res.status(200).json(serialize(cachedFeed))
     return res.status(200).json({ feed: { entry: [] }, error: true })
   }
