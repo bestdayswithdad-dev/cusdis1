@@ -7,6 +7,13 @@ if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 
 const PROJECT_ID = 'cbcd61ec-f2ef-425c-a952-30034c2de4e1'
 
+const ALLOWED_ORIGINS = [
+  'https://www.bestdayswithdad.com.au',
+  'https://bestdayswithdad.com.au',
+  'https://www.bestdayswithdad.com',
+  'https://bestdayswithdad.com'
+]
+
 const serialize = (data: unknown) =>
   JSON.parse(
     JSON.stringify(data, (_, value) =>
@@ -16,15 +23,11 @@ const serialize = (data: unknown) =>
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const origin = req.headers.origin || ''
-  const allowedOrigins = [
-    'https://www.bestdayswithdad.com',
-    'https://bestdayswithdad.com'
-  ]
 
-  if (allowedOrigins.includes(origin)) {
+  if (ALLOWED_ORIGINS.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin)
   } else {
-    res.setHeader('Access-Control-Allow-Origin', 'https://www.bestdayswithdad.com')
+    res.setHeader('Access-Control-Allow-Origin', 'https://www.bestdayswithdad.com.au')
   }
 
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS')
@@ -32,6 +35,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader('Access-Control-Allow-Credentials', 'true')
 
   if (req.method === 'OPTIONS') return res.status(200).end()
+
+  const submissionDelegate = (prisma as any).submission || (prisma as any).submissions
 
   if (req.method === 'POST') {
     try {
@@ -66,7 +71,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const finalTitle = title ? String(title).trim() : (type === 'contact' ? 'General Contact Inquiry' : 'Untitled Spot')
 
-      const newSubmission = await prisma.submission.create({
+      const newSubmission = await submissionDelegate.create({
         data: {
           type: String(type),
           name: String(name).trim(),
@@ -100,7 +105,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         whereClause.status = String(status)
       }
 
-      const submissions = await prisma.submission.findMany({
+      const submissions = await submissionDelegate.findMany({
         where: whereClause,
         orderBy: {
           created_at: 'desc'
@@ -124,10 +129,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ error: 'Missing ID or status.' })
       }
 
-      const updated = await prisma.submission.update({
-        where: {
-          id: BigInt(id)
-        },
+      // Support BigInt or String ID
+      const targetWhere: any = {}
+      try {
+        targetWhere.id = BigInt(id)
+      } catch {
+        targetWhere.id = String(id)
+      }
+
+      const updated = await submissionDelegate.update({
+        where: targetWhere,
         data: {
           status: String(status)
         }
