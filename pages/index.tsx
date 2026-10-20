@@ -133,7 +133,7 @@ export default function ModerationCenter() {
       setSubmissions(Array.isArray(data) ? data : [])
     } catch (err) { 
       console.error("Fetch submissions failed", err)
-      setSubmissions([])
+      setSubmissions([]) 
     } finally { 
       setSubLoading(false) 
     }
@@ -149,9 +149,9 @@ export default function ModerationCenter() {
       const { data, error } = await query
       if (error) throw error
       setFlags((data as PostFlagItem[]) || [])
-    } catch (err) {
+    } catch (err) { 
       console.error("Fetch flags failed", err)
-      setFlags([])
+      setFlags([]) 
     } finally { 
       setFlagLoading(false) 
     }
@@ -960,6 +960,7 @@ ${isMultiPhoto ? `
     "streetAddress": "${finalAddress}",
     "addressCountry": "AU"
   },
+  "url": "https://www.bestdayswithdad.com.au",
   "hasMap": "${mapsUrl}"
 }
 </script>`
@@ -1079,7 +1080,7 @@ ${isMultiPhoto ? `
                     size="sm" 
                     color="green" 
                     variant="light" 
-                    leftIcon={<AiOutlineCheckCircle size="1.1rem" />}
+                    leftIcon={<AiOutlineCheckCircle size="1.1rem" />} 
                     onClick={handleBulkApprove}
                   >
                     Approve All Clean Pending ({pendingCount})
@@ -1469,7 +1470,7 @@ ${isMultiPhoto ? `
                           <Group spacing={6}>
                             <Text weight={700} size="sm">{flag.page_slug}</Text>
                             <Anchor
-                              href={`https://www.bestdayswithdad.com/${flag.page_slug}.html`}
+                              href={`https://www.bestdayswithdad.com.au/${flag.page_slug}.html`}
                               target="_blank"
                               rel="noopener noreferrer"
                             >
