@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client'
-import { NextApiRequest, NextApiResponse } from 'next'
+import type { NextApiRequest, NextApiResponse } from 'next'
 import { createPagesServerClient } from '@supabase/auth-helpers-nextjs'
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }
@@ -9,11 +9,28 @@ if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 const PROJECT_ID = 'cbcd61ec-f2ef-425c-a952-30034c2de4e1'
 const ADMIN_EMAIL = 'bestdayswithdad@gmail.com'
 
+const ALLOWED_ORIGINS = [
+  'https://www.bestdayswithdad.com.au',
+  'https://bestdayswithdad.com.au',
+  'https://www.bestdayswithdad.com',
+  'https://bestdayswithdad.com'
+]
+
 const PROFANITY_ROOTS = [
   'fuck', 'shit', 'cunt', 'bitch', 'asshole', 'dick', 'cock', 
   'pussy', 'bastard', 'wanker', 'twat', 'slut', 'whore', 'fag',
   'nigger', 'nigga', 'retard', 'spastic', 'piss', 'bollocks'
 ]
+
+function getCleanUrl(url: string): string {
+  if (!url) return ''
+  return url.split('?')[0].replace(/\/$/, '')
+}
+
+function getUrlPathSlug(url: string): string {
+  const clean = getCleanUrl(url)
+  return clean.replace(/^https?:\/\/[^\/]+/, '')
+}
 
 function normalizeText(input: string): string {
   if (!input) return ''
@@ -55,7 +72,14 @@ const serialize = (data: unknown) =>
   )
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  res.setHeader('Access-Control-Allow-Origin', 'https://www.bestdayswithdad.com')
+  const origin = req.headers.origin
+
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin)
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', 'https://www.bestdayswithdad.com.au')
+  }
+
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
   res.setHeader('Access-Control-Allow-Credentials', 'true')
@@ -65,14 +89,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const supabase = createPagesServerClient({ req, res })
 
   const getAuthenticatedUser = async () => {
-    const { data: { user: sessionUser } } = await supabase.auth.getUser()
-    if (sessionUser) return sessionUser
+    try {
+      const { data: { user: sessionUser } } = await supabase.auth.getUser()
+      if (sessionUser) return sessionUser
 
-    const authHeader = req.headers.authorization
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.split(' ')[1]
-      const { data: { user: tokenUser } } = await supabase.auth.getUser(token)
-      return tokenUser
+      const authHeader = req.headers.authorization
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.split(' ')[1]
+        const { data: { user: tokenUser } } = await supabase.auth.getUser(token)
+        return tokenUser
+      }
+    } catch (e) {
+      console.error('Error fetching authenticated user:', e)
     }
     return null
   }
@@ -83,16 +111,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       const whereClause: any = { projectId: PROJECT_ID }
       if (pageId) {
-        whereClause.OR = [{ pageId: String(pageId) }, { Page: { slug: String(pageId) } }]
+        const rawPage = String(pageId)
+        const cleanPage = getCleanUrl(rawPage)
+        const pathSlug = getUrlPathSlug(rawPage)
+
+        const alternativeSlugs = [
+          rawPage,
+          cleanPage,
+          cleanPage.replace('.com.au', '.com'),
+          cleanPage.replace('.com', '.com.au'),
+          pathSlug
+        ].filter(Boolean)
+
+        whereClause.OR = [
+          { pageId: { in: alternativeSlugs } },
+          { Page: { slug: { in: alternativeSlugs } } }
+        ]
         whereClause.approved = true
       }
-      const comments = await prisma.comment.findMany({
+
+      const commentDelegate = (prisma as any).comment || (prisma as any).comments
+      const comments = await commentDelegate.findMany({
         where: whereClause,
         include: { Page: true },
         orderBy: { created_at: 'desc' }
       })
       return res.status(200).json(serialize(comments))
     } catch (err) {
+      console.error('Fetch comments error:', err)
       return res.status(500).json({ error: 'Fetch failed' })
     }
   }
@@ -112,10 +158,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Run heuristics
     const check = evaluateHeuristics(content)
     
-    // Determine exact state:
-    // - 'flagged': contains offensive words or suspicious links
-    // - 'live': verified or host user with clean text
-    // - 'pending': guest with clean text awaiting moderation
     let moderationStatus: 'live' | 'pending' | 'flagged' = 'pending'
     let shouldApprove = false
 
@@ -131,19 +173,38 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     try {
-      let page = await prisma.page.findFirst({ where: { slug: pageId } })
+      const rawPage = String(pageId)
+      const cleanPage = getCleanUrl(rawPage)
+      const pathSlug = getUrlPathSlug(rawPage)
+      const searchSlugs = [
+        rawPage,
+        cleanPage,
+        cleanPage.replace('.com.au', '.com'),
+        cleanPage.replace('.com', '.com.au'),
+        pathSlug
+      ].filter(Boolean)
+
+      const pageDelegate = (prisma as any).page || (prisma as any).pages
+      let page = await pageDelegate.findFirst({
+        where: {
+          slug: { in: searchSlugs },
+          projectId: PROJECT_ID
+        }
+      })
+
       if (!page) {
-        page = await prisma.page.create({
+        page = await pageDelegate.create({
           data: {
             id: crypto.randomUUID(),
-            slug: pageId,
-            title: pageTitle || (pageId.split('/').pop()?.split('-').join(' ') ?? 'New Post'),
+            slug: cleanPage,
+            title: pageTitle || (cleanPage.split('/').pop()?.split('-').join(' ') ?? 'New Post'),
             projectId: PROJECT_ID
           }
         })
       }
 
-      const newComment = await prisma.comment.create({
+      const commentDelegate = (prisma as any).comment || (prisma as any).comments
+      const newComment = await commentDelegate.create({
         data: {
           id: crypto.randomUUID(),
           content,
@@ -162,7 +223,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       })
 
-      // Return both comment data and moderation feedback metadata to client
       return res.status(201).json({
         ...serialize(newComment),
         moderationStatus,
@@ -178,12 +238,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'PATCH') {
     const { id, action } = req.query
     const user = await getAuthenticatedUser()
+    const commentDelegate = (prisma as any).comment || (prisma as any).comments
 
     if (action === 'like') {
       if (!user) return res.status(401).json({ error: 'Please sign in to like comments' })
       const { type } = req.body
       try {
-        const updated = await prisma.comment.update({
+        const updated = await commentDelegate.update({
           where: { id: String(id) },
           data: {
             votes_count: {
@@ -201,7 +262,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     try {
       const { approved } = req.body
-      const updated = await prisma.comment.update({
+      const updated = await commentDelegate.update({
         where: { id: String(id) },
         data: { approved: !!approved }
       })
@@ -219,7 +280,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!user) return res.status(401).json({ error: 'Unauthorized' })
 
     try {
-      const comment = await prisma.comment.findUnique({ where: { id: String(id) } })
+      const commentDelegate = (prisma as any).comment || (prisma as any).comments
+      const comment = await commentDelegate.findUnique({ where: { id: String(id) } })
       if (!comment) return res.status(404).json({ error: 'Comment not found' })
 
       const isAuthor = comment.by_email === user.email
@@ -229,7 +291,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(403).json({ error: 'You can only delete your own comments' })
       }
 
-      await prisma.comment.delete({ where: { id: String(id) } })
+      await commentDelegate.delete({ where: { id: String(id) } })
       return res.status(200).json({ success: true })
     } catch (err) {
       return res.status(500).json({ error: 'Delete failed' })
